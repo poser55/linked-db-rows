@@ -53,15 +53,6 @@ public class Record {
         return content.stream().filter(e -> !e.subRow.isEmpty()).map(e -> e.name).collect(Collectors.toList());
     }
 
-
-    public Map<String, Map<String, List<Record>>> getSubrows() {
-        List<Data> asList = content.stream().filter(e -> !e.subRow.isEmpty()).collect(Collectors.toList());
-        Map<String, Map<String, List<Record>>> result = new HashMap<>();
-        asList.forEach(e -> result.put(e.name, e.subRow));
-        return result;
-    }
-
-
     public void setPkValue(Object value) {
         pkTable.pk = Db2Graph.PkTable.normalizePk(value);
     }
@@ -94,7 +85,6 @@ public class Record {
         public Object value;
         public Db2Graph.ColumnMetadata metadata;
         public Map<String, List<Record>> subRow = new HashMap<>();
-        public boolean existElsewhereInGraph;
 
         @Override
         public String toString() {

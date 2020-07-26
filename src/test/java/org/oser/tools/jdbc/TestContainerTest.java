@@ -53,7 +53,7 @@ public class TestContainerTest {
     void testInsert() throws SQLException, ClassNotFoundException, IOException {
         Connection mortgageConnection = Db2GraphSmallTest.getConnection("mortgage");
 
-        String json = "{ \"id\":7,\"author_id\":2, \"author\":[{\"id\":2,\"last_name\":\"Orwellian\"}],\"title\":\"1984_summer\" }";
+        String json = "{ \"id\":7,\"author_id\":1, \"author\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
         Record book = JsonImporter.jsonToRecord(mortgageConnection, "book", json);
 
