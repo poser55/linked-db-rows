@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -32,6 +33,10 @@ import static org.oser.tools.jdbc.Db2Graph.findElementWithName;
 import static org.oser.tools.jdbc.Db2Graph.table2Fk;
 import static org.oser.tools.jdbc.TreatmentOptions.ForceInsert;
 import static org.oser.tools.jdbc.TreatmentOptions.RemapPrimaryKeys;
+
+
+// todo errors:
+//  jsonToRecord: needs to convert the data types (not just all to string), e.g. for timestamp
 
 
 /** Import a JSON structure exported with {@link Db2Graph} into the db again.
@@ -138,17 +143,19 @@ public class JsonImporter {
                 JsonNode subJsonNode = json.get(subTableName);
                 ArrayList<Record> records = new ArrayList<>();
 
-                if (subJsonNode.isArray()){
-                    Iterator<JsonNode> elements = subJsonNode.elements();
+                if (subJsonNode != null){
+                    if (subJsonNode.isArray()) {
+                        Iterator<JsonNode> elements = subJsonNode.elements();
 
-                    while (elements.hasNext()) {
-                        Record subrecord = innerJsonToRecord(connection, subTableName, elements.next());
-                        if (subrecord != null) {
-                            records.add(subrecord);
+                        while (elements.hasNext()) {
+                            Record subrecord = innerJsonToRecord(connection, subTableName, elements.next());
+                            if (subrecord != null) {
+                                records.add(subrecord);
+                            }
                         }
+                    } else if (subJsonNode.isObject()) {
+                        records.add(innerJsonToRecord(connection, subTableName, subJsonNode));
                     }
-                } else if (subJsonNode.isObject()) {
-                    records.add(innerJsonToRecord(connection, subTableName, subJsonNode));
                 }
 
                 elementWithName.subRow.put(subTableName, records);
@@ -206,7 +213,7 @@ public class JsonImporter {
             int statementIndex = 1; // statement param
             for (String currentFieldName : jsonFieldNames) {
                 Record.Data currentElement = record.findElementWithName(currentFieldName);
-                String valueToInsert = currentElement.value.toString();
+                String valueToInsert = Objects.toString(currentElement.value);
 
                 valueToInsert = prepareVarcharToInsert(currentElement.metadata.type, currentFieldName, valueToInsert);
 

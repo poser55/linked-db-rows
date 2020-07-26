@@ -182,7 +182,7 @@ public class Db2Graph {
     /**
      * Main method: recursively scan a graph of db data and return it
      */
-    public Record contentAsGraph(Connection connection, String tableName, Object pkValue) throws SQLException {
+    public static Record contentAsGraph(Connection connection, String tableName, Object pkValue) throws SQLException {
         ExportContext context = new ExportContext();
 
         assertTableExists(connection, tableName);
@@ -199,7 +199,7 @@ public class Db2Graph {
     /**
      * complement the "data" by starting from "tableName" and recursively adding data that is connected via FKs
      */
-    private void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
+    private static void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
         List<Fk> fks = table2Fk(connection, tableName);
 
         for (Fk fk : fks) {
@@ -261,7 +261,7 @@ public class Db2Graph {
     }
 
 
-    Record readOneRecord(Connection connection, String tableName, Object pkValue, ExportContext context) throws SQLException {
+    static Record readOneRecord(Connection connection, String tableName, Object pkValue, ExportContext context) throws SQLException {
         Record data = new Record(tableName, pkValue);
 
         DatabaseMetaData metaData = connection.getMetaData();
@@ -295,7 +295,7 @@ public class Db2Graph {
         return data;
     }
 
-    List<Record> readLinkedRecords(Connection connection, String tableName, String fkName, Object fkValue, boolean nesting, ExportContext context) throws SQLException {
+    static List<Record> readLinkedRecords(Connection connection, String tableName, String fkName, Object fkValue, boolean nesting, ExportContext context) throws SQLException {
         List<Record> listOfRows = new ArrayList<>();
 
         DatabaseMetaData metaData = connection.getMetaData();
@@ -333,7 +333,7 @@ public class Db2Graph {
         return listOfRows;
     }
 
-    private Record innerReadRecord(String tableName, Map<String, ColumnMetadata> columns, String pkName, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount) throws SQLException {
+    private static Record innerReadRecord(String tableName, Map<String, ColumnMetadata> columns, String pkName, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount) throws SQLException {
         Record row = new Record(tableName, null);
 
         for (int i = 1; i <= columnCount; i++) {
@@ -389,7 +389,7 @@ public class Db2Graph {
         return originalName.toUpperCase();
     }
 
-    private void innerSetStatementField(String typeAsString, PreparedStatement preparedStatement, int statementIndex, String valueToInsert) throws SQLException {
+    private static void innerSetStatementField(String typeAsString, PreparedStatement preparedStatement, int statementIndex, String valueToInsert) throws SQLException {
         switch (typeAsString) {
             case "BOOLEAN":
             case "bool":

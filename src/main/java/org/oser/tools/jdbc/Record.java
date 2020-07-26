@@ -84,7 +84,7 @@ public class Record {
     public Set<Db2Graph.PkTable> getAllNodes(){
         Set<Db2Graph.PkTable> result = new HashSet<>();
         result.add(pkTable);
-        result.addAll(content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(e -> e.stream()).map(e->e.pkTable).collect(toSet()));
+        result.addAll(content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(e -> e.stream()).flatMap(e->e.getAllNodes().stream()).collect(toSet()));
         return result;
     }
 
