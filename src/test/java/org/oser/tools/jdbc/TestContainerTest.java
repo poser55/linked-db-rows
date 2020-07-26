@@ -56,6 +56,7 @@ public class TestContainerTest {
         String json = "{ \"id\":7,\"author_id\":1, \"author\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
         Record book = JsonImporter.jsonToRecord(mortgageConnection, "book", json);
+        assertEquals(2, book.getAllNodes().size());
 
         System.out.println(JsonImporter.asInserts(mortgageConnection, book, EnumSet.noneOf(TreatmentOptions.class)));
     }

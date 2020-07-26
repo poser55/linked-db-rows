@@ -7,9 +7,14 @@ import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 /**
  * Contains 1 record=row of a database table. Can hold nested records (that are linked to via FKs).
@@ -46,11 +51,11 @@ public class Record {
     }
 
     public List<String> getFieldNames() {
-        return content.stream().map(e -> e.name).collect(Collectors.toList());
+        return content.stream().map(e -> e.name).collect(toList());
     }
 
     public List<String> getFieldNamesWithSubrows() {
-        return content.stream().filter(e -> !e.subRow.isEmpty()).map(e -> e.name).collect(Collectors.toList());
+        return content.stream().filter(e -> !e.subRow.isEmpty()).map(e -> e.name).collect(toList());
     }
 
     public void setPkValue(Object value) {
@@ -74,6 +79,13 @@ public class Record {
             }
         }
         return null;
+    }
+
+    public Set<Db2Graph.PkTable> getAllNodes(){
+        Set<Db2Graph.PkTable> result = new HashSet<>();
+        result.add(pkTable);
+        result.addAll(content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(e -> e.stream()).map(e->e.pkTable).collect(toSet()));
+        return result;
     }
 
 
