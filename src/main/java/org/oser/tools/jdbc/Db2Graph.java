@@ -105,7 +105,7 @@ public class Db2Graph {
     /**
      * a table & its pk  (uniquely identifies a db row)
      */
-    static class PkTable {
+    public static class PkTable {
         public PkTable(String tableName, Object pk) {
             this.tableName = tableName;
             this.pk = normalizePk(pk);
