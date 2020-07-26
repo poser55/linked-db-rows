@@ -35,22 +35,12 @@ public class Db2GraphSmallTest {
     }
 
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
-        // to debug h2:
-        // 	Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082").start();
-
         Class.forName("org.postgresql.Driver");
 
         Connection con = DriverManager.getConnection(
                 "jdbc:postgresql://localhost/" + dbName, "postgres", "admin");
 
-        // postgresql
-//		 Class.forName("org.postgresql.Driver");
-//
-//		 Connection con = DriverManager.getConnection(
-//		 "jdbc:postgresql://localhost/offering", "postgres", "admin");
-
         con.setAutoCommit(true);
         return con;
     }
-
 }

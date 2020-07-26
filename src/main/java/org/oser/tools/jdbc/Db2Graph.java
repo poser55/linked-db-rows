@@ -198,7 +198,7 @@ public class Db2Graph {
             context.treatedFks.add(fk);
 
             Record.Data elementWithName = findElementWithName(data, fk.inverted ? fk.targetColumn : fk.columnName);
-            if (elementWithName.value != null) {
+            if ((elementWithName != null) & (elementWithName.value != null)) {
                 List<Record> subRow = readLinkedRecords(connection, fk.inverted ? fk.originTable : fk.targetTable,
                         fk.inverted ? fk.columnName : fk.targetColumn, elementWithName.value, true, context);
                 elementWithName.subRow.put(fk.inverted ? fk.originTable : fk.targetTable, subRow);
