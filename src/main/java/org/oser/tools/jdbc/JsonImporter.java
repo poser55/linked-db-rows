@@ -132,7 +132,7 @@ public class JsonImporter {
         // convert subrecords
 
         if (getCompositeJsonElements(json).size() == 0){
-            return null;
+            return record;
         }
 
         for (Db2Graph.Fk fk : table2Fk(connection, rootTable)) {

@@ -1,33 +1,60 @@
 package org.oser.tools.jdbc;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
 import org.h2.tools.Server;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-public class TestContainerTest {
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class TestContainerTest {
 
     @Test
     void testJsonToRecord() throws SQLException, IOException, ClassNotFoundException {
-        Connection mortgageConnection = getConnection("demo");
+        Connection mortgageConnection = Db2GraphSmallTest.getConnection("mortgage"); // getConnectionTestContainer("demo");
         Db2Graph db2GraphMortgage = new Db2Graph();
         Record book = db2GraphMortgage.contentAsGraph(mortgageConnection, "book", "1");
 
         System.out.println("book:"+book.asJson());
 
+        Record book2 = JsonImporter.jsonToRecord("book", book.asJson(), mortgageConnection);
+
+        System.out.println("book2:"+book2.asJson());
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        // todo: known issue .jsonToRecord converts json keys to upper case
+        assertEquals(mapper.readTree(book.asJson().toLowerCase()), mapper.readTree(book2.asJson().toLowerCase()));
+
+
+        Record author1 = db2GraphMortgage.contentAsGraph(mortgageConnection, "author", "1");
+        Record author2 = JsonImporter.jsonToRecord("author", author1.asJson(), mortgageConnection);
+
+        assertEquals(mapper.readTree(author1.asJson().toLowerCase()), mapper.readTree(author2.asJson().toLowerCase()));
     }
 
 
-    public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
+
+
+    @Test
+    void tableNotExistingTest() throws SQLException, IOException, ClassNotFoundException {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "xxx"));
+        Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "book");
+    }
+
+
+    public static Connection getConnectionTestContainer(String dbName) throws SQLException, ClassNotFoundException {
         Class.forName("org.postgresql.Driver");
 
-        //DriverDataSource ds = initDb(dbName);
+        ds = getDb(dbName);
 
         Connection con = ds.getConnection();
         con.setAutoCommit(true);
@@ -36,20 +63,18 @@ public class TestContainerTest {
 
     static DriverDataSource ds;
 
-    static {
-        try {
-            ds = initDb("demo");
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
-        }
-    }
 
+    // todo handle multiple db names properly
     @NotNull
-    private static DriverDataSource initDb(String dbName) throws SQLException {
+    private static DriverDataSource getDb(String dbName) throws SQLException {
+        if (ds != null) {
+            return ds;
+        }
+
         DriverDataSource ds = new DriverDataSource(TestContainerTest.class.getClassLoader(),
                 "", "jdbc:tc:postgresql:12.3:///" + dbName +"?TC_DAEMON=true", "postgres", "admin" );
 
-        // db at  http://localhost:8082/
+        // db console at  http://localhost:8082/
         Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082", "-webAdminPassword", "admin").start();
 
         Flyway flyway = Flyway.configure().dataSource(ds).load();

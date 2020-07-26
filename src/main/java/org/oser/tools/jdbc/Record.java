@@ -29,7 +29,7 @@ public class Record {
     }
 
     public void setPkValue(Object value) {
-        pkTable.pk = value;
+        pkTable.pk = Db2Graph.PkTable.normalizePk(value);
     }
 
     public String metadata(){

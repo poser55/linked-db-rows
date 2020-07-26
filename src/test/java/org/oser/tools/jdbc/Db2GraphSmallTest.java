@@ -19,6 +19,9 @@ public class Db2GraphSmallTest {
         assertEquals(1L, t1.pk);
 
         Assertions.assertThrows(IllegalArgumentException.class, () -> {new Db2Graph.PkTable("l");});
+
+
+        assertEquals(new Db2Graph.PkTable("1", (byte)1), new Db2Graph.PkTable("1", (long)1));
     }
 
     @Test

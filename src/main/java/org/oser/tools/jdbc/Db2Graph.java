@@ -108,7 +108,11 @@ public class Db2Graph {
     static class PkTable {
         public PkTable(String tableName, Object pk) {
             this.tableName = tableName;
-            this.pk = pk;
+            this.pk = normalizePk(pk);
+        }
+
+        public static Object normalizePk(Object pk) {
+            return pk instanceof Number ? ((Number) pk).longValue() : pk;
         }
 
         public PkTable(String shortExpression) {
@@ -126,9 +130,9 @@ public class Db2Graph {
             try {
                 optionalLongValue = Long.parseLong(rest);
             } catch (NumberFormatException e) {
-                pk = rest;
+                pk = normalizePk(rest);
             }
-            pk = optionalLongValue;
+            pk = normalizePk(optionalLongValue);
         }
 
         public String tableName;
@@ -138,14 +142,13 @@ public class Db2Graph {
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
-            PkTable pkTable = (PkTable) o;
-            return Objects.equals(tableName, pkTable.tableName) &&
-                    Objects.equals(pk, pkTable.pk);
+            String asString = o.toString();
+            return asString.equals(this.toString());
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(tableName, pk);
+            return Objects.hash(this.toString());
         }
 
         @Override
@@ -168,6 +171,11 @@ public class Db2Graph {
                     ", treatedFks=" + treatedFks +
                     '}';
         }
+
+        public boolean containsNode(String tableName, Object pk){
+            return visitedNodes.containsKey(new PkTable(tableName, pk));
+        }
+
     }
 
 
@@ -177,7 +185,7 @@ public class Db2Graph {
     public Record contentAsGraph(Connection connection, String tableName, Object pkValue) throws SQLException {
         ExportContext context = new ExportContext();
 
-        assertTableExists(tableName);
+        assertTableExists(connection, tableName);
 
         Record data = readOneRecord(connection, tableName, pkValue, context);
         addSubRowDataFromFks(connection, tableName, pkValue, data, context);
@@ -189,7 +197,7 @@ public class Db2Graph {
 
 
     /**
-     * complement the "data" by starting form "tableName" and recursively adding data that is connected via FKs
+     * complement the "data" by starting from "tableName" and recursively adding data that is connected via FKs
      */
     private void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
         List<Fk> fks = table2Fk(connection, tableName);
@@ -198,10 +206,15 @@ public class Db2Graph {
             context.treatedFks.add(fk);
 
             Record.Data elementWithName = findElementWithName(data, fk.inverted ? fk.targetColumn : fk.columnName);
-            if ((elementWithName != null) & (elementWithName.value != null)) {
-                List<Record> subRow = readLinkedRecords(connection, fk.inverted ? fk.originTable : fk.targetTable,
-                        fk.inverted ? fk.columnName : fk.targetColumn, elementWithName.value, true, context);
-                elementWithName.subRow.put(fk.inverted ? fk.originTable : fk.targetTable, subRow);
+            if ((elementWithName != null) && (elementWithName.value != null)) {
+                String subTableName = fk.inverted ? fk.originTable : fk.targetTable;
+                String subFkName = fk.inverted ? fk.columnName : fk.targetColumn;
+
+                if (!context.containsNode(subTableName, elementWithName.value)) {
+                    List<Record> subRow = readLinkedRecords(connection, subTableName,
+                            subFkName, elementWithName.value, true, context);
+                    elementWithName.subRow.put(subTableName, subRow);
+                }
             }
 
         }
@@ -258,6 +271,8 @@ public class Db2Graph {
         String pkName = primaryKeys.get(0);
         String selectPk = "SELECT * from " + tableName + " where  " + pkName + " = ?";
 
+
+
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
             innerSetStatementField(columns.get(pkName.toUpperCase()).getType(), pkSelectionStatement, 1, pkValue.toString());
 
@@ -275,6 +290,7 @@ public class Db2Graph {
                 }
             }
         }
+        context.visitedNodes.put(new PkTable(tableName, pkValue), data);
 
         return data;
     }
@@ -299,7 +315,7 @@ public class Db2Graph {
                     Record row = innerReadRecord(tableName, columns, pkName, rs, rsMetaData, columnCount);
 
                     boolean doNotNestThisRecord = false;
-                    if (context.visitedNodes.containsKey(new PkTable(tableName, row.pkTable.pk))) {
+                    if (context.containsNode(tableName, row.pkTable.pk)) {
                         // termination condition
                         doNotNestThisRecord = true;
                     }
@@ -339,8 +355,16 @@ public class Db2Graph {
 
     ////////////////////
 
-    private void assertTableExists(String tableName) {
-        // todo assert that table exists
+    public static void assertTableExists(Connection connection, String tableName) throws SQLException {
+        DatabaseMetaData dbm = connection.getMetaData();
+
+        ResultSet tables = dbm.getTables(null, null, tableName, null);
+        if (tables.next()) {
+            return; // Table exists
+        }
+        else {
+            throw new IllegalArgumentException("Table " + tableName + " does not exist");
+        }
     }
 
 
