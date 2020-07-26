@@ -32,7 +32,7 @@ public class Db2GraphSmallTest {
 
         System.out.println("book:"+book.asJson());
 
-        Record book2 = JsonImporter.jsonToRecord("book", book.asJson(), mortgageConnection);
+        Record book2 = JsonImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
 
         System.out.println("book2:"+book2.asJson());
     }

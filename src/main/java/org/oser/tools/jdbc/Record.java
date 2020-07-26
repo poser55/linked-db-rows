@@ -1,5 +1,8 @@
 package org.oser.tools.jdbc;
 
+import lombok.Getter;
+import lombok.ToString;
+
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -11,9 +14,12 @@ import java.util.stream.Collectors;
 /**
  * Contains 1 record=row of a database table. Can hold nested records (that are linked to via FKs).
  */
+@Getter
+@ToString
 public class Record {
     Db2Graph.PkTable pkTable;
     List<Data> content = new ArrayList<>();
+    String pkName;
 
     Map<RecordMetadata, Object> optionalMetadata = new HashMap<>();
 
@@ -21,25 +27,52 @@ public class Record {
         pkTable = new Db2Graph.PkTable(tableName, pk);
     }
 
-    /** returns json */
+    /**
+     * returns json
+     */
     public String asJson() {
         return "{ " +
                 content.stream().map(Data::toString).collect(Collectors.joining(",")) +
                 " }";
     }
 
+    public Record.Data findElementWithName(String columnName) {
+        for (Record.Data d : content) {
+            if (d.name.toUpperCase().equals(columnName.toUpperCase())) {
+                return d;
+            }
+        }
+        return null;
+    }
+
+    public List<String> getFieldNames() {
+        return content.stream().map(e -> e.name).collect(Collectors.toList());
+    }
+
+    public List<String> getFieldNamesWithSubrows() {
+        return content.stream().filter(e -> !e.subRow.isEmpty()).map(e -> e.name).collect(Collectors.toList());
+    }
+
+
+    public Map<String, Map<String, List<Record>>> getSubrows() {
+        List<Data> asList = content.stream().filter(e -> !e.subRow.isEmpty()).collect(Collectors.toList());
+        Map<String, Map<String, List<Record>>> result = new HashMap<>();
+        asList.forEach(e -> result.put(e.name, e.subRow));
+        return result;
+    }
+
+
     public void setPkValue(Object value) {
         pkTable.pk = Db2Graph.PkTable.normalizePk(value);
     }
 
-    public String metadata(){
+    public String metadata() {
         if (optionalMetadata.isEmpty()) {
             return "-";
-        }
-        else {
+        } else {
             Db2Graph.ExportContext o = (Db2Graph.ExportContext) optionalMetadata.get(RecordMetadata.EXPORT_CONTEXT);
 
-            return o.visitedNodes.keySet() + ((o== null) ? "": " #nodes:"+o.visitedNodes.size() );
+            return o.visitedNodes.keySet() + ((o == null) ? "" : " #nodes:" + o.visitedNodes.size());
         }
     }
 
@@ -67,7 +100,7 @@ public class Record {
         public String toString() {
             return "\"" + name +
                     "\":" + getValueWithQuoting() +
-                    ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElseGet(()->0) == 0)) ? (", " + maplistlist2jsonString(subRow)) : "") +
+                    ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElseGet(() -> 0) == 0)) ? (", " + maplistlist2jsonString(subRow)) : "") +
                     "";
         }
 
@@ -86,11 +119,11 @@ public class Record {
                     return value != null ? ("\"" + ((java.sql.Date) value).toLocalDate() + "\"") : null;
                 case "VARCHAR":
                 default:
-                    if (value == null){
+                    if (value == null) {
                         return null;
                     }
 
-                    Object valueEscaped  = value instanceof String  ? ((String)value).replace("\"", "\\\"") : value;
+                    Object valueEscaped = value instanceof String ? ((String) value).replace("\"", "\\\"") : value;
                     return ("\"" + valueEscaped + "\"");
             }
 

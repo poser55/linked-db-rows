@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.EnumSet;
 
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,7 +26,7 @@ public class TestContainerTest {
 
         System.out.println("book:"+book.asJson());
 
-        Record book2 = JsonImporter.jsonToRecord("book", book.asJson(), mortgageConnection);
+        Record book2 = JsonImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
 
         System.out.println("book2:"+book2.asJson());
 
@@ -36,13 +37,28 @@ public class TestContainerTest {
 
 
         Record author1 = db2GraphMortgage.contentAsGraph(mortgageConnection, "author", "1");
-        Record author2 = JsonImporter.jsonToRecord("author", author1.asJson(), mortgageConnection);
+        Record author2 = JsonImporter.jsonToRecord(mortgageConnection, "author", author1.asJson());
 
         assertEquals(mapper.readTree(author1.asJson().toLowerCase()), mapper.readTree(author2.asJson().toLowerCase()));
+
+        // as inserts
+
+//        String s = JsonImporter.asInserts(mortgageConnection, book2, EnumSet.noneOf(TreatmentOptions.class));
+        String s = JsonImporter.asInserts(mortgageConnection, book2, EnumSet.of(TreatmentOptions.ForceInsert));
+        System.out.println("\ninserts: "+s);
+
     }
 
+    @Test
+    void testInsert() throws SQLException, ClassNotFoundException, IOException {
+        Connection mortgageConnection = Db2GraphSmallTest.getConnection("mortgage");
 
+        String json = "{ \"id\":7,\"author_id\":2, \"author\":[{\"id\":2,\"last_name\":\"Orwellian\"}],\"title\":\"1984_summer\" }";
 
+        Record book = JsonImporter.jsonToRecord(mortgageConnection, "book", json);
+
+        System.out.println(JsonImporter.asInserts(mortgageConnection, book, EnumSet.noneOf(TreatmentOptions.class)));
+    }
 
     @Test
     void tableNotExistingTest() throws SQLException, IOException, ClassNotFoundException {
