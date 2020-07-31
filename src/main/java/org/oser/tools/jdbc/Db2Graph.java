@@ -44,11 +44,11 @@ public class Db2Graph {
         @Override
         public String toString() {
             return "Fk{" +
-                    "targetTable='" + fktable + '\'' +
-                    ", columnName='" + pkcolumn + '\'' +
+                    "fktable='" + fktable + '\'' +
+                    ", fkcolumn='" + fkcolumn + '\'' +
+                    ", pktable='" + pktable + '\'' +
+                    ", pfcolumn='" + pkcolumn + '\'' +
                     ", type='" + type + '\'' +
-                    ", originTable='" + pktable + '\'' +
-                    ", targetColumn='" + fkcolumn + '\'' +
                     ", inverted=" + inverted +
                     '}';
         }

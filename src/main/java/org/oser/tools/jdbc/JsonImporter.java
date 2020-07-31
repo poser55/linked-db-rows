@@ -57,26 +57,6 @@ public class JsonImporter {
     }
 
 
-    /** older variant */
-    public static String recordAsInserts(Connection connection, Record record, EnumSet<TreatmentOptions> options) throws SQLException {
-        List<String> tableInsertOrder = determineOrder(record.getPkTable().tableName, connection);
-
-        // tableName -> insertionStatement
-        Map<String, String> insertionStatements = new HashMap<>();
-
-        addInsertionStatements(record.getPkTable().tableName, record, new HashMap<>(), insertionStatements, connection, options);
-
-        String result = "";
-        for (String table : tableInsertOrder) {
-            if (insertionStatements.containsKey(table)) {
-                String inserts = insertionStatements.get(table) + ";";
-                result += inserts + "\n";
-            }
-        }
-        return result;
-    }
-
-
     /**
      * insert a record into a database - doing the remapping where needed.
      * assumes someone external handles the transaction
@@ -95,7 +75,7 @@ public class JsonImporter {
 
             Object candidatePk = null;
             if (isInsert) {
-                candidatePk = getCandidatePk(record.getPkTable().tableName, record.findElementWithName(record.pkName).metadata.type, record.pkName, connection);
+                candidatePk = getCandidatePk(connection, record.getPkTable().tableName, record.findElementWithName(record.pkName).metadata.type, record.pkName);
                 Db2Graph.PkTable key = new Db2Graph.PkTable(record.getPkTable().tableName, record.findElementWithName(record.pkName).value);
                 newKeys.put(key, candidatePk);
             }
@@ -182,7 +162,7 @@ public class JsonImporter {
     private static final Map<String, Long> latestUsedIntKeys = new HashMap<>();
 
     // todo: mk this later a pluggable strategy, should also support sequences
-    public static Object getCandidatePk(String tableName, String pkType, String pkName, Connection connection) throws SQLException {
+    public static Object getCandidatePk(Connection connection, String tableName, String pkType, String pkName) throws SQLException {
         if (pkType.toUpperCase().equals("VARCHAR")) {
             return UUID.randomUUID().toString();
         } else if (pkType.toUpperCase().startsWith("INT") || pkType.equals("NUMERIC") || pkType.toUpperCase().equals("DECIMAL")) {
@@ -303,11 +283,32 @@ public class JsonImporter {
     }
 
 
+    /** older variant */
+    public static String recordAsInserts(Connection connection, Record record, EnumSet<TreatmentOptions> options) throws SQLException {
+        List<String> tableInsertOrder = determineOrder(record.getPkTable().tableName, connection);
+
+        // tableName -> insertionStatement
+        Map<String, String> insertionStatements = new HashMap<>();
+
+        addInsertionStatements(connection, record.getPkTable().tableName, record, new HashMap<>(), insertionStatements, options);
+
+        String result = "";
+        for (String table : tableInsertOrder) {
+            if (insertionStatements.containsKey(table)) {
+                String inserts = insertionStatements.get(table) + ";";
+                result += inserts + "\n";
+            }
+        }
+        return result;
+    }
+
+
+
     /**
      * recursively add insertion statements starting from the rootTable and the record
      *  Old variant
      */
-    private static void addInsertionStatements(String tableName, Record record, Map<String, FieldsMapper> mappers, Map<String, String> insertionStatements, Connection connection, EnumSet<TreatmentOptions> options) throws SQLException {
+    private static void addInsertionStatements(Connection connection, String tableName, Record record, Map<String, FieldsMapper> mappers, Map<String, String> insertionStatements, EnumSet<TreatmentOptions> options) throws SQLException {
         String pkName = record.pkName;
 
         boolean isInsert = doesPkTableExist(connection, tableName, pkName, record);
@@ -381,7 +382,7 @@ public class JsonImporter {
                 for (String linkedTable : data.subRow.keySet()) {
 
                     for (Record subrecord : data.subRow.get(linkedTable)) {
-                        addInsertionStatements(linkedTable, subrecord, mappers, insertionStatements, connection, options);
+                        addInsertionStatements(connection, linkedTable, subrecord, mappers, insertionStatements, options);
                     }
                 }
             }
@@ -598,7 +599,7 @@ public class JsonImporter {
         // tableName -> insertionStatement
         Map<String, String> insertionStatements = new HashMap<>();
 
-        addInsertionStatements(rootTable, jsonToRecord(connection, rootTable, jsonString), mappers, insertionStatements, connection, options);
+        addInsertionStatements(connection, rootTable, jsonToRecord(connection, rootTable, jsonString), mappers, insertionStatements, options);
 
         for (String table : tableInsertOrder) {
             if (insertionStatements.containsKey(table)) {
