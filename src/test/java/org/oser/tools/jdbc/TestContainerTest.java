@@ -12,8 +12,10 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
+import java.util.Map;
 
 
+import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestContainerTest {
@@ -59,7 +61,10 @@ public class TestContainerTest {
 
         Record book2 = JsonImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
 
-        JsonImporter.insertRecords(mortgageConnection, book2, new InserterOptions());
+        Map<Db2Graph.PkAndTable, Object> pkAndTableObjectMap = JsonImporter.insertRecords(mortgageConnection, book2, new InserterOptions());
+        System.out.println("remapped: " + pkAndTableObjectMap.size() + " lenderPk" + pkAndTableObjectMap.keySet().stream()
+                .filter(p -> p.tableName.equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
+
 
     }
 

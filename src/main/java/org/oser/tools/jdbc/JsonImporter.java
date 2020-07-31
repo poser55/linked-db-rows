@@ -59,14 +59,17 @@ public class JsonImporter {
 
     /**
      * insert a record into a database - doing the remapping where needed.
-     * assumes someone external handles the transaction
+     * assumes someone external handles the transaction or autocommit
+     * @return the remapped keys (PkAndTable -> new primary key)
      */
-    public static void insertRecords(Connection connection, Record record, InserterOptions options) throws SQLException {
+    public static Map<Db2Graph.PkAndTable, Object> insertRecords(Connection connection, Record record, InserterOptions options) throws SQLException {
         Map<Db2Graph.PkAndTable, Object> newKeys = new HashMap<>();
 
         record.visitRecordsInInsertionOrder(connection, r -> insertOneRecord(connection, r, newKeys, new HashMap<>(), options));
 
         // todo treat errors
+
+        return newKeys;
     }
 
     private static void insertOneRecord(Connection connection, Record record, Map<Db2Graph.PkAndTable, Object> newKeys, Map<String, FieldsMapper> mappers, InserterOptions options) {
