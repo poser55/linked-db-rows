@@ -3,6 +3,8 @@ package org.oser.tools.jdbc;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -11,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
@@ -25,6 +28,7 @@ public class Record {
     Db2Graph.PkTable pkTable;
     List<Data> content = new ArrayList<>();
     String pkName;
+    List<Db2Graph.Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
 
     Map<RecordMetadata, Object> optionalMetadata = new HashMap<>();
 
@@ -86,6 +90,35 @@ public class Record {
         result.add(pkTable);
         result.addAll(content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(e -> e.stream()).flatMap(e->e.getAllNodes().stream()).collect(toSet()));
         return result;
+    }
+
+    /** visit all Records (top down). Ignore the result */
+    public Set<Record> visitAllRecords(Consumer<Record> visitor){
+
+        visitor.accept(this);
+
+        Set<Record> collect = content.stream().filter(e -> !e.subRow.isEmpty())
+                .flatMap(e -> e.subRow.values().stream())
+                .flatMap(e -> e.stream())
+                .flatMap(e -> e.visitAllRecords(visitor).stream()).collect(toSet());
+        return collect;
+    }
+
+    /** visit all Records in insertion order */
+    public void visitRecordsInInsertionOrder(Connection connection, Consumer<Record> visitor) throws SQLException {
+        List<String> insertionOrder = JsonImporter.determineOrder(pkTable.tableName, connection);
+
+        Map<String, List<Record>> tableToRecords = new HashMap<>();
+        visitAllRecords(r -> {
+            if (!tableToRecords.containsKey(r.pkTable.tableName)) {
+                tableToRecords.put(r.pkTable.tableName, new ArrayList<>());
+            }
+            tableToRecords.get(r.pkTable.tableName).add(r);
+        });
+
+        for (String tableName : insertionOrder) {
+            tableToRecords.get(tableName).forEach(r -> visitor.accept(r));
+        }
     }
 
 

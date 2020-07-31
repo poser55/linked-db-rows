@@ -50,6 +50,21 @@ public class TestContainerTest {
     }
 
     @Test
+    void testRemapping() throws SQLException, IOException, ClassNotFoundException {
+        Connection mortgageConnection = Db2GraphSmallTest.getConnection("mortgage"); // getConnectionTestContainer("demo");
+        Db2Graph db2GraphMortgage = new Db2Graph();
+        Record book = db2GraphMortgage.contentAsGraph(mortgageConnection, "book", "1");
+
+        System.out.println("book:" + book.asJson());
+
+        Record book2 = JsonImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
+
+        JsonImporter.insertRecords(mortgageConnection, book2, new InserterOptions());
+
+    }
+
+
+        @Test
     void testInsert() throws SQLException, ClassNotFoundException, IOException {
         Connection mortgageConnection = Db2GraphSmallTest.getConnection("mortgage");
 

@@ -1,5 +1,6 @@
 package org.oser.tools.jdbc;
 
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +58,7 @@ public class Db2Graph {
 
     public Db2Graph() {}
 
+    @Getter
     public static class Fk {
         public String targetTable;
         public String columnName;
