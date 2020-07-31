@@ -25,7 +25,7 @@ import static java.util.stream.Collectors.toSet;
 @Getter
 @ToString
 public class Record {
-    Db2Graph.PkTable pkTable;
+    Db2Graph.PkAndTable pkAndTable;
     List<Data> content = new ArrayList<>();
     String pkName;
     List<Db2Graph.Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
@@ -33,7 +33,7 @@ public class Record {
     Map<RecordMetadata, Object> optionalMetadata = new HashMap<>();
 
     public Record(String tableName, Object pk) {
-        pkTable = new Db2Graph.PkTable(tableName, pk);
+        pkAndTable = new Db2Graph.PkAndTable(tableName, pk);
     }
 
     /**
@@ -63,7 +63,7 @@ public class Record {
     }
 
     public void setPkValue(Object value) {
-        pkTable.pk = Db2Graph.PkTable.normalizePk(value);
+        pkAndTable.pk = Db2Graph.PkAndTable.normalizePk(value);
     }
 
     public String metadata() {
@@ -85,10 +85,13 @@ public class Record {
         return null;
     }
 
-    public Set<Db2Graph.PkTable> getAllNodes(){
-        Set<Db2Graph.PkTable> result = new HashSet<>();
-        result.add(pkTable);
-        result.addAll(content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(e -> e.stream()).flatMap(e->e.getAllNodes().stream()).collect(toSet()));
+    public Set<Db2Graph.PkAndTable> getAllNodes(){
+        Set<Db2Graph.PkAndTable> result = new HashSet<>();
+        result.add(pkAndTable);
+        result.addAll(content.stream()
+                .filter(e -> !e.subRow.isEmpty())
+                .flatMap(e -> e.subRow.values().stream()).flatMap(e -> e.stream()).flatMap(e->e.getAllNodes().stream())
+                .collect(toSet()));
         return result;
     }
 
@@ -105,14 +108,14 @@ public class Record {
 
     /** visit all Records in insertion order */
     public void visitRecordsInInsertionOrder(Connection connection, Consumer<Record> visitor) throws SQLException {
-        List<String> insertionOrder = JsonImporter.determineOrder(pkTable.tableName, connection);
+        List<String> insertionOrder = JsonImporter.determineOrder(pkAndTable.tableName, connection);
 
         Map<String, List<Record>> tableToRecords = new HashMap<>();
         visitAllRecords(r -> {
-            if (!tableToRecords.containsKey(r.pkTable.tableName)) {
-                tableToRecords.put(r.pkTable.tableName, new ArrayList<>());
+            if (!tableToRecords.containsKey(r.pkAndTable.tableName)) {
+                tableToRecords.put(r.pkAndTable.tableName, new ArrayList<>());
             }
-            tableToRecords.get(r.pkTable.tableName).add(r);
+            tableToRecords.get(r.pkAndTable.tableName).add(r);
         });
 
         for (String tableName : insertionOrder) {

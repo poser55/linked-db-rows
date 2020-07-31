@@ -14,14 +14,14 @@ public class Db2GraphSmallTest {
 
     @Test
     void pkTable() {
-        Db2Graph.PkTable t1 = new Db2Graph.PkTable("lender/1");
+        Db2Graph.PkAndTable t1 = new Db2Graph.PkAndTable("lender/1");
         assertEquals("lender", t1.tableName);
         assertEquals(1L, t1.pk);
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {new Db2Graph.PkTable("l");});
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {new Db2Graph.PkAndTable("l");});
 
 
-        assertEquals(new Db2Graph.PkTable("1", (byte)1), new Db2Graph.PkTable("1", (long)1));
+        assertEquals(new Db2Graph.PkAndTable("1", (byte)1), new Db2Graph.PkAndTable("1", (long)1));
     }
 
     @Test

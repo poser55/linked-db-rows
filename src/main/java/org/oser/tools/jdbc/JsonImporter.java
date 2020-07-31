@@ -62,21 +62,21 @@ public class JsonImporter {
      * assumes someone external handles the transaction
      */
     public static void insertRecords(Connection connection, Record record, InserterOptions options) throws SQLException {
-        Map<Db2Graph.PkTable, Object> newKeys = new HashMap<>();
+        Map<Db2Graph.PkAndTable, Object> newKeys = new HashMap<>();
 
         record.visitRecordsInInsertionOrder(connection, r -> insertOneRecord(connection, r, newKeys, new HashMap<>(), options));
 
         // todo treat errors
     }
 
-    private static void insertOneRecord(Connection connection, Record record, Map<Db2Graph.PkTable, Object> newKeys, Map<String, FieldsMapper> mappers, InserterOptions options) {
+    private static void insertOneRecord(Connection connection, Record record, Map<Db2Graph.PkAndTable, Object> newKeys, Map<String, FieldsMapper> mappers, InserterOptions options) {
         try {
-            boolean isInsert = options.isForceInsert() || doesPkTableExist(connection, record.getPkTable().tableName, record.pkName, record);
+            boolean isInsert = options.isForceInsert() || doesPkTableExist(connection, record.getPkAndTable().tableName, record.pkName, record);
 
             Object candidatePk = null;
             if (isInsert) {
-                candidatePk = getCandidatePk(connection, record.getPkTable().tableName, record.findElementWithName(record.pkName).metadata.type, record.pkName);
-                Db2Graph.PkTable key = new Db2Graph.PkTable(record.getPkTable().tableName, record.findElementWithName(record.pkName).value);
+                candidatePk = getCandidatePk(connection, record.getPkAndTable().tableName, record.findElementWithName(record.pkName).metadata.type, record.pkName);
+                Db2Graph.PkAndTable key = new Db2Graph.PkAndTable(record.getPkAndTable().tableName, record.findElementWithName(record.pkName).value);
                 newKeys.put(key, candidatePk);
             }
 
@@ -87,7 +87,7 @@ public class JsonImporter {
             jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
             // todo log if there is a delta between the 2 sets, ok for those who map subrows !
 
-            String sqlStatement = getSqlInsertOrUpdateStatement(record.pkTable.tableName, jsonFieldNames, record.pkName, isInsert);
+            String sqlStatement = getSqlInsertOrUpdateStatement(record.pkAndTable.tableName, jsonFieldNames, record.pkName, isInsert);
             PreparedStatement savedStatement = null;
             try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
 
@@ -112,7 +112,7 @@ public class JsonImporter {
 
                         String earlierIntendedFk = valueToInsert[0];
                         fks.stream().forEach(fk -> {
-                            valueToInsert[0] = Objects.toString(newKeys.get(new Db2Graph.PkTable(fk.pktable, earlierIntendedFk)));
+                            valueToInsert[0] = Objects.toString(newKeys.get(new Db2Graph.PkAndTable(fk.pktable, earlierIntendedFk)));
                         });
                     }
 
@@ -285,12 +285,12 @@ public class JsonImporter {
 
     /** older variant */
     public static String recordAsInserts(Connection connection, Record record, EnumSet<TreatmentOptions> options) throws SQLException {
-        List<String> tableInsertOrder = determineOrder(record.getPkTable().tableName, connection);
+        List<String> tableInsertOrder = determineOrder(record.getPkAndTable().tableName, connection);
 
         // tableName -> insertionStatement
         Map<String, String> insertionStatements = new HashMap<>();
 
-        addInsertionStatements(connection, record.getPkTable().tableName, record, new HashMap<>(), insertionStatements, options);
+        addInsertionStatements(connection, record.getPkAndTable().tableName, record, new HashMap<>(), insertionStatements, options);
 
         String result = "";
         for (String table : tableInsertOrder) {

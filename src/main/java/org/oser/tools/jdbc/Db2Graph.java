@@ -34,11 +34,14 @@ public class Db2Graph {
 
     @Getter
     public static class Fk {
-        public String fktable;
-        public String pkcolumn;
-        public String type;
         public String pktable;
+        public String pkcolumn;
+
+        public String fktable;
         public String fkcolumn;
+
+        public String type;
+
         public boolean inverted; // excluded in equals!
 
         @Override
@@ -81,8 +84,8 @@ public class Db2Graph {
     /**
      * a table & its pk  (uniquely identifies a db row)
      */
-    public static class PkTable {
-        public PkTable(String tableName, Object pk) {
+    public static class PkAndTable {
+        public PkAndTable(String tableName, Object pk) {
             this.tableName = tableName;
             this.pk = normalizePk(pk);
         }
@@ -91,7 +94,7 @@ public class Db2Graph {
             return pk instanceof Number ? ((Number) pk).longValue() : pk;
         }
 
-        public PkTable(String shortExpression) {
+        public PkAndTable(String shortExpression) {
             if (shortExpression == null) {
                 throw new IllegalArgumentException("Must not be null");
             }
@@ -137,7 +140,7 @@ public class Db2Graph {
      * stores context about the export (to avoid infinite loops)
      */
     public static class ExportContext {
-        Map<PkTable, Record> visitedNodes = new HashMap<>();
+        Map<PkAndTable, Record> visitedNodes = new HashMap<>();
         Set<Fk> treatedFks = new HashSet<>();
 
         @Override
@@ -149,7 +152,7 @@ public class Db2Graph {
         }
 
         public boolean containsNode(String tableName, Object pk){
-            return visitedNodes.containsKey(new PkTable(tableName, pk));
+            return visitedNodes.containsKey(new PkAndTable(tableName, pk));
         }
 
     }
@@ -266,7 +269,7 @@ public class Db2Graph {
                 }
             }
         }
-        context.visitedNodes.put(new PkTable(tableName, pkValue), data);
+        context.visitedNodes.put(new PkAndTable(tableName, pkValue), data);
 
         return data;
     }
@@ -291,14 +294,14 @@ public class Db2Graph {
                     Record row = innerReadRecord(tableName, columns, pkName, rs, rsMetaData, columnCount);
 
                     boolean doNotNestThisRecord = false;
-                    if (context.containsNode(tableName, row.pkTable.pk)) {
+                    if (context.containsNode(tableName, row.pkAndTable.pk)) {
                         // termination condition
                         doNotNestThisRecord = true;
                     }
-                    context.visitedNodes.put(new PkTable(tableName, row.pkTable.pk), row);
+                    context.visitedNodes.put(new PkAndTable(tableName, row.pkAndTable.pk), row);
 
                     if (nesting && !doNotNestThisRecord) {
-                        addSubRowDataFromFks(connection, tableName, row.pkTable.pk, row, context);
+                        addSubRowDataFromFks(connection, tableName, row.pkAndTable.pk, row, context);
                     }
 
                     listOfRows.add(row);
