@@ -44,7 +44,7 @@ public class TestContainerTest {
         // as inserts
 
 //        String s = JsonImporter.asInserts(mortgageConnection, book2, EnumSet.noneOf(TreatmentOptions.class));
-        String s = JsonImporter.asInserts(mortgageConnection, book2, EnumSet.of(TreatmentOptions.ForceInsert));
+        String s = JsonImporter.recordAsInserts(mortgageConnection, book2, EnumSet.of(TreatmentOptions.ForceInsert));
         System.out.println("\ninserts: "+s);
 
     }
@@ -73,13 +73,16 @@ public class TestContainerTest {
         Record book = JsonImporter.jsonToRecord(mortgageConnection, "book", json);
         assertEquals(2, book.getAllNodes().size());
 
-        System.out.println(JsonImporter.asInserts(mortgageConnection, book, EnumSet.noneOf(TreatmentOptions.class)));
+        System.out.println(JsonImporter.recordAsInserts(mortgageConnection, book, EnumSet.noneOf(TreatmentOptions.class)));
     }
 
     @Test
     void tableNotExistingTest() throws SQLException, IOException, ClassNotFoundException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "xxx"));
-        Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "book");
+        Connection mortgage = Db2GraphSmallTest.getConnection("mortgage");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> Db2Graph.assertTableExists(mortgage, "xxx"));
+        Db2Graph.assertTableExists(mortgage, "book");
+//        Assertions.assertThrows(IllegalArgumentException.class, () -> Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "xxx"));
+//        Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "book");
     }
 
 

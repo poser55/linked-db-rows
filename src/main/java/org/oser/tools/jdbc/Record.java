@@ -97,11 +97,10 @@ public class Record {
 
         visitor.accept(this);
 
-        Set<Record> collect = content.stream().filter(e -> !e.subRow.isEmpty())
+        return content.stream().filter(e -> !e.subRow.isEmpty())
                 .flatMap(e -> e.subRow.values().stream())
                 .flatMap(e -> e.stream())
                 .flatMap(e -> e.visitAllRecords(visitor).stream()).collect(toSet());
-        return collect;
     }
 
     /** visit all Records in insertion order */
