@@ -30,51 +30,25 @@ import java.util.TreeMap;
 public class Db2Graph {
     private static final Logger LOGGER = LoggerFactory.getLogger(Db2Graph.class);
 
-    /*
-        Issues:
-          *table2Graph: lacks recursion, lacks recursion termination
-             done
-          *data structure Data: its subRow should hold different fk links (e.g. the product AND the volumeAddon)
-                better: subRow-> subRowS
-                   Map<String, List<List<Data>>>
-                       rel'name   rows underneath
-               done
-          *method rootToJson / to insert statements whatever
-                done
-    ---
-      what if "wrong" data is linked?
-        e.g. a case has a person with chosen_asset_amounts, on this chosen_asset_amounts there is ANOTHER case linked
-
-         => is actually correct
-
-     ---
-      importing:
-         *check order
-         *check whether entries (table/PK) already exist
-         *warn about schema deltas
-         *allow to re-map to other  PKs
-
-     */
-
-    public Db2Graph() {}
+    protected Db2Graph() {}
 
     @Getter
     public static class Fk {
-        public String targetTable;
-        public String columnName;
+        public String fktable;
+        public String pkcolumn;
         public String type;
-        public String originTable;
-        public String targetColumn;
+        public String pktable;
+        public String fkcolumn;
         public boolean inverted; // excluded in equals!
 
         @Override
         public String toString() {
             return "Fk{" +
-                    "targetTable='" + targetTable + '\'' +
-                    ", columnName='" + columnName + '\'' +
+                    "targetTable='" + fktable + '\'' +
+                    ", columnName='" + pkcolumn + '\'' +
                     ", type='" + type + '\'' +
-                    ", originTable='" + originTable + '\'' +
-                    ", targetColumn='" + targetColumn + '\'' +
+                    ", originTable='" + pktable + '\'' +
+                    ", targetColumn='" + fkcolumn + '\'' +
                     ", inverted=" + inverted +
                     '}';
         }
@@ -86,20 +60,20 @@ public class Db2Graph {
 
             Fk fk = (Fk) o;
 
-            if (targetTable != null ? !targetTable.equals(fk.targetTable) : fk.targetTable != null) return false;
-            if (columnName != null ? !columnName.equals(fk.columnName) : fk.columnName != null) return false;
+            if (fktable != null ? !fktable.equals(fk.fktable) : fk.fktable != null) return false;
+            if (pkcolumn != null ? !pkcolumn.equals(fk.pkcolumn) : fk.pkcolumn != null) return false;
             if (type != null ? !type.equals(fk.type) : fk.type != null) return false;
-            if (originTable != null ? !originTable.equals(fk.originTable) : fk.originTable != null) return false;
-            return targetColumn != null ? targetColumn.equals(fk.targetColumn) : fk.targetColumn == null;
+            if (pktable != null ? !pktable.equals(fk.pktable) : fk.pktable != null) return false;
+            return fkcolumn != null ? fkcolumn.equals(fk.fkcolumn) : fk.fkcolumn == null;
         }
 
         @Override
         public int hashCode() {
-            int result = targetTable != null ? targetTable.hashCode() : 0;
-            result = 31 * result + (columnName != null ? columnName.hashCode() : 0);
+            int result = fktable != null ? fktable.hashCode() : 0;
+            result = 31 * result + (pkcolumn != null ? pkcolumn.hashCode() : 0);
             result = 31 * result + (type != null ? type.hashCode() : 0);
-            result = 31 * result + (originTable != null ? originTable.hashCode() : 0);
-            result = 31 * result + (targetColumn != null ? targetColumn.hashCode() : 0);
+            result = 31 * result + (pktable != null ? pktable.hashCode() : 0);
+            result = 31 * result + (fkcolumn != null ? fkcolumn.hashCode() : 0);
             return result;
         }
     }
@@ -202,15 +176,15 @@ public class Db2Graph {
      * complement the "data" by starting from "tableName" and recursively adding data that is connected via FKs
      */
     private static void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
-        List<Fk> fks = table2Fk(connection, tableName);
+        List<Fk> fks = getFksOfTable(connection, tableName);
 
         for (Fk fk : fks) {
             context.treatedFks.add(fk);
 
-            Record.Data elementWithName = findElementWithName(data, fk.inverted ? fk.targetColumn : fk.columnName);
+            Record.Data elementWithName = findElementWithName(data, fk.inverted ? fk.fkcolumn : fk.pkcolumn);
             if ((elementWithName != null) && (elementWithName.value != null)) {
-                String subTableName = fk.inverted ? fk.originTable : fk.targetTable;
-                String subFkName = fk.inverted ? fk.columnName : fk.targetColumn;
+                String subTableName = fk.inverted ? fk.pktable : fk.fktable;
+                String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
 
                 if (!context.containsNode(subTableName, elementWithName.value)) {
                     List<Record> subRow = readLinkedRecords(connection, subTableName,
@@ -235,7 +209,7 @@ public class Db2Graph {
     /**
      * get FK metadata of one table (both direction of metadata, exported and imported FKs)
      */
-    public static List<Fk> table2Fk(Connection connection, String table) throws SQLException {
+    public static List<Fk> getFksOfTable(Connection connection, String table) throws SQLException {
         List<Fk> fks = new ArrayList<>();
         DatabaseMetaData dm = connection.getMetaData();
 
@@ -252,10 +226,10 @@ public class Db2Graph {
         while (rs.next()) {
             Fk fk = new Fk();
 
-            fk.originTable = rs.getString("pktable_name");
-            fk.columnName = rs.getString("pkcolumn_name");
-            fk.targetTable = rs.getString("fktable_name");
-            fk.targetColumn = rs.getString("fkcolumn_name");
+            fk.pktable = rs.getString("pktable_name");
+            fk.pkcolumn = rs.getString("pkcolumn_name");
+            fk.fktable = rs.getString("fktable_name");
+            fk.fkcolumn = rs.getString("fkcolumn_name");
             fk.inverted = inverted;
 
             fks.add(fk);

@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.oser.tools.jdbc.Db2Graph.findElementWithName;
-import static org.oser.tools.jdbc.Db2Graph.table2Fk;
+import static org.oser.tools.jdbc.Db2Graph.getFksOfTable;
 import static org.oser.tools.jdbc.TreatmentOptions.ForceInsert;
 import static org.oser.tools.jdbc.TreatmentOptions.RemapPrimaryKeys;
 
@@ -114,7 +114,7 @@ public class JsonImporter {
                 String pkValue = null;
                 String pkType = "";
 
-                Map<String, List<Db2Graph.Fk>> fksByColumnName = record.optionalFks.stream().collect(Collectors.groupingBy(fk1 -> fk1.getTargetColumn().toUpperCase()));
+                Map<String, List<Db2Graph.Fk>> fksByColumnName = record.optionalFks.stream().collect(Collectors.groupingBy(fk1 -> fk1.getFkcolumn().toUpperCase()));
 
                 final String[] valueToInsert = {"-"};
 
@@ -132,7 +132,7 @@ public class JsonImporter {
 
                         String earlierIntendedFk = valueToInsert[0];
                         fks.stream().forEach(fk -> {
-                            valueToInsert[0] = Objects.toString(newKeys.get(new Db2Graph.PkTable(fk.originTable, earlierIntendedFk)));
+                            valueToInsert[0] = Objects.toString(newKeys.get(new Db2Graph.PkTable(fk.pktable, earlierIntendedFk)));
                         });
                     }
 
@@ -259,11 +259,11 @@ public class JsonImporter {
             return record;
         }
 
-        for (Db2Graph.Fk fk : table2Fk(connection, rootTable)) {
+        for (Db2Graph.Fk fk : getFksOfTable(connection, rootTable)) {
 
-            Record.Data elementWithName = findElementWithName(record, (fk.inverted ? fk.targetColumn : fk.columnName).toUpperCase());
+            Record.Data elementWithName = findElementWithName(record, (fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
             if (elementWithName != null) {
-                String subTableName = fk.inverted ? fk.originTable : fk.targetTable;
+                String subTableName = fk.inverted ? fk.pktable : fk.fktable;
                 JsonNode subJsonNode = json.get(subTableName);
                 ArrayList<Record> records = new ArrayList<>();
 
@@ -482,10 +482,10 @@ public class JsonImporter {
             String next = tablesToTreat.stream().findFirst().get();
             tablesToTreat.remove(next);
 
-            List<Db2Graph.Fk> fks = table2Fk(connection, next);
+            List<Db2Graph.Fk> fks = getFksOfTable(connection, next);
             for (Db2Graph.Fk fk : fks) {
-                String tableToAdd = fk.originTable;
-                String otherTable = fk.targetTable;
+                String tableToAdd = fk.pktable;
+                String otherTable = fk.fktable;
 
                 addToTreat(tablesToTreat, treated, tableToAdd);
                 addToTreat(tablesToTreat, treated, otherTable);
