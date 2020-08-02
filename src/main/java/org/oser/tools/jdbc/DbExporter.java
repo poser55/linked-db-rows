@@ -27,10 +27,10 @@ import java.util.TreeMap;
  *  Export db data to json.
  *
  * License: Apache 2.0 */
-public class Db2Graph {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Db2Graph.class);
+public class DbExporter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
 
-    protected Db2Graph() {}
+    protected DbExporter() {}
 
     @Getter
     public static class Fk {
@@ -84,8 +84,8 @@ public class Db2Graph {
     /**
      * a table & its pk  (uniquely identifies a db row)
      */
-    public static class PkAndTable {
-        public PkAndTable(String tableName, Object pk) {
+    public static class RowLink {
+        public RowLink(String tableName, Object pk) {
             this.tableName = tableName;
             this.pk = normalizePk(pk);
         }
@@ -94,7 +94,7 @@ public class Db2Graph {
             return pk instanceof Number ? ((Number) pk).longValue() : pk;
         }
 
-        public PkAndTable(String shortExpression) {
+        public RowLink(String shortExpression) {
             if (shortExpression == null) {
                 throw new IllegalArgumentException("Must not be null");
             }
@@ -140,7 +140,7 @@ public class Db2Graph {
      * stores context about the export (to avoid infinite loops)
      */
     public static class ExportContext {
-        Map<PkAndTable, Record> visitedNodes = new HashMap<>();
+        Map<RowLink, Record> visitedNodes = new HashMap<>();
         Set<Fk> treatedFks = new HashSet<>();
 
         @Override
@@ -152,7 +152,7 @@ public class Db2Graph {
         }
 
         public boolean containsNode(String tableName, Object pk){
-            return visitedNodes.containsKey(new PkAndTable(tableName, pk));
+            return visitedNodes.containsKey(new RowLink(tableName, pk));
         }
 
     }
@@ -269,7 +269,7 @@ public class Db2Graph {
                 }
             }
         }
-        context.visitedNodes.put(new PkAndTable(tableName, pkValue), data);
+        context.visitedNodes.put(new RowLink(tableName, pkValue), data);
 
         return data;
     }
@@ -294,14 +294,14 @@ public class Db2Graph {
                     Record row = innerReadRecord(tableName, columns, pkName, rs, rsMetaData, columnCount);
 
                     boolean doNotNestThisRecord = false;
-                    if (context.containsNode(tableName, row.pkAndTable.pk)) {
+                    if (context.containsNode(tableName, row.rowLink.pk)) {
                         // termination condition
                         doNotNestThisRecord = true;
                     }
-                    context.visitedNodes.put(new PkAndTable(tableName, row.pkAndTable.pk), row);
+                    context.visitedNodes.put(new RowLink(tableName, row.rowLink.pk), row);
 
                     if (nesting && !doNotNestThisRecord) {
-                        addSubRowDataFromFks(connection, tableName, row.pkAndTable.pk, row, context);
+                        addSubRowDataFromFks(connection, tableName, row.rowLink.pk, row, context);
                     }
 
                     listOfRows.add(row);

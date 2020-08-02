@@ -22,13 +22,13 @@ public class TestContainerTest {
 
     @Test
     void testJsonToRecord() throws SQLException, IOException, ClassNotFoundException {
-        Connection mortgageConnection = Db2GraphSmallTest.getConnection("mortgage"); // getConnectionTestContainer("demo");
-        Db2Graph db2GraphMortgage = new Db2Graph();
+        Connection mortgageConnection = DbExporterSmallTest.getConnection("mortgage"); // getConnectionTestContainer("demo");
+        DbExporter db2GraphMortgage = new DbExporter();
         Record book = db2GraphMortgage.contentAsGraph(mortgageConnection, "book", "1");
 
         System.out.println("book:"+book.asJson());
 
-        Record book2 = JsonImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
+        Record book2 = DbImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
 
         System.out.println("book2:"+book2.asJson());
 
@@ -39,29 +39,29 @@ public class TestContainerTest {
 
 
         Record author1 = db2GraphMortgage.contentAsGraph(mortgageConnection, "author", "1");
-        Record author2 = JsonImporter.jsonToRecord(mortgageConnection, "author", author1.asJson());
+        Record author2 = DbImporter.jsonToRecord(mortgageConnection, "author", author1.asJson());
 
         assertEquals(mapper.readTree(author1.asJson().toLowerCase()), mapper.readTree(author2.asJson().toLowerCase()));
 
         // as inserts
 
 //        String s = JsonImporter.asInserts(mortgageConnection, book2, EnumSet.noneOf(TreatmentOptions.class));
-        String s = JsonImporter.recordAsInserts(mortgageConnection, book2, EnumSet.of(TreatmentOptions.ForceInsert));
+        String s = DbImporter.recordAsInserts(mortgageConnection, book2, EnumSet.of(TreatmentOptions.ForceInsert));
         System.out.println("\ninserts: "+s);
 
     }
 
     @Test
     void testRemapping() throws SQLException, IOException, ClassNotFoundException {
-        Connection mortgageConnection = Db2GraphSmallTest.getConnection("mortgage"); // getConnectionTestContainer("demo");
-        Db2Graph db2GraphMortgage = new Db2Graph();
+        Connection mortgageConnection = DbExporterSmallTest.getConnection("mortgage"); // getConnectionTestContainer("demo");
+        DbExporter db2GraphMortgage = new DbExporter();
         Record book = db2GraphMortgage.contentAsGraph(mortgageConnection, "book", "1");
 
         System.out.println("book:" + book.asJson());
 
-        Record book2 = JsonImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
+        Record book2 = DbImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
 
-        Map<Db2Graph.PkAndTable, Object> pkAndTableObjectMap = JsonImporter.insertRecords(mortgageConnection, book2, new InserterOptions());
+        Map<DbExporter.RowLink, Object> pkAndTableObjectMap = DbImporter.insertRecords(mortgageConnection, book2, new InserterOptions());
         System.out.println("remapped: " + pkAndTableObjectMap.size() + " lenderPk" + pkAndTableObjectMap.keySet().stream()
                 .filter(p -> p.tableName.equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
 
@@ -71,21 +71,21 @@ public class TestContainerTest {
 
         @Test
     void testInsert() throws SQLException, ClassNotFoundException, IOException {
-        Connection mortgageConnection = Db2GraphSmallTest.getConnection("mortgage");
+        Connection mortgageConnection = DbExporterSmallTest.getConnection("mortgage");
 
         String json = "{ \"id\":7,\"author_id\":1, \"author\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
-        Record book = JsonImporter.jsonToRecord(mortgageConnection, "book", json);
+        Record book = DbImporter.jsonToRecord(mortgageConnection, "book", json);
         assertEquals(2, book.getAllNodes().size());
 
-        System.out.println(JsonImporter.recordAsInserts(mortgageConnection, book, EnumSet.noneOf(TreatmentOptions.class)));
+        System.out.println(DbImporter.recordAsInserts(mortgageConnection, book, EnumSet.noneOf(TreatmentOptions.class)));
     }
 
     @Test
     void tableNotExistingTest() throws SQLException, IOException, ClassNotFoundException {
-        Connection mortgage = Db2GraphSmallTest.getConnection("mortgage");
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Db2Graph.assertTableExists(mortgage, "xxx"));
-        Db2Graph.assertTableExists(mortgage, "book");
+        Connection mortgage = DbExporterSmallTest.getConnection("mortgage");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> DbExporter.assertTableExists(mortgage, "xxx"));
+        DbExporter.assertTableExists(mortgage, "book");
 //        Assertions.assertThrows(IllegalArgumentException.class, () -> Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "xxx"));
 //        Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "book");
     }

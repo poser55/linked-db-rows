@@ -29,8 +29,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.oser.tools.jdbc.Db2Graph.findElementWithName;
-import static org.oser.tools.jdbc.Db2Graph.getFksOfTable;
+import static org.oser.tools.jdbc.DbExporter.findElementWithName;
+import static org.oser.tools.jdbc.DbExporter.getFksOfTable;
 import static org.oser.tools.jdbc.TreatmentOptions.ForceInsert;
 import static org.oser.tools.jdbc.TreatmentOptions.RemapPrimaryKeys;
 
@@ -40,18 +40,18 @@ import static org.oser.tools.jdbc.TreatmentOptions.RemapPrimaryKeys;
 
 
 /**
- * Import a JSON structure exported with {@link Db2Graph} into the db again.
+ * Import a JSON structure exported with {@link DbExporter} into the db again.
  * <p>
  * License: Apache 2.0
  */
-public class JsonImporter {
-    private static final Logger LOGGER = LoggerFactory.getLogger(JsonImporter.class);
+public class DbImporter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DbImporter.class);
 
     // todo drop these?
     private final Connection connection;
     private EnumSet<TreatmentOptions> options;
 
-    public JsonImporter(Connection connection) {
+    public DbImporter(Connection connection) {
         this.connection = connection;
         options = EnumSet.noneOf(TreatmentOptions.class);
     }
@@ -62,8 +62,8 @@ public class JsonImporter {
      * assumes someone external handles the transaction or autocommit
      * @return the remapped keys (PkAndTable -> new primary key)
      */
-    public static Map<Db2Graph.PkAndTable, Object> insertRecords(Connection connection, Record record, InserterOptions options) throws SQLException {
-        Map<Db2Graph.PkAndTable, Object> newKeys = new HashMap<>();
+    public static Map<DbExporter.RowLink, Object> insertRecords(Connection connection, Record record, InserterOptions options) throws SQLException {
+        Map<DbExporter.RowLink, Object> newKeys = new HashMap<>();
 
         record.visitRecordsInInsertionOrder(connection, r -> insertOneRecord(connection, r, newKeys, new HashMap<>(), options));
 
@@ -72,14 +72,14 @@ public class JsonImporter {
         return newKeys;
     }
 
-    private static void insertOneRecord(Connection connection, Record record, Map<Db2Graph.PkAndTable, Object> newKeys, Map<String, FieldsMapper> mappers, InserterOptions options) {
+    private static void insertOneRecord(Connection connection, Record record, Map<DbExporter.RowLink, Object> newKeys, Map<String, FieldsMapper> mappers, InserterOptions options) {
         try {
-            boolean isInsert = options.isForceInsert() || doesPkTableExist(connection, record.getPkAndTable().tableName, record.pkName, record);
+            boolean isInsert = options.isForceInsert() || doesPkTableExist(connection, record.getRowLink().tableName, record.pkName, record);
 
             Object candidatePk = null;
             if (isInsert) {
-                candidatePk = getCandidatePk(connection, record.getPkAndTable().tableName, record.findElementWithName(record.pkName).metadata.type, record.pkName);
-                Db2Graph.PkAndTable key = new Db2Graph.PkAndTable(record.getPkAndTable().tableName, record.findElementWithName(record.pkName).value);
+                candidatePk = getCandidatePk(connection, record.getRowLink().tableName, record.findElementWithName(record.pkName).metadata.type, record.pkName);
+                DbExporter.RowLink key = new DbExporter.RowLink(record.getRowLink().tableName, record.findElementWithName(record.pkName).value);
                 newKeys.put(key, candidatePk);
             }
 
@@ -90,14 +90,14 @@ public class JsonImporter {
             jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
             // todo log if there is a delta between the 2 sets, ok for those who map subrows !
 
-            String sqlStatement = getSqlInsertOrUpdateStatement(record.pkAndTable.tableName, jsonFieldNames, record.pkName, isInsert);
+            String sqlStatement = getSqlInsertOrUpdateStatement(record.rowLink.tableName, jsonFieldNames, record.pkName, isInsert);
             PreparedStatement savedStatement = null;
             try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
 
                 String pkValue = null;
                 String pkType = "";
 
-                Map<String, List<Db2Graph.Fk>> fksByColumnName = record.optionalFks.stream().collect(Collectors.groupingBy(fk1 -> fk1.getFkcolumn().toUpperCase()));
+                Map<String, List<DbExporter.Fk>> fksByColumnName = record.optionalFks.stream().collect(Collectors.groupingBy(fk1 -> fk1.getFkcolumn().toUpperCase()));
 
                 final String[] valueToInsert = {"-"};
 
@@ -111,11 +111,11 @@ public class JsonImporter {
 
                     // remap fks!
                     if (isInsert && fksByColumnName.containsKey(currentFieldName)) {
-                        List<Db2Graph.Fk> fks = fksByColumnName.get(currentFieldName);
+                        List<DbExporter.Fk> fks = fksByColumnName.get(currentFieldName);
 
                         String earlierIntendedFk = valueToInsert[0];
                         fks.stream().forEach(fk -> {
-                            valueToInsert[0] = Objects.toString(newKeys.get(new Db2Graph.PkAndTable(fk.pktable, earlierIntendedFk)));
+                            valueToInsert[0] = Objects.toString(newKeys.get(new DbExporter.RowLink(fk.pktable, earlierIntendedFk)));
                         });
                     }
 
@@ -207,8 +207,8 @@ public class JsonImporter {
         Record record = new Record(rootTable, null);
 
         DatabaseMetaData metadata = connection.getMetaData();
-        Map<String, Db2Graph.ColumnMetadata> columns = Db2Graph.getColumnNamesAndTypes(metadata, rootTable);
-        List<String> pks = Db2Graph.getPrimaryKeys(metadata, rootTable);
+        Map<String, DbExporter.ColumnMetadata> columns = DbExporter.getColumnNamesAndTypes(metadata, rootTable);
+        List<String> pks = DbExporter.getPrimaryKeys(metadata, rootTable);
 
         final String pkName = pks.get(0);
         record.pkName = pkName;
@@ -242,7 +242,7 @@ public class JsonImporter {
             return record;
         }
 
-        for (Db2Graph.Fk fk : getFksOfTable(connection, rootTable)) {
+        for (DbExporter.Fk fk : getFksOfTable(connection, rootTable)) {
 
             Record.Data elementWithName = findElementWithName(record, (fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
             if (elementWithName != null) {
@@ -288,12 +288,12 @@ public class JsonImporter {
 
     /** older variant */
     public static String recordAsInserts(Connection connection, Record record, EnumSet<TreatmentOptions> options) throws SQLException {
-        List<String> tableInsertOrder = determineOrder(record.getPkAndTable().tableName, connection);
+        List<String> tableInsertOrder = determineOrder(record.getRowLink().tableName, connection);
 
         // tableName -> insertionStatement
         Map<String, String> insertionStatements = new HashMap<>();
 
-        addInsertionStatements(connection, record.getPkAndTable().tableName, record, new HashMap<>(), insertionStatements, options);
+        addInsertionStatements(connection, record.getRowLink().tableName, record, new HashMap<>(), insertionStatements, options);
 
         String result = "";
         for (String table : tableInsertOrder) {
@@ -416,7 +416,7 @@ public class JsonImporter {
     }
 
 
-    private static String prepareVarcharToInsert(Map<String, Db2Graph.ColumnMetadata> columns, String currentFieldName, String valueToInsert) {
+    private static String prepareVarcharToInsert(Map<String, DbExporter.ColumnMetadata> columns, String currentFieldName, String valueToInsert) {
         if (columns.get(currentFieldName).getType().toUpperCase().equals("VARCHAR")) {
             valueToInsert = getInnerValueToInsert(valueToInsert);
         }
@@ -486,8 +486,8 @@ public class JsonImporter {
             String next = tablesToTreat.stream().findFirst().get();
             tablesToTreat.remove(next);
 
-            List<Db2Graph.Fk> fks = getFksOfTable(connection, next);
-            for (Db2Graph.Fk fk : fks) {
+            List<DbExporter.Fk> fks = getFksOfTable(connection, next);
+            for (DbExporter.Fk fk : fks) {
                 String tableToAdd = fk.pktable;
                 String otherTable = fk.fktable;
 
@@ -522,7 +522,7 @@ public class JsonImporter {
         innerSetStatementField(typeAsString, preparedStatement, statementIndex, valueToInsert);
     }
 
-    private static void setStatementField(Map<String, Db2Graph.ColumnMetadata> columns, PreparedStatement preparedStatement, int statementIndex, String header, String valueToInsert) throws SQLException {
+    private static void setStatementField(Map<String, DbExporter.ColumnMetadata> columns, PreparedStatement preparedStatement, int statementIndex, String header, String valueToInsert) throws SQLException {
         innerSetStatementField(columns.get(header.toUpperCase()).getType(), preparedStatement, statementIndex, valueToInsert);
     }
 
@@ -620,8 +620,8 @@ public class JsonImporter {
      */
     private static void addInsertionStatements(String tableName, JsonNode json, Map<String, FieldsMapper> mappers, Map<String, String> insertionStatements, Connection connection, EnumSet<TreatmentOptions> options) throws SQLException {
         DatabaseMetaData metadata = connection.getMetaData();
-        Map<String, Db2Graph.ColumnMetadata> columns = Db2Graph.getColumnNamesAndTypes(metadata, tableName);
-        List<String> pks = Db2Graph.getPrimaryKeys(metadata, tableName);
+        Map<String, DbExporter.ColumnMetadata> columns = DbExporter.getColumnNamesAndTypes(metadata, tableName);
+        List<String> pks = DbExporter.getPrimaryKeys(metadata, tableName);
 
         final String pkName = pks.get(0);
 

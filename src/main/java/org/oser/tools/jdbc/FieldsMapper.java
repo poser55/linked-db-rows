@@ -7,5 +7,5 @@ import java.sql.PreparedStatement;
  */
 @FunctionalInterface
 public interface FieldsMapper {
-	void mapField(Db2Graph.ColumnMetadata metadata, PreparedStatement statement, int insertIndex, String csvValue);
+	void mapField(DbExporter.ColumnMetadata metadata, PreparedStatement statement, int insertIndex, String csvValue);
 }

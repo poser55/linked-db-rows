@@ -25,15 +25,15 @@ import static java.util.stream.Collectors.toSet;
 @Getter
 @ToString
 public class Record {
-    Db2Graph.PkAndTable pkAndTable;
+    DbExporter.RowLink rowLink;
     List<Data> content = new ArrayList<>();
     String pkName;
-    List<Db2Graph.Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
+    List<DbExporter.Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
 
     Map<RecordMetadata, Object> optionalMetadata = new HashMap<>();
 
     public Record(String tableName, Object pk) {
-        pkAndTable = new Db2Graph.PkAndTable(tableName, pk);
+        rowLink = new DbExporter.RowLink(tableName, pk);
     }
 
     /**
@@ -63,14 +63,14 @@ public class Record {
     }
 
     public void setPkValue(Object value) {
-        pkAndTable.pk = Db2Graph.PkAndTable.normalizePk(value);
+        rowLink.pk = DbExporter.RowLink.normalizePk(value);
     }
 
     public String metadata() {
         if (optionalMetadata.isEmpty()) {
             return "-";
         } else {
-            Db2Graph.ExportContext o = (Db2Graph.ExportContext) optionalMetadata.get(RecordMetadata.EXPORT_CONTEXT);
+            DbExporter.ExportContext o = (DbExporter.ExportContext) optionalMetadata.get(RecordMetadata.EXPORT_CONTEXT);
 
             return o.visitedNodes.keySet() + ((o == null) ? "" : " #nodes:" + o.visitedNodes.size());
         }
@@ -85,9 +85,9 @@ public class Record {
         return null;
     }
 
-    public Set<Db2Graph.PkAndTable> getAllNodes(){
-        Set<Db2Graph.PkAndTable> result = new HashSet<>();
-        result.add(pkAndTable);
+    public Set<DbExporter.RowLink> getAllNodes(){
+        Set<DbExporter.RowLink> result = new HashSet<>();
+        result.add(rowLink);
         result.addAll(content.stream()
                 .filter(e -> !e.subRow.isEmpty())
                 .flatMap(e -> e.subRow.values().stream()).flatMap(e -> e.stream()).flatMap(e->e.getAllNodes().stream())
@@ -108,14 +108,14 @@ public class Record {
 
     /** visit all Records in insertion order */
     public void visitRecordsInInsertionOrder(Connection connection, Consumer<Record> visitor) throws SQLException {
-        List<String> insertionOrder = JsonImporter.determineOrder(pkAndTable.tableName, connection);
+        List<String> insertionOrder = DbImporter.determineOrder(rowLink.tableName, connection);
 
         Map<String, List<Record>> tableToRecords = new HashMap<>();
         visitAllRecords(r -> {
-            if (!tableToRecords.containsKey(r.pkAndTable.tableName)) {
-                tableToRecords.put(r.pkAndTable.tableName, new ArrayList<>());
+            if (!tableToRecords.containsKey(r.rowLink.tableName)) {
+                tableToRecords.put(r.rowLink.tableName, new ArrayList<>());
             }
-            tableToRecords.get(r.pkAndTable.tableName).add(r);
+            tableToRecords.get(r.rowLink.tableName).add(r);
         });
 
         for (String tableName : insertionOrder) {
@@ -130,7 +130,7 @@ public class Record {
     public static class Data {
         public String name;
         public Object value;
-        public Db2Graph.ColumnMetadata metadata;
+        public DbExporter.ColumnMetadata metadata;
         public Map<String, List<Record>> subRow = new HashMap<>();
 
         @Override
