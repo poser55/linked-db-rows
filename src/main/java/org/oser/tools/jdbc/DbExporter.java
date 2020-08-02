@@ -32,6 +32,7 @@ public class DbExporter {
 
     protected DbExporter() {}
 
+    /** Represents one foreign key */
     @Getter
     public static class Fk {
         public String pktable;
@@ -82,7 +83,7 @@ public class DbExporter {
     }
 
     /**
-     * a table & its pk  (uniquely identifies a db row)
+     * A table & its pk  (uniquely identifies a db row)
      */
     public static class RowLink {
         public RowLink(String tableName, Object pk) {
@@ -159,9 +160,9 @@ public class DbExporter {
 
 
     /**
-     * Main method: recursively scan a graph of db data and return it
+     * Main method: recursively scan a tree linked db rows and return it
      */
-    public static Record contentAsGraph(Connection connection, String tableName, Object pkValue) throws SQLException {
+    public static Record contentAsTree(Connection connection, String tableName, Object pkValue) throws SQLException {
         ExportContext context = new ExportContext();
 
         assertTableExists(connection, tableName);
@@ -184,7 +185,7 @@ public class DbExporter {
         for (Fk fk : fks) {
             context.treatedFks.add(fk);
 
-            Record.FieldAndValue elementWithName = findElementWithName(data, fk.inverted ? fk.fkcolumn : fk.pkcolumn);
+            Record.FieldAndValue elementWithName = data.findElementWithName(fk.inverted ? fk.fkcolumn : fk.pkcolumn);
             if ((elementWithName != null) && (elementWithName.value != null)) {
                 String subTableName = fk.inverted ? fk.pktable : fk.fktable;
                 String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
@@ -199,14 +200,7 @@ public class DbExporter {
         }
     }
 
-    static Record.FieldAndValue findElementWithName(Record data, String columnName) {
-        for (Record.FieldAndValue d : data.content) {
-            if (d.name.equals(columnName)) {
-                return d;
-            }
-        }
-        return null;
-    }
+
 
 
     /**

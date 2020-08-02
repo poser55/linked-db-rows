@@ -24,7 +24,7 @@ public class TestContainerTest {
     void testJsonToRecord() throws SQLException, IOException, ClassNotFoundException {
         Connection mortgageConnection = DbExporterSmallTest.getConnection("mortgage"); // getConnectionTestContainer("demo");
         DbExporter db2GraphMortgage = new DbExporter();
-        Record book = db2GraphMortgage.contentAsGraph(mortgageConnection, "book", "1");
+        Record book = db2GraphMortgage.contentAsTree(mortgageConnection, "book", "1");
 
         System.out.println("book:"+book.asJson());
 
@@ -38,7 +38,7 @@ public class TestContainerTest {
         assertEquals(mapper.readTree(book.asJson().toLowerCase()), mapper.readTree(book2.asJson().toLowerCase()));
 
 
-        Record author1 = db2GraphMortgage.contentAsGraph(mortgageConnection, "author", "1");
+        Record author1 = db2GraphMortgage.contentAsTree(mortgageConnection, "author", "1");
         Record author2 = DbImporter.jsonToRecord(mortgageConnection, "author", author1.asJson());
 
         assertEquals(mapper.readTree(author1.asJson().toLowerCase()), mapper.readTree(author2.asJson().toLowerCase()));
@@ -55,7 +55,7 @@ public class TestContainerTest {
     void testRemapping() throws SQLException, IOException, ClassNotFoundException {
         Connection mortgageConnection = DbExporterSmallTest.getConnection("mortgage"); // getConnectionTestContainer("demo");
         DbExporter db2GraphMortgage = new DbExporter();
-        Record book = db2GraphMortgage.contentAsGraph(mortgageConnection, "book", "1");
+        Record book = db2GraphMortgage.contentAsTree(mortgageConnection, "book", "1");
 
         System.out.println("book:" + book.asJson());
 

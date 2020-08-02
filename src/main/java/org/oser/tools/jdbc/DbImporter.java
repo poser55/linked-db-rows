@@ -29,7 +29,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.oser.tools.jdbc.DbExporter.findElementWithName;
 import static org.oser.tools.jdbc.DbExporter.getFksOfTable;
 import static org.oser.tools.jdbc.TreatmentOptions.ForceInsert;
 import static org.oser.tools.jdbc.TreatmentOptions.RemapPrimaryKeys;
@@ -237,7 +236,7 @@ public class DbImporter {
 
         for (DbExporter.Fk fk : getFksOfTable(connection, rootTable)) {
 
-            Record.FieldAndValue elementWithName = findElementWithName(record, (fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
+            Record.FieldAndValue elementWithName = record.findElementWithName((fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
             if (elementWithName != null) {
                 String subTableName = fk.inverted ? fk.pktable : fk.fktable;
                 JsonNode subJsonNode = json.get(subTableName + "*");

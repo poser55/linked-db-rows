@@ -28,7 +28,7 @@ public class DbExporterSmallTest {
     void testJsonToRecord() throws SQLException, IOException, ClassNotFoundException {
         Connection mortgageConnection = getConnection("mortgage");
         DbExporter db2GraphMortgage = new DbExporter();
-        Record book = db2GraphMortgage.contentAsGraph(mortgageConnection, "book", "1");
+        Record book = db2GraphMortgage.contentAsTree(mortgageConnection, "book", "1");
 
         System.out.println("book:"+book.asJson());
 
