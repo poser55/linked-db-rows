@@ -50,6 +50,28 @@ public class DbExporterSmallTest {
         assertEquals(asString.toUpperCase(), asStringAgain.toUpperCase());
     }
 
+    @Test // is a bit slow
+    void sakila() throws SQLException, ClassNotFoundException, IOException {
+        Connection sakilaConnection = getConnection("sakila");
+
+        DbExporter dbExporter = new DbExporter();
+        dbExporter.getStopTablesExcluded().add("inventory");
+
+        Record actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
+        String asString = actor199.asJson();
+
+        System.out.println(asString);
+
+        DbImporter dbImporter = new DbImporter();
+        Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
+
+        // todo error: has infinite loop in determineOrder
+        // Map<RowLink, Object> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
+        // System.out.println(actor + " "+actor.size());
+    }
+
+
+
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
         Class.forName("org.postgresql.Driver");
 

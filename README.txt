@@ -4,7 +4,7 @@ What it is:
 
 Usage (2 minute version):
 *Export a linked db row to json, starting from the row of the book table with the primary key of 1 (=RowLink)
-  String jsonString = new DbExporter().contentAsGraph(dbConnection, "book", "1").asJson();
+  String jsonString = new DbExporter().contentAsTree(dbConnection, "book", "1").asJson();
 
 *Import an exported json again into a database:
   DbImporter dbImporter = new DbImporter();
@@ -22,14 +22,22 @@ License:
 
 Additional features:
 * Determine order in which tables can be inserted (taking care of their dependencies)
-* Various other helpers for JDBC
+* Various other helpers for JDBC, refer to JdbHelpers for more detail.
 * Some options on how to export/ re-import a Json structure
 
 Usage (longer version)
-* <TODO>
+* There are accessors on DbImporter and DbExporter that allow to set various options. Refer to section
+"Configuration options" for details
+
 
 Configuration options
-* <TODO>
+* Exporter
+**
+* Importer
+** forceInsert : in case an update would be possible: create a new row and remap other entries
+** defaultPkGenerator : how to generate primary key for new entries (default NextValuePkGenerator)
+** overriddenPkGenerators : pk generator overrides for special tables
+
 
 
 

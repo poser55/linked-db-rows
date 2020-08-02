@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -233,13 +234,14 @@ public class Record {
                     return value != null ? ("\"" + ((java.sql.Date) value).toLocalDate() + "\"") : null;
                 case "VARCHAR":
                 case "varchar":
+                case "_text":
                 default:
                     if (value == null) {
                         return null;
                     }
+                    String valueEscaped = Objects.toString(value);
 
-                    Object valueEscaped = value instanceof String ? ((String) value).replace("\"", "\\\"") : value;
-                    return ("\"" + valueEscaped + "\"");
+                    return ("\"" + valueEscaped.replace("\"", "\\\"") + "\"");
             }
 
         }

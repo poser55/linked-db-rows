@@ -28,6 +28,10 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
 public class DbExporter {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
 
+    private Set<String> stopTablesExcluded = new HashSet<>();
+    // todo not yet used
+    private Set<String> stopTablesIncluded = new HashSet<>();
+
     protected DbExporter() {}
 
     /**
@@ -67,8 +71,7 @@ public class DbExporter {
 
     }
 
-
-    static Record readOneRecord(Connection connection, String tableName, Object pkValue, ExportContext context) throws SQLException {
+    Record readOneRecord(Connection connection, String tableName, Object pkValue, ExportContext context) throws SQLException {
         Record data = new Record(tableName, pkValue);
 
         DatabaseMetaData metaData = connection.getMetaData();
@@ -99,12 +102,20 @@ public class DbExporter {
         return data;
     }
 
-    static List<Record> readLinkedRecords(Connection connection, String tableName, String fkName, Object fkValue, boolean nesting, ExportContext context) throws SQLException {
+    List<Record> readLinkedRecords(Connection connection, String tableName, String fkName, Object fkValue, boolean nesting, ExportContext context) throws SQLException {
         List<Record> listOfRows = new ArrayList<>();
+
+        if (stopTablesExcluded.contains(tableName)) {
+            return listOfRows;
+        }
 
         DatabaseMetaData metaData = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName);
+
+        if (primaryKeys.isEmpty()) {
+            return listOfRows; // for tables without a pk
+        }
 
         String pkName = primaryKeys.get(0);
         String selectPk = "SELECT * from " + tableName + " where  " + fkName + " = ?";
@@ -140,7 +151,7 @@ public class DbExporter {
     /**
      * complement the record "data" by starting from "tableName" and recursively adding data that is connected via FKs
      */
-    static void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
+    void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
         List<Fk> fks = getFksOfTable(connection, tableName);
 
         for (Fk fk : fks) {
@@ -152,8 +163,11 @@ public class DbExporter {
                 String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
 
                 if (!context.containsNode(subTableName, elementWithName.value)) {
-                    List<Record> subRow = readLinkedRecords(connection, subTableName,
+                    List<Record> subRow = this.readLinkedRecords(connection, subTableName,
                             subFkName, elementWithName.value, true, context);
+                    if (subRow.isEmpty()){
+                        break;
+                    }
                     elementWithName.subRow.put(subTableName, subRow);
                 }
             }
@@ -187,8 +201,10 @@ public class DbExporter {
             case "bool":
                 preparedStatement.setBoolean(statementIndex, Boolean.parseBoolean(valueToInsert.trim()));
                 break;
+            case "int2":
             case "int4":
             case "int8":
+            case "serial":
                 preparedStatement.setLong(statementIndex, Long.parseLong(valueToInsert.trim()));
                 break;
             case "numeric":
@@ -207,4 +223,11 @@ public class DbExporter {
         }
     }
 
+    public Set<String> getStopTablesExcluded() {
+        return stopTablesExcluded;
+    }
+
+    public Set<String> getStopTablesIncluded() {
+        return stopTablesIncluded;
+    }
 }
