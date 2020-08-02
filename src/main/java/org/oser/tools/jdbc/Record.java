@@ -29,7 +29,7 @@ import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
 @Getter
 @ToString
 public class Record {
-    DbExporter.RowLink rowLink;
+    RowLink rowLink;
     List<FieldAndValue> content = new ArrayList<>();
     String pkName;
     List<Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
@@ -37,7 +37,7 @@ public class Record {
     Map<RecordMetadata, Object> optionalMetadata = new HashMap<>();
 
     public Record(String tableName, Object pk) {
-        rowLink = new DbExporter.RowLink(tableName, pk);
+        rowLink = new RowLink(tableName, pk);
     }
 
     /**
@@ -67,7 +67,7 @@ public class Record {
     }
 
     public void setPkValue(Object value) {
-        rowLink.pk = DbExporter.RowLink.normalizePk(value);
+        rowLink.pk = RowLink.normalizePk(value);
     }
 
     public String metadata() {
@@ -91,8 +91,8 @@ public class Record {
     }
 
     /** @return all nodes=RowLinks that are contained in the record */
-    public Set<DbExporter.RowLink> getAllNodes(){
-        Set<DbExporter.RowLink> result = new HashSet<>();
+    public Set<RowLink> getAllNodes(){
+        Set<RowLink> result = new HashSet<>();
         result.add(rowLink);
         result.addAll(content.stream()
                 .filter(e -> !e.subRow.isEmpty())

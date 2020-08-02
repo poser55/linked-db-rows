@@ -53,8 +53,8 @@ public class DbImporter {
      * Assumes someone external handles the transaction or autocommit
      * @return the remapped keys (RowLink -> new primary key)
      */
-    public static Map<DbExporter.RowLink, Object> insertRecords(Connection connection, Record record, InserterOptions options) throws SQLException {
-        Map<DbExporter.RowLink, Object> newKeys = new HashMap<>();
+    public static Map<RowLink, Object> insertRecords(Connection connection, Record record, InserterOptions options) throws SQLException {
+        Map<RowLink, Object> newKeys = new HashMap<>();
 
         record.visitRecordsInInsertionOrder(connection, r -> insertOneRecord(connection, r, newKeys, new HashMap<>(), options));
 
@@ -63,14 +63,14 @@ public class DbImporter {
         return newKeys;
     }
 
-    private static void insertOneRecord(Connection connection, Record record, Map<DbExporter.RowLink, Object> newKeys, Map<String, FieldMapper> mappers, InserterOptions options) {
+    private static void insertOneRecord(Connection connection, Record record, Map<RowLink, Object> newKeys, Map<String, FieldMapper> mappers, InserterOptions options) {
         try {
             boolean isInsert = options.isForceInsert() || doesPkTableExist(connection, record.getRowLink().tableName, record.pkName, record);
 
             Object candidatePk = null;
             if (isInsert) {
                 candidatePk = getCandidatePk(connection, record.getRowLink().tableName, record.findElementWithName(record.pkName).metadata.type, record.pkName);
-                DbExporter.RowLink key = new DbExporter.RowLink(record.getRowLink().tableName, record.findElementWithName(record.pkName).value);
+                RowLink key = new RowLink(record.getRowLink().tableName, record.findElementWithName(record.pkName).value);
                 newKeys.put(key, candidatePk);
             }
 
@@ -106,7 +106,7 @@ public class DbImporter {
 
                         String earlierIntendedFk = valueToInsert[0];
                         fks.stream().forEach(fk -> {
-                            valueToInsert[0] = Objects.toString(newKeys.get(new DbExporter.RowLink(fk.pktable, earlierIntendedFk)));
+                            valueToInsert[0] = Objects.toString(newKeys.get(new RowLink(fk.pktable, earlierIntendedFk)));
                         });
                     }
 

@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
@@ -30,61 +29,6 @@ public class DbExporter {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
 
     protected DbExporter() {}
-
-    /**
-     * A table & its pk  (uniquely identifies a db row)
-     */
-    public static class RowLink {
-        public RowLink(String tableName, Object pk) {
-            this.tableName = tableName;
-            this.pk = normalizePk(pk);
-        }
-
-        public static Object normalizePk(Object pk) {
-            return pk instanceof Number ? ((Number) pk).longValue() : pk;
-        }
-
-        public RowLink(String shortExpression) {
-            if (shortExpression == null) {
-                throw new IllegalArgumentException("Must not be null");
-            }
-            int i = shortExpression.indexOf("/");
-            if ( i == -1) {
-                throw new IllegalArgumentException("Wrong format, missing /:"+shortExpression);
-            }
-            tableName = shortExpression.substring(0, i);
-            String rest = shortExpression.substring(i+1);
-
-            long optionalLongValue = 0;
-            try {
-                optionalLongValue = Long.parseLong(rest);
-            } catch (NumberFormatException e) {
-                pk = normalizePk(rest);
-            }
-            pk = normalizePk(optionalLongValue);
-        }
-
-        public String tableName;
-        public Object pk;
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            String asString = o.toString();
-            return asString.equals(this.toString());
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.toString());
-        }
-
-        @Override
-        public String toString() {
-            return tableName + "/" + pk ;
-        }
-    }
 
     /**
      * stores context about the export (to avoid infinite loops)

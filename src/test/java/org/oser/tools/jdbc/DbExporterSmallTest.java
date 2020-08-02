@@ -14,14 +14,13 @@ public class DbExporterSmallTest {
 
     @Test
     void pkTable() {
-        DbExporter.RowLink t1 = new DbExporter.RowLink("lender/1");
+        RowLink t1 = new RowLink("lender/1");
         assertEquals("lender", t1.tableName);
         assertEquals(1L, t1.pk);
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {new DbExporter.RowLink("l");});
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {new RowLink("l");});
 
-
-        assertEquals(new DbExporter.RowLink("1", (byte)1), new DbExporter.RowLink("1", (long)1));
+        assertEquals(new RowLink("1", (byte)1), new RowLink("1", (long)1));
     }
 
     @Test
@@ -46,9 +45,9 @@ public class DbExporterSmallTest {
         System.out.println("datatypes:"+asString);
 
         Record asRecord = DbImporter.jsonToRecord(mortgageConnection, "datatypes", asString);
-        asRecord.asJson();
+        String asStringAgain = asRecord.asJson();
 
-
+        assertEquals(asString.toUpperCase(), asStringAgain.toUpperCase());
     }
 
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {

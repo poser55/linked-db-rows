@@ -61,7 +61,7 @@ public class TestContainerTest {
 
         Record book2 = DbImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
 
-        Map<DbExporter.RowLink, Object> pkAndTableObjectMap = DbImporter.insertRecords(mortgageConnection, book2, new InserterOptions());
+        Map<RowLink, Object> pkAndTableObjectMap = DbImporter.insertRecords(mortgageConnection, book2, new InserterOptions());
         System.out.println("remapped: " + pkAndTableObjectMap.size() + " lenderPk" + pkAndTableObjectMap.keySet().stream()
                 .filter(p -> p.tableName.equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
 
