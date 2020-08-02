@@ -19,7 +19,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.oser.tools.jdbc.DbExporter.getFksOfTable;
+import static org.oser.tools.jdbc.Fk.getFksOfTable;
 import static org.oser.tools.jdbc.TreatmentOptions.ForceInsert;
 import static org.oser.tools.jdbc.TreatmentOptions.RemapPrimaryKeys;
 
@@ -45,6 +44,7 @@ import static org.oser.tools.jdbc.TreatmentOptions.RemapPrimaryKeys;
  */
 public class DbImporter {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbImporter.class);
+    public static final String JSON_SUBTABLE_SUFFIX = "*";
 
     public DbImporter() {
     }
@@ -64,7 +64,7 @@ public class DbImporter {
         return newKeys;
     }
 
-    private static void insertOneRecord(Connection connection, Record record, Map<DbExporter.RowLink, Object> newKeys, Map<String, FieldsMapper> mappers, InserterOptions options) {
+    private static void insertOneRecord(Connection connection, Record record, Map<DbExporter.RowLink, Object> newKeys, Map<String, FieldMapper> mappers, InserterOptions options) {
         try {
             boolean isInsert = options.isForceInsert() || doesPkTableExist(connection, record.getRowLink().tableName, record.pkName, record);
 
@@ -82,14 +82,14 @@ public class DbImporter {
             jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
             // todo log if there is a delta between the 2 sets, ok for those who map subrows !
 
-            String sqlStatement = getSqlInsertOrUpdateStatement(record.rowLink.tableName, jsonFieldNames, record.pkName, isInsert);
+            String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.rowLink.tableName, jsonFieldNames, record.pkName, isInsert);
             PreparedStatement savedStatement = null;
             try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
 
                 String pkValue = null;
                 String pkType = "";
 
-                Map<String, List<DbExporter.Fk>> fksByColumnName = record.optionalFks.stream().collect(Collectors.groupingBy(fk1 -> fk1.getFkcolumn().toUpperCase()));
+                Map<String, List<Fk>> fksByColumnName = record.optionalFks.stream().collect(Collectors.groupingBy(fk1 -> fk1.getFkcolumn().toUpperCase()));
 
                 final String[] valueToInsert = {"-"};
 
@@ -103,7 +103,7 @@ public class DbImporter {
 
                     // remap fks!
                     if (isInsert && fksByColumnName.containsKey(currentFieldName)) {
-                        List<DbExporter.Fk> fks = fksByColumnName.get(currentFieldName);
+                        List<Fk> fks = fksByColumnName.get(currentFieldName);
 
                         String earlierIntendedFk = valueToInsert[0];
                         fks.stream().forEach(fk -> {
@@ -199,7 +199,7 @@ public class DbImporter {
         Record record = new Record(rootTable, null);
 
         DatabaseMetaData metadata = connection.getMetaData();
-        Map<String, DbExporter.ColumnMetadata> columns = DbExporter.getColumnNamesAndTypes(metadata, rootTable);
+        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable);
         List<String> pks = DbExporter.getPrimaryKeys(metadata, rootTable);
 
         final String pkName = pks.get(0);
@@ -234,12 +234,12 @@ public class DbImporter {
             return record;
         }
 
-        for (DbExporter.Fk fk : getFksOfTable(connection, rootTable)) {
+        for (Fk fk : getFksOfTable(connection, rootTable)) {
 
             Record.FieldAndValue elementWithName = record.findElementWithName((fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
             if (elementWithName != null) {
                 String subTableName = fk.inverted ? fk.pktable : fk.fktable;
-                JsonNode subJsonNode = json.get(subTableName + "*");
+                JsonNode subJsonNode = json.get(subTableName + JSON_SUBTABLE_SUFFIX);
                 ArrayList<Record> records = new ArrayList<>();
 
                 if (fk.inverted) {
@@ -280,7 +280,7 @@ public class DbImporter {
 
     /** older variant */
     public static String recordAsInserts(Connection connection, Record record, EnumSet<TreatmentOptions> options) throws SQLException {
-        List<String> tableInsertOrder = determineOrder(record.getRowLink().tableName, connection);
+        List<String> tableInsertOrder = JdbcHelpers.determineOrder(connection, record.getRowLink().tableName);
 
         // tableName -> insertionStatement
         Map<String, String> insertionStatements = new HashMap<>();
@@ -303,7 +303,7 @@ public class DbImporter {
      * recursively add insertion statements starting from the rootTable and the record
      *  Old variant
      */
-    private static void addInsertionStatements(Connection connection, String tableName, Record record, Map<String, FieldsMapper> mappers, Map<String, String> insertionStatements, EnumSet<TreatmentOptions> options) throws SQLException {
+    private static void addInsertionStatements(Connection connection, String tableName, Record record, Map<String, FieldMapper> mappers, Map<String, String> insertionStatements, EnumSet<TreatmentOptions> options) throws SQLException {
         String pkName = record.pkName;
 
         boolean isInsert = doesPkTableExist(connection, tableName, pkName, record);
@@ -323,7 +323,7 @@ public class DbImporter {
         jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
         // todo log if there is a delta between the 2 sets
 
-        String sqlStatement = getSqlInsertOrUpdateStatement(tableName, jsonFieldNames, pkName, isInsert);
+        String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(tableName, jsonFieldNames, pkName, isInsert);
         try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
 
             String pkValue = null;
@@ -384,13 +384,15 @@ public class DbImporter {
         }
     }
 
+    /** Does the row of the table tableName and primary key pkName and the record record exist? */
+    // todo: remove dependency on record
     public static boolean doesPkTableExist(Connection connection, String tableName, String pkName, Record record) throws SQLException {
         String selectPk = "SELECT " + pkName + " from " + tableName + " where  " + pkName + " = ?";
 
         boolean isInsert;
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
             Record.FieldAndValue elementWithName = record.findElementWithName(pkName);
-            innerSetStatementField(elementWithName.metadata.type, pkSelectionStatement, 1, elementWithName.value.toString());
+            innerSetStatementField(pkSelectionStatement, elementWithName.metadata.type, 1, elementWithName.value.toString());
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 isInsert = !rs.next();
@@ -408,7 +410,7 @@ public class DbImporter {
     }
 
 
-    private static String prepareVarcharToInsert(Map<String, DbExporter.ColumnMetadata> columns, String currentFieldName, String valueToInsert) {
+    private static String prepareVarcharToInsert(Map<String, JdbcHelpers.ColumnMetadata> columns, String currentFieldName, String valueToInsert) {
         if (columns.get(currentFieldName).getType().toUpperCase().equals("VARCHAR")) {
             valueToInsert = getInnerValueToInsert(valueToInsert);
         }
@@ -440,88 +442,22 @@ public class DbImporter {
         return valueToInsert;
     }
 
-    /** if one would like to import the graph starting at rootTable, what order should one import the tables?
-     *  @return a List<String> with the table names in the order in which to import them*/
-    public static List<String> determineOrder(String rootTable, Connection connection) throws SQLException {
-        Set<String> treated = new HashSet<>();
-
-        Map<String, Set<String>> dependencyGraph = calculateDependencyGraph(rootTable, treated, connection);
-        List<String> orderedTables = new ArrayList<>();
-
-        Set<String> stillToTreat = new HashSet<>(treated);
-        while (!stillToTreat.isEmpty()) {
-            // remove all for which we have a constraint
-            Set<String> treatedThisTime = new HashSet<>(stillToTreat);
-            treatedThisTime.removeAll(dependencyGraph.keySet());
-
-            orderedTables.addAll(treatedThisTime);
-            stillToTreat.removeAll(treatedThisTime);
-
-            // remove the constraints that get eliminated by treating those
-            for (String key : dependencyGraph.keySet()) {
-                dependencyGraph.get(key).removeAll(treatedThisTime);
-            }
-            dependencyGraph.entrySet().removeIf(e -> e.getValue().isEmpty());
-        }
-
-        return orderedTables;
-    }
-
-
-    private static Map<String, Set<String>> calculateDependencyGraph(String rootTable, Set<String> treated, Connection connection) throws SQLException {
-        Set<String> tablesToTreat = new HashSet<>();
-        tablesToTreat.add(rootTable);
-
-        Map<String, Set<String>> dependencyGraph = new HashMap<>();
-
-        while (!tablesToTreat.isEmpty()) {
-            String next = tablesToTreat.stream().findFirst().get();
-            tablesToTreat.remove(next);
-
-            List<DbExporter.Fk> fks = getFksOfTable(connection, next);
-            for (DbExporter.Fk fk : fks) {
-                String tableToAdd = fk.pktable;
-                String otherTable = fk.fktable;
-
-                addToTreat(tablesToTreat, treated, tableToAdd);
-                addToTreat(tablesToTreat, treated, otherTable);
-
-                addDependency(dependencyGraph, tableToAdd, otherTable);
-            }
-
-            treated.add(next);
-        }
-        return dependencyGraph;
-    }
-
-    private static void addToTreat(Set<String> tablesToTreat, Set<String> treated, String tableToAdd) {
-        if (!treated.contains(tableToAdd)) {
-            tablesToTreat.add(tableToAdd);
-        }
-    }
-
-    private static void addDependency(Map<String, Set<String>> dependencyGraph, String lastTable, String tableToAdd) {
-        if (!lastTable.equals(tableToAdd)) {
-            dependencyGraph.putIfAbsent(tableToAdd, new HashSet<>());
-            dependencyGraph.get(tableToAdd).add(lastTable);
-        }
-    }
 
     ////// code partially from csvToDb
 
 
     private static void setStatementField(String typeAsString, PreparedStatement preparedStatement, int statementIndex, String header, String valueToInsert) throws SQLException {
-        innerSetStatementField(typeAsString, preparedStatement, statementIndex, valueToInsert);
+        innerSetStatementField(preparedStatement, typeAsString, statementIndex, valueToInsert);
     }
 
-    private static void setStatementField(Map<String, DbExporter.ColumnMetadata> columns, PreparedStatement preparedStatement, int statementIndex, String header, String valueToInsert) throws SQLException {
-        innerSetStatementField(columns.get(header.toUpperCase()).getType(), preparedStatement, statementIndex, valueToInsert);
+    private static void setStatementField(Map<String, JdbcHelpers.ColumnMetadata> columns, PreparedStatement preparedStatement, int statementIndex, String header, String valueToInsert) throws SQLException {
+        innerSetStatementField(preparedStatement, columns.get(header.toUpperCase()).getType(), statementIndex, valueToInsert);
     }
 
     /**
      * set a value on a jdbc Statement
      */
-    private static void innerSetStatementField(String typeAsString, PreparedStatement preparedStatement, int statementIndex, String valueToInsert) throws SQLException {
+    private static void innerSetStatementField(PreparedStatement preparedStatement, String typeAsString, int statementIndex, String valueToInsert) throws SQLException {
         switch (typeAsString) {
             case "BOOLEAN":
             case "bool":
@@ -560,23 +496,4 @@ public class DbImporter {
         }
     }
 
-    /**
-     * generate insert or update statement to insert columnNames into tableName
-     */
-    private static String getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert) {
-        String result;
-        String fieldList = columnNames.stream().filter(name -> (isInsert || !name.equals(pkName.toUpperCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
-
-        if (isInsert) {
-            String questionsMarks = columnNames.stream().map(name -> "").collect(Collectors.joining("?, ")) + "?";
-
-            result = "insert into " + tableName + " (" + fieldList + ") values (" + questionsMarks + ");";
-        } else {
-            fieldList += " = ? ";
-
-            result = "update " + tableName + " set " + fieldList + " where " + pkName + " = ?";
-        }
-
-        return result;
-    }
 }

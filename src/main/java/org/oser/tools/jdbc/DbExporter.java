@@ -1,6 +1,5 @@
 package org.oser.tools.jdbc;
 
-import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,8 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 /**
  *  Export db data to json.
@@ -31,56 +28,6 @@ public class DbExporter {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
 
     protected DbExporter() {}
-
-    /** Represents one foreign key */
-    @Getter
-    public static class Fk {
-        public String pktable;
-        public String pkcolumn;
-
-        public String fktable;
-        public String fkcolumn;
-
-        public String type;
-
-        public boolean inverted; // excluded in equals!
-
-        @Override
-        public String toString() {
-            return "Fk{" +
-                    "fktable='" + fktable + '\'' +
-                    ", fkcolumn='" + fkcolumn + '\'' +
-                    ", pktable='" + pktable + '\'' +
-                    ", pfcolumn='" + pkcolumn + '\'' +
-                    ", type='" + type + '\'' +
-                    ", inverted=" + inverted +
-                    '}';
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            Fk fk = (Fk) o;
-
-            if (fktable != null ? !fktable.equals(fk.fktable) : fk.fktable != null) return false;
-            if (pkcolumn != null ? !pkcolumn.equals(fk.pkcolumn) : fk.pkcolumn != null) return false;
-            if (type != null ? !type.equals(fk.type) : fk.type != null) return false;
-            if (pktable != null ? !pktable.equals(fk.pktable) : fk.pktable != null) return false;
-            return fkcolumn != null ? fkcolumn.equals(fk.fkcolumn) : fk.fkcolumn == null;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = fktable != null ? fktable.hashCode() : 0;
-            result = 31 * result + (pkcolumn != null ? pkcolumn.hashCode() : 0);
-            result = 31 * result + (type != null ? type.hashCode() : 0);
-            result = 31 * result + (pktable != null ? pktable.hashCode() : 0);
-            result = 31 * result + (fkcolumn != null ? fkcolumn.hashCode() : 0);
-            return result;
-        }
-    }
 
     /**
      * A table & its pk  (uniquely identifies a db row)
@@ -165,10 +112,10 @@ public class DbExporter {
     public static Record contentAsTree(Connection connection, String tableName, Object pkValue) throws SQLException {
         ExportContext context = new ExportContext();
 
-        assertTableExists(connection, tableName);
+        JdbcHelpers.assertTableExists(connection, tableName);
 
         Record data = readOneRecord(connection, tableName, pkValue, context);
-        addSubRowDataFromFks(connection, tableName, pkValue, data, context);
+        JdbcHelpers.addSubRowDataFromFks(connection, tableName, pkValue, data, context);
 
         data.optionalMetadata.put(RecordMetadata.EXPORT_CONTEXT, context);
 
@@ -176,74 +123,15 @@ public class DbExporter {
     }
 
 
-    /**
-     * complement the "data" by starting from "tableName" and recursively adding data that is connected via FKs
-     */
-    private static void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
-        List<Fk> fks = getFksOfTable(connection, tableName);
-
-        for (Fk fk : fks) {
-            context.treatedFks.add(fk);
-
-            Record.FieldAndValue elementWithName = data.findElementWithName(fk.inverted ? fk.fkcolumn : fk.pkcolumn);
-            if ((elementWithName != null) && (elementWithName.value != null)) {
-                String subTableName = fk.inverted ? fk.pktable : fk.fktable;
-                String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
-
-                if (!context.containsNode(subTableName, elementWithName.value)) {
-                    List<Record> subRow = readLinkedRecords(connection, subTableName,
-                            subFkName, elementWithName.value, true, context);
-                    elementWithName.subRow.put(subTableName, subRow);
-                }
-            }
-
-        }
-    }
-
-
-
-
-    /**
-     * get FK metadata of one table (both direction of metadata, exported and imported FKs)
-     */
-    public static List<Fk> getFksOfTable(Connection connection, String table) throws SQLException {
-        List<Fk> fks = new ArrayList<>();
-        DatabaseMetaData dm = connection.getMetaData();
-
-        ResultSet rs = dm.getExportedKeys(null, null, table);
-        addFks(fks, rs, false);
-
-        rs = dm.getImportedKeys(null, null, table);
-        addFks(fks, rs, true);
-
-        return fks;
-    }
-
-    private static void addFks(List<Fk> fks, ResultSet rs, boolean inverted) throws SQLException {
-        while (rs.next()) {
-            Fk fk = new Fk();
-
-            fk.pktable = rs.getString("pktable_name");
-            fk.pkcolumn = rs.getString("pkcolumn_name");
-            fk.fktable = rs.getString("fktable_name");
-            fk.fkcolumn = rs.getString("fkcolumn_name");
-            fk.inverted = inverted;
-
-            fks.add(fk);
-        }
-    }
-
-
     static Record readOneRecord(Connection connection, String tableName, Object pkValue, ExportContext context) throws SQLException {
         Record data = new Record(tableName, pkValue);
 
         DatabaseMetaData metaData = connection.getMetaData();
-        Map<String, ColumnMetadata> columns = getColumnNamesAndTypes(metaData, tableName);
+        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
         List<String> primaryKeys = getPrimaryKeys(metaData, tableName);
 
         String pkName = primaryKeys.get(0);
         String selectPk = "SELECT * from " + tableName + " where  " + pkName + " = ?";
-
 
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
@@ -272,7 +160,7 @@ public class DbExporter {
         List<Record> listOfRows = new ArrayList<>();
 
         DatabaseMetaData metaData = connection.getMetaData();
-        Map<String, ColumnMetadata> columns = getColumnNamesAndTypes(metaData, tableName);
+        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
         List<String> primaryKeys = getPrimaryKeys(metaData, tableName);
 
         String pkName = primaryKeys.get(0);
@@ -295,7 +183,7 @@ public class DbExporter {
                     context.visitedNodes.put(new RowLink(tableName, row.rowLink.pk), row);
 
                     if (nesting && !doNotNestThisRecord) {
-                        addSubRowDataFromFks(connection, tableName, row.rowLink.pk, row, context);
+                        JdbcHelpers.addSubRowDataFromFks(connection, tableName, row.rowLink.pk, row, context);
                     }
 
                     listOfRows.add(row);
@@ -306,7 +194,7 @@ public class DbExporter {
         return listOfRows;
     }
 
-    private static Record innerReadRecord(String tableName, Map<String, ColumnMetadata> columns, String pkName, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount) throws SQLException {
+    private static Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, String pkName, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount) throws SQLException {
         Record row = new Record(tableName, null);
 
         for (int i = 1; i <= columnCount; i++) {
@@ -328,38 +216,17 @@ public class DbExporter {
 
     ////////////////////
 
-    public static void assertTableExists(Connection connection, String tableName) throws SQLException {
-        DatabaseMetaData dbm = connection.getMetaData();
-
-        ResultSet tables = dbm.getTables(null, null, tableName, null);
-        if (tables.next()) {
-            return; // Table exists
-        }
-        else {
-            throw new IllegalArgumentException("Table " + tableName + " does not exist");
-        }
-    }
-
 
     static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName) throws SQLException {
         List<String> result = new ArrayList<>();
 
-        ResultSet rs = metadata.getPrimaryKeys(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()));
+        ResultSet rs = metadata.getPrimaryKeys(null, null, JdbcHelpers.adaptCaseForDb(tableName, metadata.getDatabaseProductName()));
 
         while (rs.next()) {
             result.add(rs.getString("COLUMN_NAME"));
         }
 
         return result;
-    }
-
-    private static String adaptCaseForDb(String originalName, String dbProductName) {
-        if (dbProductName.equals("PostgreSQL")) {
-            return originalName;
-        } else if (dbProductName.equals("H2")) {
-            return originalName.toUpperCase();
-        }
-        return originalName.toUpperCase();
     }
 
     private static void innerSetStatementField(String typeAsString, PreparedStatement preparedStatement, int statementIndex, String valueToInsert) throws SQLException {
@@ -388,56 +255,4 @@ public class DbExporter {
         }
     }
 
-    /**
-     * @return Map à la fieldName1 -> ColumnMetadata
-     */
-    static SortedMap<String, ColumnMetadata> getColumnNamesAndTypes(DatabaseMetaData metadata, String tableName) throws SQLException {
-        SortedMap<String, ColumnMetadata> result = new TreeMap<>();
-
-        ResultSet rs = metadata.getColumns(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()), null);
-
-        while (rs.next()) {
-            result.put(rs.getString("COLUMN_NAME").toUpperCase(),
-                    new ColumnMetadata(rs.getString("COLUMN_NAME"),
-                            rs.getString("TYPE_NAME"),
-                            rs.getString("COLUMN_SIZE"),
-                            rs.getInt("ORDINAL_POSITION")));
-        }
-
-        return result;
-    }
-
-    /**
-     * represents simplified JDBC metadata
-     */
-    public static class ColumnMetadata {
-        String name;
-        String type;
-        String size; // adapt later?
-        // starts at 1
-        private int ordinalPos;
-
-        public ColumnMetadata(String name, String type, String size, int ordinalPos) {
-            this.name = name;
-            this.type = type;
-            this.size = size;
-            this.ordinalPos = ordinalPos;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getType() {
-            return type;
-        }
-
-        public String getSize() {
-            return size;
-        }
-
-        public int getOrdinalPos() {
-            return ordinalPos;
-        }
-    }
 }

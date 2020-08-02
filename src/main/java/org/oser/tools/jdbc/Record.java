@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
+import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
 
 /**
  * Contains full data of 1 record=row of a database table (a RowLink identifies a record.
@@ -29,7 +30,7 @@ public class Record {
     DbExporter.RowLink rowLink;
     List<FieldAndValue> content = new ArrayList<>();
     String pkName;
-    List<DbExporter.Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
+    List<Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
 
     Map<RecordMetadata, Object> optionalMetadata = new HashMap<>();
 
@@ -111,7 +112,7 @@ public class Record {
 
     /** visit all Records in insertion order */
     public void visitRecordsInInsertionOrder(Connection connection, Consumer<Record> visitor) throws SQLException {
-        List<String> insertionOrder = DbImporter.determineOrder(rowLink.tableName, connection);
+        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName);
 
         Map<String, List<Record>> tableToRecords = new HashMap<>();
         visitAllRecords(r -> {
@@ -133,7 +134,7 @@ public class Record {
     public static class FieldAndValue {
         public String name;
         public Object value;
-        public DbExporter.ColumnMetadata metadata;
+        public JdbcHelpers.ColumnMetadata metadata;
         public Map<String, List<Record>> subRow = new HashMap<>();
 
         @Override
@@ -171,7 +172,7 @@ public class Record {
 
         private String maplistlist2jsonString(Map<String, List<Record>> map) {
             // a "*" (star) at the end of a key means this is a subrow added on this level
-            return map.keySet().stream().map(key -> "\"" + key + "*\":[" + listOfData2jsonString(map.get(key)) + "]").collect(Collectors.joining(","));
+            return map.keySet().stream().map(key -> "\"" + key + JSON_SUBTABLE_SUFFIX + "\":[" + listOfData2jsonString(map.get(key)) + "]").collect(Collectors.joining(","));
         }
 
         private String listOfData2jsonString(List<Record> lists) {

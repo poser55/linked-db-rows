@@ -84,8 +84,8 @@ public class TestContainerTest {
     @Test
     void tableNotExistingTest() throws SQLException, IOException, ClassNotFoundException {
         Connection mortgage = DbExporterSmallTest.getConnection("mortgage");
-        Assertions.assertThrows(IllegalArgumentException.class, () -> DbExporter.assertTableExists(mortgage, "xxx"));
-        DbExporter.assertTableExists(mortgage, "book");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> JdbcHelpers.assertTableExists(mortgage, "xxx"));
+        JdbcHelpers.assertTableExists(mortgage, "book");
 //        Assertions.assertThrows(IllegalArgumentException.class, () -> Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "xxx"));
 //        Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "book");
     }
