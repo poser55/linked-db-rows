@@ -20,8 +20,8 @@ public final class JdbcHelpers {
 
     private JdbcHelpers() {}
 
-    /** if one would like to import the tree starting at rootTable, what order should one import the tables?
-     *  @return a List<String> with the table names in the order in which to import them*/
+    /** if one would like to import the tree starting at rootTable, what order should one insert the tables?
+     *  @return a List<String> with the table names in the order in which to insert them */
     public static List<String> determineOrder(Connection connection, String rootTable) throws SQLException {
         Set<String> treated = new HashSet<>();
 
@@ -106,30 +106,6 @@ public final class JdbcHelpers {
         return result;
     }
 
-    /**
-     * complement the "data" by starting from "tableName" and recursively adding data that is connected via FKs
-     */
-    static void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, DbExporter.ExportContext context) throws SQLException {
-        List<Fk> fks = getFksOfTable(connection, tableName);
-
-        for (Fk fk : fks) {
-            context.treatedFks.add(fk);
-
-            Record.FieldAndValue elementWithName = data.findElementWithName(fk.inverted ? fk.fkcolumn : fk.pkcolumn);
-            if ((elementWithName != null) && (elementWithName.value != null)) {
-                String subTableName = fk.inverted ? fk.pktable : fk.fktable;
-                String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
-
-                if (!context.containsNode(subTableName, elementWithName.value)) {
-                    List<Record> subRow = DbExporter.readLinkedRecords(connection, subTableName,
-                            subFkName, elementWithName.value, true, context);
-                    elementWithName.subRow.put(subTableName, subRow);
-                }
-            }
-
-        }
-    }
-
     public static void assertTableExists(Connection connection, String tableName) throws SQLException {
         DatabaseMetaData dbm = connection.getMetaData();
 
@@ -165,6 +141,18 @@ public final class JdbcHelpers {
                             rs.getString("TYPE_NAME"),
                             rs.getString("COLUMN_SIZE"),
                             rs.getInt("ORDINAL_POSITION")));
+        }
+
+        return result;
+    }
+
+    public static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName) throws SQLException {
+        List<String> result = new ArrayList<>();
+
+        ResultSet rs = metadata.getPrimaryKeys(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()));
+
+        while (rs.next()) {
+            result.add(rs.getString("COLUMN_NAME"));
         }
 
         return result;

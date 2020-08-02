@@ -17,7 +17,6 @@ import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -201,7 +200,7 @@ public class DbImporter {
 
         DatabaseMetaData metadata = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable);
-        List<String> pks = DbExporter.getPrimaryKeys(metadata, rootTable);
+        List<String> pks = JdbcHelpers.getPrimaryKeys(metadata, rootTable);
 
         final String pkName = pks.get(0);
         record.pkName = pkName;

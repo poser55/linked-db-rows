@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static org.oser.tools.jdbc.Fk.getFksOfTable;
+
 /**
  *  Export db data to json.
  *
@@ -115,7 +117,7 @@ public class DbExporter {
         JdbcHelpers.assertTableExists(connection, tableName);
 
         Record data = readOneRecord(connection, tableName, pkValue, context);
-        JdbcHelpers.addSubRowDataFromFks(connection, tableName, pkValue, data, context);
+        addSubRowDataFromFks(connection, tableName, pkValue, data, context);
 
         data.optionalMetadata.put(RecordMetadata.EXPORT_CONTEXT, context);
 
@@ -128,7 +130,7 @@ public class DbExporter {
 
         DatabaseMetaData metaData = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
-        List<String> primaryKeys = getPrimaryKeys(metaData, tableName);
+        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName);
 
         String pkName = primaryKeys.get(0);
         String selectPk = "SELECT * from " + tableName + " where  " + pkName + " = ?";
@@ -161,7 +163,7 @@ public class DbExporter {
 
         DatabaseMetaData metaData = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
-        List<String> primaryKeys = getPrimaryKeys(metaData, tableName);
+        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName);
 
         String pkName = primaryKeys.get(0);
         String selectPk = "SELECT * from " + tableName + " where  " + fkName + " = ?";
@@ -183,7 +185,7 @@ public class DbExporter {
                     context.visitedNodes.put(new RowLink(tableName, row.rowLink.pk), row);
 
                     if (nesting && !doNotNestThisRecord) {
-                        JdbcHelpers.addSubRowDataFromFks(connection, tableName, row.rowLink.pk, row, context);
+                        addSubRowDataFromFks(connection, tableName, row.rowLink.pk, row, context);
                     }
 
                     listOfRows.add(row);
@@ -193,6 +195,32 @@ public class DbExporter {
 
         return listOfRows;
     }
+
+    /**
+     * complement the record "data" by starting from "tableName" and recursively adding data that is connected via FKs
+     */
+    static void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
+        List<Fk> fks = getFksOfTable(connection, tableName);
+
+        for (Fk fk : fks) {
+            context.treatedFks.add(fk);
+
+            Record.FieldAndValue elementWithName = data.findElementWithName(fk.inverted ? fk.fkcolumn : fk.pkcolumn);
+            if ((elementWithName != null) && (elementWithName.value != null)) {
+                String subTableName = fk.inverted ? fk.pktable : fk.fktable;
+                String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
+
+                if (!context.containsNode(subTableName, elementWithName.value)) {
+                    List<Record> subRow = readLinkedRecords(connection, subTableName,
+                            subFkName, elementWithName.value, true, context);
+                    elementWithName.subRow.put(subTableName, subRow);
+                }
+            }
+
+        }
+    }
+
+
 
     private static Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, String pkName, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount) throws SQLException {
         Record row = new Record(tableName, null);
@@ -213,21 +241,6 @@ public class DbExporter {
     }
 
 
-
-    ////////////////////
-
-
-    static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName) throws SQLException {
-        List<String> result = new ArrayList<>();
-
-        ResultSet rs = metadata.getPrimaryKeys(null, null, JdbcHelpers.adaptCaseForDb(tableName, metadata.getDatabaseProductName()));
-
-        while (rs.next()) {
-            result.add(rs.getString("COLUMN_NAME"));
-        }
-
-        return result;
-    }
 
     private static void innerSetStatementField(String typeAsString, PreparedStatement preparedStatement, int statementIndex, String valueToInsert) throws SQLException {
         switch (typeAsString) {
