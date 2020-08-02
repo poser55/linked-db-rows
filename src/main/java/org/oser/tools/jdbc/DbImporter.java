@@ -45,44 +45,14 @@ public class DbImporter {
 
     // options
     private boolean forceInsert = true;
-
+    private Map<String, PkGenerator> overriddenPkGenerators = new HashMap<>();
+    private PkGenerator defaultPkGenerator = new NextValuePkGenerator();
 
     public DbImporter() {
     }
 
 
-    // todo: drop this (wrong idea)
-    private static final Map<String, Long> latestUsedIntKeys = new HashMap<>();
 
-    // todo: mk this later a pluggable strategy, should also support sequences
-    public static Object getCandidatePk(Connection connection, String tableName, String pkType, String pkName) throws SQLException {
-        if (pkType.toUpperCase().equals("VARCHAR")) {
-            return UUID.randomUUID().toString();
-        } else if (pkType.toUpperCase().startsWith("INT") || pkType.equals("NUMERIC") || pkType.toUpperCase().equals("DECIMAL")) {
-            if (!latestUsedIntKeys.containsKey(tableName)) {
-                latestUsedIntKeys.put(tableName, getMaxUsedIntPk(connection, tableName, pkName));
-            }
-            long nextKey = latestUsedIntKeys.get(tableName) + 1;
-            latestUsedIntKeys.put(tableName, nextKey);
-            return nextKey;
-
-        }
-        throw new IllegalArgumentException("not yet supported type for pk " + pkType);
-    }
-
-    public static long getMaxUsedIntPk(Connection connection, String tableName, String pkName) throws SQLException {
-        String selectPk = "SELECT max(" + pkName + ") from " + tableName;
-
-        try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-
-            try (ResultSet rs = pkSelectionStatement.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getLong(1);
-                }
-            }
-        }
-        throw new IllegalArgumentException("issue with getting next pk");
-    }
 
 
     private static List<Map.Entry<String, JsonNode>> getCompositeJsonElements(JsonNode json) {
@@ -91,6 +61,8 @@ public class DbImporter {
                 .stream(iterable.spliterator(), false).filter(e -> !e.getValue().isValueNode())
                 .collect(Collectors.toList());
     }
+
+
 
 
     /** Does the row of the table tableName and primary key pkName and the record record exist? */
@@ -486,6 +458,15 @@ public class DbImporter {
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
+    }
+
+    private Object getCandidatePk(Connection connection, String tableName, String type, String pkName) throws SQLException {
+        PkGenerator generatorToUse = defaultPkGenerator;
+        if (overriddenPkGenerators.containsKey(tableName)){
+            generatorToUse = overriddenPkGenerators.get(tableName);
+        }
+
+        return generatorToUse.generatePk(connection, tableName, type, pkName);
     }
 
     public void setForceInsert(boolean forceInsert) {

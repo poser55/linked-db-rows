@@ -65,12 +65,10 @@ public class TestContainerTest {
         Map<RowLink, Object> pkAndTableObjectMap = dbImporter.insertRecords(mortgageConnection, book2);
         System.out.println("remapped: " + pkAndTableObjectMap.size() + " lenderPk" + pkAndTableObjectMap.keySet().stream()
                 .filter(p -> p.tableName.equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
-
-
     }
 
 
-        @Test
+    @Test
     void testInsert() throws SQLException, ClassNotFoundException, IOException {
         Connection mortgageConnection = DbExporterSmallTest.getConnection("mortgage");
 
