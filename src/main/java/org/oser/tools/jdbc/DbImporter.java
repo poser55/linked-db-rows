@@ -212,7 +212,7 @@ public class DbImporter {
         // todo log if there is a delta between the 2 sets
 
         for (String currentFieldName : jsonFieldNames) {
-            String valueToInsert = json.get(currentFieldName.toLowerCase()).toString();
+            String valueToInsert = json.get(currentFieldName.toLowerCase()).asText();
 
             valueToInsert = prepareVarcharToInsert(columns, currentFieldName, valueToInsert);
 
@@ -220,10 +220,7 @@ public class DbImporter {
                 record.setPkValue(valueToInsert);
             }
 
-            Record.FieldAndValue d = new Record.FieldAndValue();
-            d.name = currentFieldName;
-            d.metadata = columns.get(currentFieldName);
-            d.value = valueToInsert;
+            Record.FieldAndValue d = new Record.FieldAndValue(currentFieldName, columns.get(currentFieldName), valueToInsert);
             record.content.add(d);
         }
 
@@ -481,7 +478,7 @@ public class DbImporter {
                     preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
                 } else {
                     if (typeAsString.equals("timestamp")) {
-                        preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(LocalDateTime.parse(valueToInsert)));
+                        preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(LocalDateTime.parse(valueToInsert.replace(" ", "T"))));
                     } else {
                         preparedStatement.setDate(statementIndex, Date.valueOf(LocalDate.parse(valueToInsert)));
                     }

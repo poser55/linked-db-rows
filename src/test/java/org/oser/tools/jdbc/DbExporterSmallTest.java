@@ -37,6 +37,20 @@ public class DbExporterSmallTest {
         System.out.println("book2:"+book2.asJson());
     }
 
+    @Test
+    void datatypesTest() throws SQLException, ClassNotFoundException, IOException {
+        Connection mortgageConnection = getConnection("mortgage");
+
+        Record datatypes = DbExporter.contentAsTree(mortgageConnection, "datatypes", 1);
+        String asString = datatypes.asJson();
+        System.out.println("datatypes:"+asString);
+
+        Record asRecord = DbImporter.jsonToRecord(mortgageConnection, "datatypes", asString);
+        asRecord.asJson();
+
+
+    }
+
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
         Class.forName("org.postgresql.Driver");
 
@@ -46,4 +60,6 @@ public class DbExporterSmallTest {
         con.setAutoCommit(true);
         return con;
     }
+
+
 }

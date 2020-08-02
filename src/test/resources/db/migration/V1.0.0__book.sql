@@ -22,4 +22,17 @@ insert into author (id, last_name) values (2, 'Huxley');
 insert into book (id, author_id, title) values (1, 2, 'Brave new world');
 
 
+CREATE TABLE datatypes (
+    id           integer     NOT NULL,
+    varchar_type varchar(50),
+    text_type    text,
+    boolean_type boolean,
+    timestamp_type timestamp,
+    date_type date,
+
+    CONSTRAINT datatypes_pkey PRIMARY KEY (id)
+);
+
+insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (1, 'varchar', 'my text', true, '2019-01-01T12:19:11',
+                                                                                                     '2020-02-03');
 

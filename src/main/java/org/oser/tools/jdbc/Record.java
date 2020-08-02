@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
@@ -21,7 +22,7 @@ import static java.util.stream.Collectors.toSet;
 import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
 
 /**
- * Contains full data of 1 record=row of a database table. A RowLink identifies the root of such a record.
+ * Contains full data of 1 record= 1 row of a database table. A RowLink identifies the root of such a record.
  * Can hold nested sub-records (those that were linked to this RowLink via FKs) - but this is optional.
  * Organizes data as a <em>tree</em>.
  */
@@ -138,6 +139,77 @@ public class Record {
         public JdbcHelpers.ColumnMetadata metadata;
         public Map<String, List<Record>> subRow = new HashMap<>();
 
+        public FieldAndValue(String name, JdbcHelpers.ColumnMetadata metadata, Object value) {
+            this.name = name;
+            this.metadata = metadata;
+
+            this.value = convertTypeForValue(metadata, value);
+        }
+
+        private Object convertTypeForValue(JdbcHelpers.ColumnMetadata metadata, Object value) {
+            switch (metadata.type) {
+                case "BOOLEAN":
+                case "bool":
+                    Boolean bool = null;
+                    if (value instanceof String) {
+                        try {
+                            bool = Boolean.parseBoolean((String) value); // todo make a bit more intelligent (also accept T/F...)
+                        } catch (NumberFormatException e) {
+                            // ok
+                        }
+                    }
+                    return bool != null ? bool : value;
+                case "int4":
+                case "int8":
+                    Long l = null;
+                    if (value instanceof String) {
+                        try {
+                            l = Long.parseLong((String) value);
+                        } catch (NumberFormatException e) {
+                            // ok
+                        }
+                    }
+                    return l != null ? l : value;
+                case "numeric":
+                case "DECIMAL":
+                    Double d = null;
+                    if (value instanceof String) {
+                        try {
+                            d = Double.parseDouble((String) value);
+                        } catch (NumberFormatException e) {
+                            // ok
+                        }
+                    }
+                    return  d != null ? d : value;
+                case "timestamp":
+                    Timestamp ts = null;
+                    if (value instanceof String) {
+                        try {
+                            ts = Timestamp.valueOf((String) ((String) value).replace("T", " "));
+                        } catch (IllegalArgumentException e) {
+                            // ok
+                        }
+                    }
+                    return  ts != null ? ts : value;
+                case "date":
+                    Date date = null;
+                    if (value instanceof String) {
+                        try {
+                            date = Date.valueOf((String) value);
+                        } catch (IllegalArgumentException e) {
+                            // ok
+                        }
+                    }
+                    return  date != null ? date : value;
+                case "VARCHAR":
+                case "varchar":
+                case "TEXT":
+                case "text":
+                default:
+                    return value;
+            }
+        }
+
         @Override
         public String toString() {
             return "\"" + name +
@@ -146,7 +218,7 @@ public class Record {
                     "";
         }
 
-        private String getValueWithQuoting() {
+        String getValueWithQuoting() {
             switch (metadata.type) {
                 case "BOOLEAN":
                 case "bool":
@@ -160,6 +232,7 @@ public class Record {
                 case "date":
                     return value != null ? ("\"" + ((java.sql.Date) value).toLocalDate() + "\"") : null;
                 case "VARCHAR":
+                case "varchar":
                 default:
                     if (value == null) {
                         return null;

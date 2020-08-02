@@ -144,10 +144,8 @@ public class DbExporter {
                 int columnCount = rsMetaData.getColumnCount();
                 if (rs.next()) {
                     for (int i = 1; i <= columnCount; i++) {
-                        Record.FieldAndValue d = new Record.FieldAndValue();
-                        d.name = rsMetaData.getColumnName(i);
-                        d.value = rs.getObject(i);
-                        d.metadata = columns.get(d.name.toUpperCase());
+                        String columnName = rsMetaData.getColumnName(i);
+                        Record.FieldAndValue d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i) );
                         data.content.add(d);
                     }
                 }
@@ -226,10 +224,8 @@ public class DbExporter {
         Record row = new Record(tableName, null);
 
         for (int i = 1; i <= columnCount; i++) {
-            Record.FieldAndValue d = new Record.FieldAndValue();
-            d.name = rsMetaData.getColumnName(i);
-            d.value = rs.getObject(i);
-            d.metadata = columns.get(d.name.toUpperCase());
+            String columnName = rsMetaData.getColumnName(i);
+            Record.FieldAndValue d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i));
             row.content.add(d);
 
             if (d.name.toUpperCase().equals(pkName.toUpperCase())) {
