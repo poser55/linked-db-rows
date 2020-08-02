@@ -20,13 +20,14 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 /**
- * Contains 1 record=row of a database table. Can hold nested records (that are linked to via FKs).
+ * Contains full data of 1 record=row of a database table (a RowLink identifies a record.
+ * Can hold nested sub-records (those that were linked to via FKs) - but this is optional.
  */
 @Getter
 @ToString
 public class Record {
     DbExporter.RowLink rowLink;
-    List<Data> content = new ArrayList<>();
+    List<FieldAndValue> content = new ArrayList<>();
     String pkName;
     List<DbExporter.Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
 
@@ -37,16 +38,16 @@ public class Record {
     }
 
     /**
-     * returns json
+     * returns json String of this record
      */
     public String asJson() {
         return "{ " +
-                content.stream().map(Data::toString).collect(Collectors.joining(",")) +
+                content.stream().map(FieldAndValue::toString).collect(Collectors.joining(",")) +
                 " }";
     }
 
-    public Record.Data findElementWithName(String columnName) {
-        for (Record.Data d : content) {
+    public FieldAndValue findElementWithName(String columnName) {
+        for (FieldAndValue d : content) {
             if (d.name.toUpperCase().equals(columnName.toUpperCase())) {
                 return d;
             }
@@ -76,8 +77,9 @@ public class Record {
         }
     }
 
-    public Data elementByName(String name) {
-        for (Data element : content) {
+    /** @return the element with the name if it is contained in this record (not considering sub-records) */
+    public FieldAndValue elementByName(String name) {
+        for (FieldAndValue element : content) {
             if (element.name.equals(name)) {
                 return element;
             }
@@ -85,6 +87,7 @@ public class Record {
         return null;
     }
 
+    /** @return all nodes=RowLinks that are contained in the record */
     public Set<DbExporter.RowLink> getAllNodes(){
         Set<DbExporter.RowLink> result = new HashSet<>();
         result.add(rowLink);
@@ -95,7 +98,7 @@ public class Record {
         return result;
     }
 
-    /** visit all Records (top down). Ignore the result */
+    /** visit all Records (breath first search). You can ignore the result of this method (used internally). */
     public Set<Record> visitAllRecords(Consumer<Record> visitor){
 
         visitor.accept(this);
@@ -127,7 +130,7 @@ public class Record {
     /**
      * Holds one field with metadata (and potentially nested content)
      */
-    public static class Data {
+    public static class FieldAndValue {
         public String name;
         public Object value;
         public DbExporter.ColumnMetadata metadata;
@@ -167,7 +170,8 @@ public class Record {
         }
 
         private String maplistlist2jsonString(Map<String, List<Record>> map) {
-            return map.keySet().stream().map(key -> "\"" + key + "\":[" + listOfData2jsonString(map.get(key)) + "]").collect(Collectors.joining(","));
+            // a "*" (star) at the end of a key means this is a subrow added on this level
+            return map.keySet().stream().map(key -> "\"" + key + "*\":[" + listOfData2jsonString(map.get(key)) + "]").collect(Collectors.joining(","));
         }
 
         private String listOfData2jsonString(List<Record> lists) {
@@ -175,7 +179,7 @@ public class Record {
         }
 
         public String row2json(Record row) {
-            return "{" + row.content.stream().map(Data::toString).collect(Collectors.joining(",")) + "}";
+            return "{" + row.content.stream().map(FieldAndValue::toString).collect(Collectors.joining(",")) + "}";
         }
     }
 }

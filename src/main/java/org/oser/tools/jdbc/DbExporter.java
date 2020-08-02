@@ -184,7 +184,7 @@ public class DbExporter {
         for (Fk fk : fks) {
             context.treatedFks.add(fk);
 
-            Record.Data elementWithName = findElementWithName(data, fk.inverted ? fk.fkcolumn : fk.pkcolumn);
+            Record.FieldAndValue elementWithName = findElementWithName(data, fk.inverted ? fk.fkcolumn : fk.pkcolumn);
             if ((elementWithName != null) && (elementWithName.value != null)) {
                 String subTableName = fk.inverted ? fk.pktable : fk.fktable;
                 String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
@@ -199,8 +199,8 @@ public class DbExporter {
         }
     }
 
-    static Record.Data findElementWithName(Record data, String columnName) {
-        for (Record.Data d : data.content) {
+    static Record.FieldAndValue findElementWithName(Record data, String columnName) {
+        for (Record.FieldAndValue d : data.content) {
             if (d.name.equals(columnName)) {
                 return d;
             }
@@ -260,7 +260,7 @@ public class DbExporter {
                 int columnCount = rsMetaData.getColumnCount();
                 if (rs.next()) {
                     for (int i = 1; i <= columnCount; i++) {
-                        Record.Data d = new Record.Data();
+                        Record.FieldAndValue d = new Record.FieldAndValue();
                         d.name = rsMetaData.getColumnName(i);
                         d.value = rs.getObject(i);
                         d.metadata = columns.get(d.name.toUpperCase());
@@ -316,7 +316,7 @@ public class DbExporter {
         Record row = new Record(tableName, null);
 
         for (int i = 1; i <= columnCount; i++) {
-            Record.Data d = new Record.Data();
+            Record.FieldAndValue d = new Record.FieldAndValue();
             d.name = rsMetaData.getColumnName(i);
             d.value = rs.getObject(i);
             d.metadata = columns.get(d.name.toUpperCase());

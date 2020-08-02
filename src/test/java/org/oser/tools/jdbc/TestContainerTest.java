@@ -73,7 +73,7 @@ public class TestContainerTest {
     void testInsert() throws SQLException, ClassNotFoundException, IOException {
         Connection mortgageConnection = DbExporterSmallTest.getConnection("mortgage");
 
-        String json = "{ \"id\":7,\"author_id\":1, \"author\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
+        String json = "{ \"id\":7,\"author_id\":1, \"author*\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
         Record book = DbImporter.jsonToRecord(mortgageConnection, "book", json);
         assertEquals(2, book.getAllNodes().size());

@@ -47,15 +47,8 @@ import static org.oser.tools.jdbc.TreatmentOptions.RemapPrimaryKeys;
 public class DbImporter {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbImporter.class);
 
-    // todo drop these?
-    private final Connection connection;
-    private EnumSet<TreatmentOptions> options;
-
-    public DbImporter(Connection connection) {
-        this.connection = connection;
-        options = EnumSet.noneOf(TreatmentOptions.class);
+    public DbImporter() {
     }
-
 
     /**
      * insert a record into a database - doing the remapping where needed.
@@ -104,7 +97,7 @@ public class DbImporter {
                 int statementIndex = 1; // statement param
                 int pkStatementIndex = 0;
                 for (String currentFieldName : jsonFieldNames) {
-                    Record.Data currentElement = record.findElementWithName(currentFieldName);
+                    Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
                     valueToInsert[0] = prepareVarcharToInsert(currentElement.metadata.type, currentFieldName, Objects.toString(currentElement.value));
 
                     boolean fieldIsPk = currentFieldName.equals(record.pkName.toUpperCase());
@@ -228,7 +221,7 @@ public class DbImporter {
                 record.setPkValue(valueToInsert);
             }
 
-            Record.Data d = new Record.Data();
+            Record.FieldAndValue d = new Record.FieldAndValue();
             d.name = currentFieldName;
             d.metadata = columns.get(currentFieldName);
             d.value = valueToInsert;
@@ -244,10 +237,10 @@ public class DbImporter {
 
         for (DbExporter.Fk fk : getFksOfTable(connection, rootTable)) {
 
-            Record.Data elementWithName = findElementWithName(record, (fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
+            Record.FieldAndValue elementWithName = findElementWithName(record, (fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
             if (elementWithName != null) {
                 String subTableName = fk.inverted ? fk.pktable : fk.fktable;
-                JsonNode subJsonNode = json.get(subTableName);
+                JsonNode subJsonNode = json.get(subTableName + "*");
                 ArrayList<Record> records = new ArrayList<>();
 
                 if (fk.inverted) {
@@ -339,7 +332,7 @@ public class DbImporter {
 
             int statementIndex = 1; // statement param
             for (String currentFieldName : jsonFieldNames) {
-                Record.Data currentElement = record.findElementWithName(currentFieldName);
+                Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
                 String valueToInsert = Objects.toString(currentElement.value);
 
                 valueToInsert = prepareVarcharToInsert(currentElement.metadata.type, currentFieldName, valueToInsert);
@@ -381,7 +374,7 @@ public class DbImporter {
             // do recursion (treat subtables)
             for (String subrowName : record.getFieldNamesWithSubrows()) {
 
-                Record.Data data = record.findElementWithName(subrowName);
+                Record.FieldAndValue data = record.findElementWithName(subrowName);
                 for (String linkedTable : data.subRow.keySet()) {
 
                     for (Record subrecord : data.subRow.get(linkedTable)) {
@@ -397,7 +390,7 @@ public class DbImporter {
 
         boolean isInsert;
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            Record.Data elementWithName = record.findElementWithName(pkName);
+            Record.FieldAndValue elementWithName = record.findElementWithName(pkName);
             innerSetStatementField(elementWithName.metadata.type, pkSelectionStatement, 1, elementWithName.value.toString());
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
@@ -586,131 +579,5 @@ public class DbImporter {
         }
 
         return result;
-    }
-
-
-    //////////// todo remove this old code below
-
-
-    // old method, moved to package private
-    void jsonStringToInsertString_old(String rootTable, String jsonString, HashMap<String, FieldsMapper> mappers) throws IOException, SQLException {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode json = mapper.readTree(jsonString);
-
-        List<String> tableInsertOrder = determineOrder(rootTable, connection);
-
-        // tableName -> insertionStatement
-        Map<String, String> insertionStatements = new HashMap<>();
-
-        addInsertionStatements(connection, rootTable, jsonToRecord(connection, rootTable, jsonString), mappers, insertionStatements, options);
-
-        for (String table : tableInsertOrder) {
-            if (insertionStatements.containsKey(table)) {
-                // apply inserts
-                boolean remapPrimaryKeys = TreatmentOptions.getValue(RemapPrimaryKeys, options);
-
-                System.out.println(insertionStatements.get(table) + ";");
-            }
-        }
-    }
-
-
-    /**
-     * recursively add insertion statements starting from the rootTable and the json structure
-     */
-    private static void addInsertionStatements(String tableName, JsonNode json, Map<String, FieldsMapper> mappers, Map<String, String> insertionStatements, Connection connection, EnumSet<TreatmentOptions> options) throws SQLException {
-        DatabaseMetaData metadata = connection.getMetaData();
-        Map<String, DbExporter.ColumnMetadata> columns = DbExporter.getColumnNamesAndTypes(metadata, tableName);
-        List<String> pks = DbExporter.getPrimaryKeys(metadata, tableName);
-
-        final String pkName = pks.get(0);
-
-        String selectPk = "SELECT " + pkName + " from " + tableName + " where  " + pkName + " = ?";
-
-        boolean isInsert;
-        try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            innerSetStatementField(columns.get(pkName.toUpperCase()).getType(), pkSelectionStatement, 1, json.get(pkName).toString());
-
-            try (ResultSet rs = pkSelectionStatement.executeQuery()) {
-                isInsert = !rs.next();
-            }
-        }
-
-
-        if (TreatmentOptions.getValue(ForceInsert, options)) {
-            isInsert = true;
-        }
-        boolean remapPrimaryKeys = TreatmentOptions.getValue(RemapPrimaryKeys, options) && isInsert;
-
-
-        List<String> jsonFieldNames = getJsonFieldNames(json);
-        Iterable<Map.Entry<String, JsonNode>> iterable;
-
-        // fields must both be in json AND in db metadata, remove those missing in db metadata
-        Set<String> columnsDbNames = columns.keySet();
-        jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
-        // todo log if there is a delta between the 2 sets
-
-        String sqlStatement = getSqlInsertOrUpdateStatement(tableName, jsonFieldNames, pkName, isInsert);
-        try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
-
-            String pkValue = null;
-
-            int statementIndex = 1; // statement param
-            for (String currentFieldName : jsonFieldNames) {
-                String valueToInsert = json.get(currentFieldName.toLowerCase()).toString();
-
-                valueToInsert = prepareVarcharToInsert(columns, currentFieldName, valueToInsert);
-
-                boolean fieldIsPk = currentFieldName.equals(pkName.toUpperCase());
-                if (isInsert || !fieldIsPk) {
-                    valueToInsert = removeQuotes(valueToInsert);
-
-                    if (mappers.containsKey(currentFieldName)) {
-                        mappers.get(currentFieldName).mapField(columns.get(currentFieldName), statement, statementIndex, valueToInsert);
-                    } else {
-                        setStatementField(columns, statement, statementIndex, currentFieldName, valueToInsert);
-                    }
-
-                    statementIndex++;
-                } else {
-                    pkValue = valueToInsert;
-                }
-            }
-            if (isInsert) {
-                // do not set version
-                //updateStatement.setLong(statementIndex, 0);
-            } else {
-                if (pkValue != null) {
-                    pkValue = pkValue.trim();
-                }
-
-                setStatementField(columns, statement, statementIndex, pkName, pkValue);
-            }
-
-
-            if (insertionStatements.containsKey(tableName)) {
-                insertionStatements.put(tableName, insertionStatements.get(tableName) + ";" + statement.toString());
-            } else {
-                insertionStatements.put(tableName, statement.toString());
-            }
-
-
-            // do recursion (treat subtables)
-
-            for (Map.Entry<String, JsonNode> field : getCompositeJsonElements(json)) {
-                if (field.getValue().isArray()) {
-                    Iterator<JsonNode> elements = field.getValue().elements();
-
-                    while (elements.hasNext()) {
-                        addInsertionStatements(field.getKey().toString(), elements.next(), mappers, insertionStatements, connection, options);
-                    }
-
-                } else if (field.getValue().isObject()) {
-                    addInsertionStatements(field.getKey().toString(), field.getValue(), mappers, insertionStatements, connection, options);
-                }
-            }
-
-        }
     }
 }
