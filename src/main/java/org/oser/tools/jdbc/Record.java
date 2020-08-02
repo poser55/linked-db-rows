@@ -21,8 +21,9 @@ import static java.util.stream.Collectors.toSet;
 import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
 
 /**
- * Contains full data of 1 record=row of a database table (a RowLink identifies a record.
- * Can hold nested sub-records (those that were linked to via FKs) - but this is optional.
+ * Contains full data of 1 record=row of a database table. A RowLink identifies the root of such a record.
+ * Can hold nested sub-records (those that were linked to this RowLink via FKs) - but this is optional.
+ * Organizes data as a <em>tree</em>.
  */
 @Getter
 @ToString

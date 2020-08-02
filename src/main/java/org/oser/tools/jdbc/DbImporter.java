@@ -50,9 +50,9 @@ public class DbImporter {
     }
 
     /**
-     * insert a record into a database - doing the remapping where needed.
-     * assumes someone external handles the transaction or autocommit
-     * @return the remapped keys (PkAndTable -> new primary key)
+     * Insert a record into a database - doing the remapping to other primary keys where needed.
+     * Assumes someone external handles the transaction or autocommit
+     * @return the remapped keys (RowLink -> new primary key)
      */
     public static Map<DbExporter.RowLink, Object> insertRecords(Connection connection, Record record, InserterOptions options) throws SQLException {
         Map<DbExporter.RowLink, Object> newKeys = new HashMap<>();
@@ -118,7 +118,7 @@ public class DbImporter {
                         if (mappers.containsKey(currentFieldName)) {
                             mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementIndex, valueToInsert[0]);
                         } else {
-                            setStatementField(currentElement.metadata.type, statement, statementIndex, currentFieldName, valueToInsert[0]);
+                            setStatementField(statement, currentElement.metadata.type, statementIndex, currentFieldName, valueToInsert[0]);
                         }
                     }
 
@@ -135,7 +135,7 @@ public class DbImporter {
                 }
 
                 pkValue = isInsert ? Objects.toString(candidatePk) : valueToInsert[0];
-                setStatementField(pkType, statement, pkStatementIndex, record.pkName, pkValue);
+                setStatementField(statement, pkType, pkStatementIndex, record.pkName, pkValue);
 
 
                 savedStatement = statement;
@@ -154,6 +154,7 @@ public class DbImporter {
     }
 
 
+    // todo: drop this (wrong idea)
     private static final Map<String, Long> latestUsedIntKeys = new HashMap<>();
 
     // todo: mk this later a pluggable strategy, should also support sequences
@@ -279,7 +280,7 @@ public class DbImporter {
 
 
     /** older variant */
-    public static String recordAsInserts(Connection connection, Record record, EnumSet<TreatmentOptions> options) throws SQLException {
+    public static String recordAsInserts(Connection connection, Record record, Set<TreatmentOptions> options) throws SQLException {
         List<String> tableInsertOrder = JdbcHelpers.determineOrder(connection, record.getRowLink().tableName);
 
         // tableName -> insertionStatement
@@ -303,7 +304,7 @@ public class DbImporter {
      * recursively add insertion statements starting from the rootTable and the record
      *  Old variant
      */
-    private static void addInsertionStatements(Connection connection, String tableName, Record record, Map<String, FieldMapper> mappers, Map<String, String> insertionStatements, EnumSet<TreatmentOptions> options) throws SQLException {
+    private static void addInsertionStatements(Connection connection, String tableName, Record record, Map<String, FieldMapper> mappers, Map<String, String> insertionStatements, Set<TreatmentOptions> options) throws SQLException {
         String pkName = record.pkName;
 
         boolean isInsert = doesPkTableExist(connection, tableName, pkName, record);
@@ -343,7 +344,7 @@ public class DbImporter {
                     if (mappers.containsKey(currentFieldName)) {
                         mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementIndex, valueToInsert);
                     } else {
-                        setStatementField(currentElement.metadata.type, statement, statementIndex, currentFieldName, valueToInsert);
+                        setStatementField(statement, currentElement.metadata.type, statementIndex, currentFieldName, valueToInsert);
                     }
 
                     statementIndex++;
@@ -360,7 +361,7 @@ public class DbImporter {
                     pkValue = pkValue.trim();
                 }
 
-                setStatementField(pkType, statement, statementIndex, pkName, pkValue);
+                setStatementField(statement, pkType, statementIndex, pkName, pkValue);
             }
 
             if (insertionStatements.containsKey(tableName)) {
@@ -385,7 +386,7 @@ public class DbImporter {
     }
 
     /** Does the row of the table tableName and primary key pkName and the record record exist? */
-    // todo: remove dependency on record
+    // todo: remove dependency on record, mv to JdbHelpers
     public static boolean doesPkTableExist(Connection connection, String tableName, String pkName, Record record) throws SQLException {
         String selectPk = "SELECT " + pkName + " from " + tableName + " where  " + pkName + " = ?";
 
@@ -446,12 +447,8 @@ public class DbImporter {
     ////// code partially from csvToDb
 
 
-    private static void setStatementField(String typeAsString, PreparedStatement preparedStatement, int statementIndex, String header, String valueToInsert) throws SQLException {
+    private static void setStatementField(PreparedStatement preparedStatement, String typeAsString, int statementIndex, String header, String valueToInsert) throws SQLException {
         innerSetStatementField(preparedStatement, typeAsString, statementIndex, valueToInsert);
-    }
-
-    private static void setStatementField(Map<String, JdbcHelpers.ColumnMetadata> columns, PreparedStatement preparedStatement, int statementIndex, String header, String valueToInsert) throws SQLException {
-        innerSetStatementField(preparedStatement, columns.get(header.toUpperCase()).getType(), statementIndex, valueToInsert);
     }
 
     /**

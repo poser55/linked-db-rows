@@ -1,6 +1,7 @@
 package org.oser.tools.jdbc;
 
 import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * Options for db init // todo: adapt for db2graph
@@ -29,7 +30,7 @@ public enum TreatmentOptions {
 		return defaultValue;
 	}
 
-	public static boolean getValue(TreatmentOptions key, EnumSet<TreatmentOptions> options) {
+	public static boolean getValue(TreatmentOptions key, Set<TreatmentOptions> options) {
 		return (options.contains(key)) ? !key.getDefaultValue() : key.getDefaultValue();
 	}
 }
