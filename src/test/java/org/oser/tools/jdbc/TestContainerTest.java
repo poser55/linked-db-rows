@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.EnumSet;
 import java.util.Map;
 
 
@@ -28,7 +27,8 @@ public class TestContainerTest {
 
         System.out.println("book:"+book.asJson());
 
-        Record book2 = DbImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
+        DbImporter dbImporter = new DbImporter();
+        Record book2 = dbImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
 
         System.out.println("book2:"+book2.asJson());
 
@@ -39,14 +39,14 @@ public class TestContainerTest {
 
 
         Record author1 = db2GraphMortgage.contentAsTree(mortgageConnection, "author", "1");
-        Record author2 = DbImporter.jsonToRecord(mortgageConnection, "author", author1.asJson());
+        Record author2 = dbImporter.jsonToRecord(mortgageConnection, "author", author1.asJson());
 
         assertEquals(mapper.readTree(author1.asJson().toLowerCase()), mapper.readTree(author2.asJson().toLowerCase()));
 
         // as inserts
 
 //        String s = JsonImporter.asInserts(mortgageConnection, book2, EnumSet.noneOf(TreatmentOptions.class));
-        String s = DbImporter.recordAsInserts(mortgageConnection, book2, EnumSet.of(TreatmentOptions.ForceInsert));
+        String s = dbImporter.recordAsInserts(mortgageConnection, book2);
         System.out.println("\ninserts: "+s);
 
     }
@@ -59,9 +59,10 @@ public class TestContainerTest {
 
         System.out.println("book:" + book.asJson());
 
-        Record book2 = DbImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
+        DbImporter dbImporter = new DbImporter();
+        Record book2 = dbImporter.jsonToRecord(mortgageConnection, "book", book.asJson());
 
-        Map<RowLink, Object> pkAndTableObjectMap = DbImporter.insertRecords(mortgageConnection, book2, new InserterOptions());
+        Map<RowLink, Object> pkAndTableObjectMap = dbImporter.insertRecords(mortgageConnection, book2);
         System.out.println("remapped: " + pkAndTableObjectMap.size() + " lenderPk" + pkAndTableObjectMap.keySet().stream()
                 .filter(p -> p.tableName.equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
 
@@ -75,10 +76,11 @@ public class TestContainerTest {
 
         String json = "{ \"id\":7,\"author_id\":1, \"author*\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
-        Record book = DbImporter.jsonToRecord(mortgageConnection, "book", json);
+            DbImporter dbImporter = new DbImporter();
+            Record book = dbImporter.jsonToRecord(mortgageConnection, "book", json);
         assertEquals(2, book.getAllNodes().size());
 
-        System.out.println(DbImporter.recordAsInserts(mortgageConnection, book, EnumSet.noneOf(TreatmentOptions.class)));
+        System.out.println(dbImporter.recordAsInserts(mortgageConnection, book));
     }
 
     @Test

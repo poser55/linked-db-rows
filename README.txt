@@ -4,10 +4,11 @@ What it is:
 
 Usage (2 minute version):
 *Export a linked db row to json, starting from the row of the book table with the primary key of 1 (=RowLink)
-  String jsonString = DbExporter.contentAsGraph(dbConnection, "book", "1").asJson();
+  String jsonString = new DbExporter().contentAsGraph(dbConnection, "book", "1").asJson();
 
 *Import an exported json again into a database:
-  DbImporter.insertRecords(dbConnection, DbImporter.jsonToRecord(dbConnection, "book" jsonString), new InserterOptions());
+  DbImporter dbImporter = new DbImporter();
+  dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book" jsonString), new InserterOptions());
 
 Limitations:
 * Only tested on postgresql for now

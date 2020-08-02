@@ -31,6 +31,22 @@ public class DbExporter {
     protected DbExporter() {}
 
     /**
+     * Main method: recursively scan a tree linked db rows and return it
+     */
+    public Record contentAsTree(Connection connection, String tableName, Object pkValue) throws SQLException {
+        ExportContext context = new ExportContext();
+
+        JdbcHelpers.assertTableExists(connection, tableName);
+
+        Record data = readOneRecord(connection, tableName, pkValue, context);
+        addSubRowDataFromFks(connection, tableName, pkValue, data, context);
+
+        data.optionalMetadata.put(RecordMetadata.EXPORT_CONTEXT, context);
+
+        return data;
+    }
+
+    /**
      * stores context about the export (to avoid infinite loops)
      */
     public static class ExportContext {
@@ -49,23 +65,6 @@ public class DbExporter {
             return visitedNodes.containsKey(new RowLink(tableName, pk));
         }
 
-    }
-
-
-    /**
-     * Main method: recursively scan a tree linked db rows and return it
-     */
-    public static Record contentAsTree(Connection connection, String tableName, Object pkValue) throws SQLException {
-        ExportContext context = new ExportContext();
-
-        JdbcHelpers.assertTableExists(connection, tableName);
-
-        Record data = readOneRecord(connection, tableName, pkValue, context);
-        addSubRowDataFromFks(connection, tableName, pkValue, data, context);
-
-        data.optionalMetadata.put(RecordMetadata.EXPORT_CONTEXT, context);
-
-        return data;
     }
 
 
