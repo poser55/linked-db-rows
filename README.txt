@@ -3,7 +3,7 @@ What it is:
 *Linked db rows: table rows that are linked via foreign keys.
 
 Usage (2 minute version):
-*Export a linked db row to json, starting from the row of the book table with the primary key of 1 (=RowLink)
+*Export a linked db row to json, starting from the row of the book table with the primary key of 1 (=RowLink book/1)
   String jsonString = new DbExporter().contentAsTree(dbConnection, "book", "1").asJson();
 
 *Import an exported json again into a database:
@@ -32,11 +32,11 @@ Usage (longer version)
 
 Configuration options
 * Exporter
-**
+** stopTablesExcluded: tables that we do NOT want in the exported tree
 * Importer
-** forceInsert : in case an update would be possible: create a new row and remap other entries
-** defaultPkGenerator : how to generate primary key for new entries (default NextValuePkGenerator)
-** overriddenPkGenerators : pk generator overrides for special tables
+** forceInsert: in case an update would be possible: create a new row and remap other entries
+** defaultPkGenerator:  how to generate primary keys for new entries (default NextValuePkGenerator)
+** overriddenPkGenerators: pk generator overrides for special tables
 
 
 
