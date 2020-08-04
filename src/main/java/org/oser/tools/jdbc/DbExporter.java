@@ -1,5 +1,8 @@
 package org.oser.tools.jdbc;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +34,12 @@ public class DbExporter {
     private Set<String> stopTablesExcluded = new HashSet<>();
     // todo not yet used
     private Set<String> stopTablesIncluded = new HashSet<>();
+
+    private @NonNull Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
+            .maximumSize(10_000).build();
+
+    private @NonNull Cache<String, List<String>> pkCache = Caffeine.newBuilder()
+            .maximumSize(10_000).build();
 
     protected DbExporter() {}
 
@@ -76,7 +85,7 @@ public class DbExporter {
 
         DatabaseMetaData metaData = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
-        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName);
+        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName, pkCache);
 
         String pkName = primaryKeys.get(0);
         String selectPk = "SELECT * from " + tableName + " where  " + pkName + " = ?";
@@ -111,7 +120,7 @@ public class DbExporter {
 
         DatabaseMetaData metaData = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
-        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName);
+        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName, pkCache);
 
         if (primaryKeys.isEmpty()) {
             return listOfRows; // for tables without a pk
@@ -152,7 +161,7 @@ public class DbExporter {
      * complement the record "data" by starting from "tableName" and recursively adding data that is connected via FKs
      */
     void addSubRowDataFromFks(Connection connection, String tableName, Object pkValue, Record data, ExportContext context) throws SQLException {
-        List<Fk> fks = getFksOfTable(connection, tableName);
+        List<Fk> fks = getFksOfTable(connection, tableName, fkCache);
 
         for (Fk fk : fks) {
             context.treatedFks.add(fk);

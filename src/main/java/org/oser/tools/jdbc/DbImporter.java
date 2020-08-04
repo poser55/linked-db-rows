@@ -2,6 +2,9 @@ package org.oser.tools.jdbc;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +50,10 @@ public class DbImporter {
     private boolean forceInsert = true;
     private Map<String, PkGenerator> overriddenPkGenerators = new HashMap<>();
     private PkGenerator defaultPkGenerator = new NextValuePkGenerator();
+
+    private @NonNull Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
+            .maximumSize(10_000).build();
+
 
     public DbImporter() {
     }
@@ -313,7 +320,7 @@ public class DbImporter {
             return record;
         }
 
-        for (Fk fk : getFksOfTable(connection, rootTable)) {
+        for (Fk fk : getFksOfTable(connection, rootTable, fkCache)) {
 
             Record.FieldAndValue elementWithName = record.findElementWithName((fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
             if (elementWithName != null) {

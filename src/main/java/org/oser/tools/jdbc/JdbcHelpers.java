@@ -1,5 +1,7 @@
 package org.oser.tools.jdbc;
 
+import com.github.benmanes.caffeine.cache.Cache;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -143,6 +145,15 @@ public final class JdbcHelpers {
                             rs.getInt("ORDINAL_POSITION")));
         }
 
+        return result;
+    }
+
+    public static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName, Cache<String, List<String>> cache) throws SQLException {
+        List<String> result = cache.getIfPresent(tableName);
+        if (result == null){
+            result = getPrimaryKeys(metadata, tableName);
+        }
+        cache.put(tableName, result);
         return result;
     }
 

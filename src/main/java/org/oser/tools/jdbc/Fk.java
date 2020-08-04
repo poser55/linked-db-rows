@@ -1,5 +1,6 @@
 package org.oser.tools.jdbc;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import lombok.Getter;
 
 import java.sql.Connection;
@@ -21,6 +22,15 @@ public class Fk {
     public String type;
 
     public boolean inverted; // excluded in equals!
+
+    public static List<Fk> getFksOfTable(Connection connection, String table, Cache<String, List<Fk>> cache) throws SQLException {
+        List<Fk> result = cache.getIfPresent(table);
+        if (result == null){
+            result = getFksOfTable(connection, table);
+        }
+        cache.put(table, result);
+        return result;
+    }
 
     /**
      * get FK metadata of one table (both direction of metadata, exported and imported FKs)
