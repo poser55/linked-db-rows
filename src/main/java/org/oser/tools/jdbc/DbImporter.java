@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,15 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
-
-
-// todo errors:
-//  jsonToRecord: needs to convert the data types (not just all to string), e.g. for timestamp
 
 
 /**
@@ -51,14 +45,12 @@ public class DbImporter {
     private Map<String, PkGenerator> overriddenPkGenerators = new HashMap<>();
     private PkGenerator defaultPkGenerator = new NextValuePkGenerator();
 
-    private @NonNull Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
+    private Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
             .maximumSize(10_000).build();
 
 
     public DbImporter() {
     }
-
-
 
 
 

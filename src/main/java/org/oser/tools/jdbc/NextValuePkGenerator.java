@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
 
+/** Trivial primary key generator strategy */
 public class NextValuePkGenerator implements PkGenerator {
 
     @Override
@@ -21,7 +22,7 @@ public class NextValuePkGenerator implements PkGenerator {
     public static long getMaxUsedIntPk(Connection connection, String tableName, String pkName) throws SQLException {
         String selectPk = "SELECT max(" + pkName + ") from " + tableName;
 
-        try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
+        try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: unchecked values all via prepared statement
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 if (rs.next()) {

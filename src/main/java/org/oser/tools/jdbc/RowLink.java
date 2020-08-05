@@ -3,7 +3,7 @@ package org.oser.tools.jdbc;
 import java.util.Objects;
 
 /**
- * A table & its pk  (uniquely identifies a db row)
+ * A table and 1 concrete primary key  (uniquely identifies a db row)
  */
 public class RowLink {
     public RowLink(String tableName, Object pk) {

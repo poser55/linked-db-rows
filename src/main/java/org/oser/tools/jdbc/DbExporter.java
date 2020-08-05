@@ -35,11 +35,11 @@ public class DbExporter {
     // todo not yet used
     private Set<String> stopTablesIncluded = new HashSet<>();
 
-    private @NonNull Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
-            .maximumSize(10_000).build();
+    private Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
+            .maximumSize(1000).build();
 
-    private @NonNull Cache<String, List<String>> pkCache = Caffeine.newBuilder()
-            .maximumSize(10_000).build();
+    private Cache<String, List<String>> pkCache = Caffeine.newBuilder()
+            .maximumSize(1000).build();
 
     protected DbExporter() {}
 

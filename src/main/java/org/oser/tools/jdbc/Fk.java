@@ -10,7 +10,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Represents one foreign key */
+/** Represents one foreign key constraint */
 @Getter
 public class Fk {
     public String pktable;

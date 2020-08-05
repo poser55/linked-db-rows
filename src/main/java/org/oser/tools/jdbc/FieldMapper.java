@@ -7,5 +7,5 @@ import java.sql.PreparedStatement;
  */
 @FunctionalInterface
 public interface FieldMapper {
-	void mapField(JdbcHelpers.ColumnMetadata metadata, PreparedStatement statement, int insertIndex, String csvValue);
+	void mapField(JdbcHelpers.ColumnMetadata metadata, PreparedStatement statement, int insertIndex, String value);
 }
