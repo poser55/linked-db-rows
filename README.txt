@@ -1,5 +1,5 @@
 What it is:
-*Export and import "linked db rows" from/ into relational databases.
+*Collect, export and import "linked db rows" from/ into relational databases.
 *Linked db rows: table rows that are linked via foreign keys.
 
 Usage (2 minute version):
@@ -8,7 +8,7 @@ Usage (2 minute version):
 
 *Import an exported json again into a database:
   DbImporter dbImporter = new DbImporter();
-  dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book" jsonString), new InserterOptions());
+  dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book", jsonString));
 
 Limitations:
 * Only tested on postgresql for now
@@ -32,7 +32,7 @@ Usage (longer version)
 
 Configuration options
 * Exporter
-** stopTablesExcluded: tables that we do NOT want in the exported tree
+** stopTablesExcluded: tables that we do NOT want in the exported tree - the export is stopped at those
 * Importer
 ** forceInsert: in case an update would be possible: create a new row and remap other entries
 ** defaultPkGenerator:  how to generate primary keys for new entries (default NextValuePkGenerator)
@@ -42,4 +42,5 @@ Configuration options
 
 
 Ideas:
- * use the Sakila https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila demo database?
+* Use the Sakila https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila demo database more?
+* Performance tuning
