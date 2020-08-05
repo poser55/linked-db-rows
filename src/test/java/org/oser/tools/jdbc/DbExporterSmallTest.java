@@ -65,9 +65,9 @@ public class DbExporterSmallTest {
         DbImporter dbImporter = new DbImporter();
         Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
 
-        // todo error: has infinite loop in determineOrder
-        // Map<RowLink, Object> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
-        // System.out.println(actor + " "+actor.size());
+        // todo: still many issues with importing!!
+        //Map<RowLink, Object> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
+        System.out.println(actor + " "+actor.size());
     }
 
 

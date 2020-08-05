@@ -126,7 +126,10 @@ public class Record {
         });
 
         for (String tableName : insertionOrder) {
-            tableToRecords.get(tableName).forEach(r -> visitor.accept(r));
+            List<Record> records = tableToRecords.get(tableName);
+            if (records != null) {
+                records.forEach(r -> visitor.accept(r));
+            }
         }
     }
 

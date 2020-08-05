@@ -23,7 +23,11 @@ public final class JdbcHelpers {
     private JdbcHelpers() {}
 
     /** if one would like to import the tree starting at rootTable, what order should one insert the tables?
-     *  @return a List<String> with the table names in the order in which to insert them */
+     *  @return a List<String> with the table names in the order in which to insert them
+     *  CAVEAT: may return a partial list (in case there are cycles/ there is no layering in the table dependencies)
+     *
+     *  todo: could we all separate non cyclic parts of the graph? Would that help?
+     *  */
     public static List<String> determineOrder(Connection connection, String rootTable) throws SQLException {
         Set<String> treated = new HashSet<>();
 
@@ -38,6 +42,10 @@ public final class JdbcHelpers {
 
             orderedTables.addAll(treatedThisTime);
             stillToTreat.removeAll(treatedThisTime);
+
+            if (treatedThisTime.isEmpty()) {
+                break; // returning a partial list
+            }
 
             // remove the constraints that get eliminated by treating those
             for (String key : dependencyGraph.keySet()) {

@@ -134,20 +134,23 @@ public class DbImporter {
      * set a value on a jdbc Statement
      */
     private static void innerSetStatementField(PreparedStatement preparedStatement, String typeAsString, int statementIndex, String valueToInsert) throws SQLException {
-        switch (typeAsString) {
+        switch (typeAsString.toUpperCase()) {
             case "BOOLEAN":
-            case "bool":
+            case "BOOL":
                 preparedStatement.setBoolean(statementIndex, Boolean.parseBoolean(valueToInsert.trim()));
                 break;
-            case "int4":
-            case "int8":
+            case "SERIAL":
+            case "INT2":
+            case "INT4":
+            case "INT8":
+            case "YEAR":
                 if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
                     preparedStatement.setNull(statementIndex, Types.NUMERIC);
                 } else {
                     preparedStatement.setLong(statementIndex, Long.parseLong(valueToInsert.trim()));
                 }
                 break;
-            case "numeric":
+            case "NUMERIC":
             case "DECIMAL":
                 if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
                     preparedStatement.setNull(statementIndex, Types.NUMERIC);
@@ -155,15 +158,16 @@ public class DbImporter {
                     preparedStatement.setDouble(statementIndex, Double.parseDouble(valueToInsert.trim()));
                 }
                 break;
-            case "date":
-            case "timestamp":
+            case "DATE":
+            case "TIMESTAMP":
                 if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
                     preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
                 } else {
-                    if (typeAsString.equals("timestamp")) {
-                        preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(LocalDateTime.parse(valueToInsert.replace(" ", "T"))));
+                    LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
+                    if (typeAsString.equals("TIMESTAMP")) {
+                        preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(localDateTime));
                     } else {
-                        preparedStatement.setDate(statementIndex, Date.valueOf(LocalDate.parse(valueToInsert)));
+                        preparedStatement.setDate(statementIndex, Date.valueOf(String.valueOf(localDateTime.toLocalDate())));
                     }
                 }
                 break;
@@ -359,6 +363,8 @@ public class DbImporter {
      * Insert a record into a database - doing the remapping to other primary keys where needed.
      * Assumes someone external handles the transaction or autocommit
      * @return the remapped keys (RowLink -> new primary key)
+     *
+     * CAVEAT: cannot handle cycles in the graph! Will insert just partial data (the first tables without cycles).
      */
     public Map<RowLink, Object> insertRecords(Connection connection, Record record) throws SQLException {
         Map<RowLink, Object> newKeys = new HashMap<>();

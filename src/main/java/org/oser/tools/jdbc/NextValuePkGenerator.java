@@ -11,9 +11,11 @@ public class NextValuePkGenerator implements PkGenerator {
 
     @Override
     public Object generatePk(Connection connection, String tableName, String pkType, String pkName) throws SQLException {
-        if (pkType.toUpperCase().equals("VARCHAR")) {
+        String pkTypeUppercase = pkType.toUpperCase();
+
+        if (pkTypeUppercase.equals("VARCHAR")) {
             return UUID.randomUUID().toString();
-        } else if (pkType.toUpperCase().startsWith("INT") || pkType.equals("NUMERIC") || pkType.toUpperCase().equals("DECIMAL")) {
+        } else if (pkTypeUppercase.startsWith("INT") || pkTypeUppercase.equals("SERIAL")|| pkTypeUppercase.equals("NUMERIC") || pkTypeUppercase.toUpperCase().equals("DECIMAL")) {
             return  getMaxUsedIntPk(connection, tableName, pkName) + 1;
         }
         throw new IllegalArgumentException("not yet supported type for pk " + pkType);
