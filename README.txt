@@ -16,31 +16,29 @@ Limitations:
 * It solves a problem I have - quite hacky in many ways
 * Proprietary json structure
 * Only simple primary keys supported for now
+* No custom db types are supported
 
 License:
 * Apache version 2.0
 
 Additional features:
-* Determine order in which tables can be inserted (taking care of their dependencies)
+* Determine the order in which tables can be inserted (taking care of their dependencies)
 * Various other helpers for JDBC, refer to JdbHelpers for more detail.
 * Some options on how to export/ re-import a Json structure
 
 Usage (longer version)
-* There are accessors on DbImporter and DbExporter that allow to set various options. Refer to section
-"Configuration options" for details
-
-
-Configuration options
-* Exporter
-** stopTablesExcluded: tables that we do NOT want in the exported tree - the export is stopped at those
-* Importer
-** forceInsert: in case an update would be possible: create a new row and remap other entries
-** defaultPkGenerator:  how to generate primary keys for new entries (default NextValuePkGenerator)
-** overriddenPkGenerators: pk generator overrides for special tables
-
+* There are accessors on DbImporter and DbExporter that allow to set various options:
+** Exporter
+*** stopTablesExcluded: tables that we do NOT want in the exported tree - the export is stopped before those
+*** stopTablesIncluded: tables that we want in the exported tree, but from which no more FK following shall occur.
+** Importer
+*** forceInsert: in case an update would be possible: create a new row and remap other entries
+*** defaultPkGenerator:  how to generate primary keys for new entries (default NextValuePkGenerator)
+*** overriddenPkGenerators: pk generator overrides for special tables
+*** fieldMappers: if you want to treat inserting certain fields in a special way (matching by field name for now)
 
 
 
 Ideas:
-* Use the Sakila https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila demo database more?
-* Performance tuning
+* Use the Sakila https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila demo database more (started, but uses custom types)
+* Performance tuning (one step was already done)

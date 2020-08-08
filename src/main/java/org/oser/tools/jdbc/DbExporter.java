@@ -32,6 +32,7 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
 public class DbExporter {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
 
+    // configuration settings:
     private Set<String> stopTablesExcluded = new HashSet<>();
     private Set<String> stopTablesIncluded = new HashSet<>();
 
@@ -180,16 +181,12 @@ public class DbExporter {
                 String subTableName = fk.inverted ? fk.pktable : fk.fktable;
                 String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
 
-             //   if (!context.containsNode(subTableName, elementWithName.value)) {
-                    List<Record> subRow = this.readLinkedRecords(connection, subTableName,
-                            subFkName, elementWithName.value, true, context);
-                    if (!subRow.isEmpty()){
-                        elementWithName.subRow.put(subTableName, subRow);
-                    }
-
-               // }
+                List<Record> subRow = this.readLinkedRecords(connection, subTableName,
+                        subFkName, elementWithName.value, true, context);
+                if (!subRow.isEmpty()) {
+                    elementWithName.subRow.put(subTableName, subRow);
+                }
             }
-
         }
     }
 

@@ -44,6 +44,7 @@ public class DbImporter {
     private boolean forceInsert = true;
     private Map<String, PkGenerator> overriddenPkGenerators = new HashMap<>();
     private PkGenerator defaultPkGenerator = new NextValuePkGenerator();
+    private Map<String, FieldMapper> fieldMappers = new HashMap<>();
 
     private Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
             .maximumSize(10_000).build();
@@ -205,7 +206,6 @@ public class DbImporter {
         }
 
 
-
         List<String> jsonFieldNames = record.getFieldNames();
         Iterable<Map.Entry<String, JsonNode>> iterable;
 
@@ -284,7 +284,7 @@ public class DbImporter {
         // tableName -> insertionStatement
         Map<String, String> insertionStatements = new HashMap<>();
 
-        addInsertionStatements(connection, record.getRowLink().tableName, record, new HashMap<>(), insertionStatements);
+        addInsertionStatements(connection, record.getRowLink().tableName, record, fieldMappers, insertionStatements);
 
         String result = "";
         for (String table : tableInsertOrder) {
@@ -385,7 +385,7 @@ public class DbImporter {
     public Map<RowLink, Object> insertRecords(Connection connection, Record record) throws SQLException {
         Map<RowLink, Object> newKeys = new HashMap<>();
 
-        record.visitRecordsInInsertionOrder(connection, r -> this.insertOneRecord(connection, r, newKeys, new HashMap<>()));
+        record.visitRecordsInInsertionOrder(connection, r -> this.insertOneRecord(connection, r, newKeys, fieldMappers));
 
         // todo treat errors
 
@@ -494,5 +494,9 @@ public class DbImporter {
 
     public void setForceInsert(boolean forceInsert) {
         this.forceInsert = forceInsert;
+    }
+
+    public Map<String, FieldMapper> getFieldMappers() {
+        return fieldMappers;
     }
 }
