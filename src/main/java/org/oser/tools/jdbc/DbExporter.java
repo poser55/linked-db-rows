@@ -137,7 +137,7 @@ public class DbExporter {
                 int columnCount = rsMetaData.getColumnCount();
                 while (rs.next()) { // treat 1 fk-link
                     Record row = innerReadRecord(tableName, columns, pkName, rs, rsMetaData, columnCount);
-                    if (context.containsNode(tableName, row.findElementWithName(pkName))) {
+                    if (context.containsNode(tableName, row.rowLink.pk)) {
                         continue; // we have already read this node
                     }
 
@@ -179,10 +179,10 @@ public class DbExporter {
              //   if (!context.containsNode(subTableName, elementWithName.value)) {
                     List<Record> subRow = this.readLinkedRecords(connection, subTableName,
                             subFkName, elementWithName.value, true, context);
-                    if (subRow.isEmpty()){
-                        break;
+                    if (!subRow.isEmpty()){
+                        elementWithName.subRow.put(subTableName, subRow);
                     }
-                    elementWithName.subRow.put(subTableName, subRow);
+
                // }
             }
 

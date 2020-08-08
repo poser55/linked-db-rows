@@ -36,7 +36,7 @@ public class TestContainerTest {
 
         // todo: known issue .jsonToRecord converts json keys to upper case
         assertEquals(mapper.readTree(book.asJson().toLowerCase()), mapper.readTree(book2.asJson().toLowerCase()));
-
+        assertEquals(book.getAllNodes(), book2.getAllNodes());
 
         Record author1 = db2Graphdemo.contentAsTree(demoConnection, "author", "1");
         Record author2 = dbImporter.jsonToRecord(demoConnection, "author", author1.asJson());
@@ -44,11 +44,9 @@ public class TestContainerTest {
         assertEquals(mapper.readTree(author1.asJson().toLowerCase()), mapper.readTree(author2.asJson().toLowerCase()));
 
         // as inserts
-
-//        String s = JsonImporter.asInserts(demoConnection, book2, EnumSet.noneOf(TreatmentOptions.class));
         String s = dbImporter.recordAsInserts(demoConnection, book2);
         System.out.println("\ninserts: "+s);
-
+        assertEquals(2, s.split("\n").length);
     }
 
     @Test
@@ -63,8 +61,10 @@ public class TestContainerTest {
         Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJson());
 
         Map<RowLink, Object> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
-        System.out.println("remapped: " + pkAndTableObjectMap.size() + " lenderPk" + pkAndTableObjectMap.keySet().stream()
+        System.out.println("remapped: " + pkAndTableObjectMap.size() + " new book Pk" + pkAndTableObjectMap.keySet().stream()
                 .filter(p -> p.tableName.equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
+
+        assertEquals(2, pkAndTableObjectMap.size());
     }
 
 
@@ -86,8 +86,6 @@ public class TestContainerTest {
         Connection demo = DbExporterSmallTest.getConnection("demo");
         Assertions.assertThrows(IllegalArgumentException.class, () -> JdbcHelpers.assertTableExists(demo, "xxx"));
         JdbcHelpers.assertTableExists(demo, "book");
-//        Assertions.assertThrows(IllegalArgumentException.class, () -> Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "xxx"));
-//        Db2Graph.assertTableExists(getConnectionTestContainer("demo"), "book");
     }
 
 
@@ -121,5 +119,4 @@ public class TestContainerTest {
         flyway.migrate();
         return ds;
     }
-
 }

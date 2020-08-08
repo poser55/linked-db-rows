@@ -26,6 +26,21 @@ public class DbExporterSmallTest {
     }
 
     @Test
+    void datatypesTest() throws SQLException, ClassNotFoundException, IOException {
+        Connection demoConnection = getConnection("demo");
+
+        Record datatypes = new DbExporter().contentAsTree(demoConnection, "datatypes", 1);
+        String asString = datatypes.asJson();
+        System.out.println("datatypes:"+asString);
+
+        Record asRecord = new DbImporter().jsonToRecord(demoConnection, "datatypes", asString);
+        String asStringAgain = asRecord.asJson();
+
+        assertEquals(asString.toUpperCase(), asStringAgain.toUpperCase());
+        assertEquals(1, asRecord.getAllNodes().size());
+    }
+
+    @Test
     void testJsonToRecord() throws SQLException, IOException, ClassNotFoundException {
         Connection demoConnection = getConnection("demo");
         DbExporter dbExporter = new DbExporter();
@@ -38,19 +53,6 @@ public class DbExporterSmallTest {
         System.out.println("book2:"+book2.asJson());
     }
 
-    @Test
-    void datatypesTest() throws SQLException, ClassNotFoundException, IOException {
-        Connection demoConnection = getConnection("demo");
-
-        Record datatypes = new DbExporter().contentAsTree(demoConnection, "datatypes", 1);
-        String asString = datatypes.asJson();
-        System.out.println("datatypes:"+asString);
-
-        Record asRecord = new DbImporter().jsonToRecord(demoConnection, "datatypes", asString);
-        String asStringAgain = asRecord.asJson();
-
-        assertEquals(asString.toUpperCase(), asStringAgain.toUpperCase());
-    }
 
     @Test
     void testStopTableIncluded() throws SQLException, ClassNotFoundException, IOException {

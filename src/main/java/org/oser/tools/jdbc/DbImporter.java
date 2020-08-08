@@ -47,6 +47,9 @@ public class DbImporter {
     private Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
             .maximumSize(10_000).build();
 
+    private Cache<String, List<String>> pkCache = Caffeine.newBuilder()
+            .maximumSize(1000).build();
+
 
     public DbImporter() {
     }
@@ -294,7 +297,7 @@ public class DbImporter {
 
         DatabaseMetaData metadata = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable);
-        List<String> pks = JdbcHelpers.getPrimaryKeys(metadata, rootTable);
+        List<String> pks = JdbcHelpers.getPrimaryKeys(metadata, rootTable, pkCache);
 
         final String pkName = pks.get(0);
         record.pkName = pkName;
