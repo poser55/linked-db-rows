@@ -1,6 +1,8 @@
 package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
 public final class JdbcHelpers {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JdbcHelpers.class);
 
     private JdbcHelpers() {}
 
@@ -44,6 +47,7 @@ public final class JdbcHelpers {
             stillToTreat.removeAll(treatedThisTime);
 
             if (treatedThisTime.isEmpty()) {
+                LOGGER.warn("Not a layered organization of table dependencies - excluding connected tables:"+dependencyGraph);
                 break; // returning a partial list
             }
 
@@ -149,6 +153,7 @@ public final class JdbcHelpers {
             result.put(rs.getString("COLUMN_NAME").toUpperCase(),
                     new ColumnMetadata(rs.getString("COLUMN_NAME"),
                             rs.getString("TYPE_NAME"),
+                            rs.getInt("DATA_TYPE"),
                             rs.getString("COLUMN_SIZE"),
                             rs.getInt("ORDINAL_POSITION")));
         }
@@ -183,13 +188,15 @@ public final class JdbcHelpers {
     public static class ColumnMetadata {
         String name;
         String type;
+        private int dataType;
         String size; // adapt later?
         // starts at 1
         private int ordinalPos;
 
-        public ColumnMetadata(String name, String type, String size, int ordinalPos) {
+        public ColumnMetadata(String name, String type, int dataType, String size, int ordinalPos) {
             this.name = name;
             this.type = type;
+            this.dataType = dataType;
             this.size = size;
             this.ordinalPos = ordinalPos;
         }
@@ -208,6 +215,10 @@ public final class JdbcHelpers {
 
         public int getOrdinalPos() {
             return ordinalPos;
+        }
+
+        public int getDataType() {
+            return dataType;
         }
     }
 }

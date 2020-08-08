@@ -133,6 +133,14 @@ public class Record {
         }
     }
 
+    /** count number of each table */
+    public static Map<String, Integer> classifyNodes(Set<RowLink> allNodes) {
+        return allNodes.stream().collect(Collectors.groupingBy(RowLink::getTableName)).entrySet().stream()
+                .collect(Collectors.toMap(
+                        entry -> entry.getKey(),
+                        entry -> entry.getValue().size()));
+    }
+
 
     /**
      * Holds one field with metadata (and potentially nested content)

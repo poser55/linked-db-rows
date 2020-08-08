@@ -139,7 +139,7 @@ public class DbExporter {
                     Record row = innerReadRecord(tableName, columns, pkName, rs, rsMetaData, columnCount);
 
                     boolean doNotNestThisRecord = false;
-                    if (context.containsNode(tableName, row.rowLink.pk)) {
+                    if (context.containsNode(tableName, row.rowLink.pk) || stopTablesIncluded.contains(tableName)) {
                         // termination condition
                         doNotNestThisRecord = true;
                     }

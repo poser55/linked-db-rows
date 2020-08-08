@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -50,9 +52,29 @@ public class DbExporterSmallTest {
         assertEquals(asString.toUpperCase(), asStringAgain.toUpperCase());
     }
 
+    @Test
+    void testStopTableIncluded() throws SQLException, ClassNotFoundException, IOException {
+        Connection sakilaConnection = getConnection("sakila");
+
+        DbExporter dbExporter = new DbExporter();
+        dbExporter.getStopTablesIncluded().add("inventory");
+
+        Record actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
+        String asString = actor199.asJson();
+
+        Set<RowLink> allNodes = actor199.getAllNodes();
+        System.out.println("numberNodes:" + allNodes.size());
+
+        System.out.println("classified:"+Record.classifyNodes(allNodes));
+    }
+
+
     @Test // is a bit slow
     void sakila() throws SQLException, ClassNotFoundException, IOException {
         Connection sakilaConnection = getConnection("sakila");
+
+        List<String> actorInsertList = JdbcHelpers.determineOrder(sakilaConnection, "actor");
+        System.out.println("list:"+actorInsertList +"\n");
 
         DbExporter dbExporter = new DbExporter();
         dbExporter.getStopTablesExcluded().add("inventory");
@@ -60,14 +82,17 @@ public class DbExporterSmallTest {
         Record actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
         String asString = actor199.asJson();
 
-        System.out.println(asString);
+        Set<RowLink> allNodes = actor199.getAllNodes();
+        System.out.println(asString +" \nnumberNodes:"+ allNodes.size());
+
+        System.out.println("classified:"+Record.classifyNodes(allNodes));
 
         DbImporter dbImporter = new DbImporter();
         Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
 
-        // todo: still many issues with importing!!
+        // todo: still many issues with importing due to simplistic type handling!!
         //Map<RowLink, Object> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
-        System.out.println(actor + " "+actor.size());
+        // System.out.println(actor + " "+actor.size());
     }
 
 

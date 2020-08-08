@@ -1,10 +1,13 @@
 package org.oser.tools.jdbc;
 
+import lombok.Getter;
+
 import java.util.Objects;
 
 /**
  * A table and 1 concrete primary key  (uniquely identifies a db row)
  */
+@Getter
 public class RowLink {
     public RowLink(String tableName, Object pk) {
         this.tableName = tableName;
