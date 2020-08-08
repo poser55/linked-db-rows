@@ -141,6 +141,15 @@ public final class JdbcHelpers {
         return originalName.toUpperCase();
     }
 
+    public static SortedMap<String, ColumnMetadata> getColumnMetadata(DatabaseMetaData metadata, String tableName, Cache<String, SortedMap<String, ColumnMetadata>> cache) throws SQLException {
+        SortedMap<String, ColumnMetadata> result = cache.getIfPresent(tableName);
+        if (result == null){
+            result = getColumnMetadata(metadata, tableName);
+        }
+        cache.put(tableName, result);
+        return result;
+    }
+
     /**
      * @return Map à la fieldName1 -> ColumnMetadata (simplified JDBC metadata)
      */

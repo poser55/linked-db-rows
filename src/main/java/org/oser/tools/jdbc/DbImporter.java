@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -48,6 +49,9 @@ public class DbImporter {
             .maximumSize(10_000).build();
 
     private Cache<String, List<String>> pkCache = Caffeine.newBuilder()
+            .maximumSize(1000).build();
+
+    private Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
 
@@ -266,7 +270,7 @@ public class DbImporter {
                 for (String linkedTable : data.subRow.keySet()) {
 
                     for (Record subrecord : data.subRow.get(linkedTable)) {
-                        new DbImporter().addInsertionStatements(connection, linkedTable, subrecord, mappers, insertionStatements);
+                        this.addInsertionStatements(connection, linkedTable, subrecord, mappers, insertionStatements);
                     }
                 }
             }
@@ -296,7 +300,7 @@ public class DbImporter {
         Record record = new Record(rootTable, null);
 
         DatabaseMetaData metadata = connection.getMetaData();
-        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable);
+        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable, metadataCache);
         List<String> pks = JdbcHelpers.getPrimaryKeys(metadata, rootTable, pkCache);
 
         final String pkName = pks.get(0);
@@ -345,11 +349,11 @@ public class DbImporter {
                         Iterator<JsonNode> elements = subJsonNode.elements();
 
                         while (elements.hasNext()) {
-                            Record subrecord = new DbImporter().innerJsonToRecord(connection, subTableName, elements.next());
+                            Record subrecord = this.innerJsonToRecord(connection, subTableName, elements.next());
                             records.add(subrecord);
                         }
                     } else if (subJsonNode.isObject()) {
-                        records.add(new DbImporter().innerJsonToRecord(connection, subTableName, subJsonNode));
+                        records.add(this.innerJsonToRecord(connection, subTableName, subJsonNode));
                     }
                 }
 
@@ -381,7 +385,7 @@ public class DbImporter {
     public Map<RowLink, Object> insertRecords(Connection connection, Record record) throws SQLException {
         Map<RowLink, Object> newKeys = new HashMap<>();
 
-        record.visitRecordsInInsertionOrder(connection, r -> new DbImporter().insertOneRecord(connection, r, newKeys, new HashMap<>()));
+        record.visitRecordsInInsertionOrder(connection, r -> this.insertOneRecord(connection, r, newKeys, new HashMap<>()));
 
         // todo treat errors
 

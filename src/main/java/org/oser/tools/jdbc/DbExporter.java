@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
@@ -32,7 +33,6 @@ public class DbExporter {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
 
     private Set<String> stopTablesExcluded = new HashSet<>();
-    // todo not yet used
     private Set<String> stopTablesIncluded = new HashSet<>();
 
     private Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
@@ -40,6 +40,10 @@ public class DbExporter {
 
     private Cache<String, List<String>> pkCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
+
+    private Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
+            .maximumSize(1000).build();
+
 
     protected DbExporter() {}
 
@@ -84,7 +88,7 @@ public class DbExporter {
         Record data = new Record(tableName, pkValue);
 
         DatabaseMetaData metaData = connection.getMetaData();
-        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
+        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName, metadataCache);
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName, pkCache);
 
         String pkName = primaryKeys.get(0);
@@ -119,7 +123,7 @@ public class DbExporter {
         }
 
         DatabaseMetaData metaData = connection.getMetaData();
-        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName);
+        Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName, metadataCache);
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName, pkCache);
 
         if (primaryKeys.isEmpty()) {
