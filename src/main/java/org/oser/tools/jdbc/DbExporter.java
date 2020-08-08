@@ -137,8 +137,13 @@ public class DbExporter {
                 int columnCount = rsMetaData.getColumnCount();
                 while (rs.next()) { // treat 1 fk-link
                     Record row = innerReadRecord(tableName, columns, pkName, rs, rsMetaData, columnCount);
+                    if (context.containsNode(tableName, row.findElementWithName(pkName))) {
+                        continue; // we have already read this node
+                    }
 
                     boolean doNotNestThisRecord = false;
+
+                    // todo: clean up condition (first part cannot occur)
                     if (context.containsNode(tableName, row.rowLink.pk) || stopTablesIncluded.contains(tableName)) {
                         // termination condition
                         doNotNestThisRecord = true;
@@ -171,14 +176,14 @@ public class DbExporter {
                 String subTableName = fk.inverted ? fk.pktable : fk.fktable;
                 String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
 
-                if (!context.containsNode(subTableName, elementWithName.value)) {
+             //   if (!context.containsNode(subTableName, elementWithName.value)) {
                     List<Record> subRow = this.readLinkedRecords(connection, subTableName,
                             subFkName, elementWithName.value, true, context);
                     if (subRow.isEmpty()){
                         break;
                     }
                     elementWithName.subRow.put(subTableName, subRow);
-                }
+               // }
             }
 
         }
