@@ -226,6 +226,7 @@ public final class JdbcHelpers {
     // todo: one could use the int type info form the metadata
     // todo: clean up arguments (redundant)
     public static void innerSetStatementField(PreparedStatement preparedStatement, String typeAsString, int statementIndex, String valueToInsert, ColumnMetadata columnMetadata) throws SQLException {
+        boolean isEmpty = valueToInsert == null || (valueToInsert.trim().isEmpty() || valueToInsert.equals("null"));
         switch (typeAsString.toUpperCase()) {
             case "BOOLEAN":
             case "BOOL":
@@ -235,7 +236,7 @@ public final class JdbcHelpers {
             case "INT2":
             case "INT4":
             case "INT8":
-                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
+                if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.NUMERIC);
                 } else {
                     preparedStatement.setLong(statementIndex, Long.parseLong(valueToInsert.trim()));
@@ -243,7 +244,7 @@ public final class JdbcHelpers {
                 break;
             case "NUMERIC":
             case "DECIMAL":
-                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
+                if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.NUMERIC);
                 } else {
                     preparedStatement.setDouble(statementIndex, Double.parseDouble(valueToInsert.trim()));
@@ -251,7 +252,7 @@ public final class JdbcHelpers {
                 break;
             case "DATE":
             case "TIMESTAMP":
-                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
+                if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
                 } else {
                     LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
@@ -278,14 +279,14 @@ public final class JdbcHelpers {
         String name;
         String type;
         /** {@link java.sql.Types} */
-        private int dataType; //
+        private final int dataType; //
         /** source type of a distinct type or user-generated Ref type, SQL type from java.sql.Types (<code>null</code> if DATA_TYPE     isn't DISTINCT or user-generated REF) */
-        private int sourceDataType;
+        private final int sourceDataType;
 
         String size; // adapt later?
-        private String columnDef;
+        private final String columnDef;
         // starts at 1
-        private int ordinalPos;
+        private final int ordinalPos;
 
         public ColumnMetadata(String name, String type, int dataType, int sourceDataType, String size, String columnDef, int ordinalPos) {
             this.name = name;

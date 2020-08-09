@@ -80,7 +80,7 @@ public class Record {
         } else {
             DbExporter.ExportContext o = (DbExporter.ExportContext) optionalMetadata.get(RecordMetadata.EXPORT_CONTEXT);
 
-            return o.visitedNodes.keySet() + ((o == null) ? "" : " #nodes:" + o.visitedNodes.size());
+            return ((o == null) ? "" : o.visitedNodes.keySet() + " #nodes:" + o.visitedNodes.size());
         }
     }
 

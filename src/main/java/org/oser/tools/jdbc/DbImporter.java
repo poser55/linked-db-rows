@@ -59,7 +59,7 @@ public class DbImporter {
 
 
     private static List<Map.Entry<String, JsonNode>> getCompositeJsonElements(JsonNode json) {
-        Iterable<Map.Entry<String, JsonNode>> iterable = () -> json.fields();
+        Iterable<Map.Entry<String, JsonNode>> iterable = json::fields;
         return StreamSupport
                 .stream(iterable.spliterator(), false).filter(e -> !e.getValue().isValueNode())
                 .collect(Collectors.toList());
@@ -113,7 +113,7 @@ public class DbImporter {
     }
 
     private static List<String> getJsonFieldNames(JsonNode json) {
-        Iterable<Map.Entry<String, JsonNode>> iterable = () -> json.fields();
+        Iterable<Map.Entry<String, JsonNode>> iterable = json::fields;
         return StreamSupport
                 .stream(iterable.spliterator(), false).filter(e -> e.getValue().isValueNode()).map(Map.Entry::getKey)
                 .map(String::toUpperCase).collect(Collectors.toList());
@@ -397,10 +397,6 @@ public class DbImporter {
                     statementIndex++;
                 }
 
-                if (pkValue != null) {
-                    pkValue = pkValue.trim();
-                }
-
                 pkValue = isInsert ? Objects.toString(candidatePk) : valueToInsert[0];
                 JdbcHelpers.innerSetStatementField(statement, pkType, pkStatementIndex, pkValue, fieldMetadata);
 
@@ -412,7 +408,7 @@ public class DbImporter {
 
 
             } catch (SQLException throwables) {
-                LOGGER.info("optional statement: {} ", Objects.toString(savedStatement));
+                LOGGER.info("optional statement: {} ", savedStatement);
                 throwables.printStackTrace(); // todo do this differently later
             }
         } catch (SQLException throwables) {

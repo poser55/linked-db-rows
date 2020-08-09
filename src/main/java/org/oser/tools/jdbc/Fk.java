@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /** Represents one foreign key constraint */
 @Getter
@@ -81,11 +82,11 @@ public class Fk {
 
         Fk fk = (Fk) o;
 
-        if (fktable != null ? !fktable.equals(fk.fktable) : fk.fktable != null) return false;
-        if (pkcolumn != null ? !pkcolumn.equals(fk.pkcolumn) : fk.pkcolumn != null) return false;
-        if (type != null ? !type.equals(fk.type) : fk.type != null) return false;
-        if (pktable != null ? !pktable.equals(fk.pktable) : fk.pktable != null) return false;
-        return fkcolumn != null ? fkcolumn.equals(fk.fkcolumn) : fk.fkcolumn == null;
+        if (!Objects.equals(fktable, fk.fktable)) return false;
+        if (!Objects.equals(pkcolumn, fk.pkcolumn)) return false;
+        if (!Objects.equals(type, fk.type)) return false;
+        if (!Objects.equals(pktable, fk.pktable)) return false;
+        return Objects.equals(fkcolumn, fk.fkcolumn);
     }
 
     @Override
