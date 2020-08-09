@@ -59,7 +59,7 @@ public class DbExporterSmallTest {
     }
 
     @Test
-    @Disabled // not working
+    //@Disabled // not working
     void testGraph() throws SQLException, IOException, ClassNotFoundException {
         Connection demoConnection = getConnection("demo");
         DbExporter dbExporter = new DbExporter();
@@ -67,6 +67,7 @@ public class DbExporterSmallTest {
         // todo is wrong
         Record node1 = dbExporter.contentAsTree(demoConnection, "nodes", "1");
 
+        System.out.println("all nodes:"+node1.getAllNodes());
         System.out.println("book:"+node1.asJson());
 
          // todo is wrong!!!

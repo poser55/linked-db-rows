@@ -44,3 +44,5 @@ Ideas:
 * Performance tuning (one step was already done)
 * Clean ups
 ** combine the metadata code lines in readOneRecord and similar methods
+* Fix bugs:
+** Upper/ lower case names in json

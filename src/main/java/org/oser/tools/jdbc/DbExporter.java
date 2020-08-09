@@ -172,21 +172,23 @@ public class DbExporter {
                         continue; // we have already read this node
                     }
 
-                    boolean doNotNestThisRecord = false;
-
-                    // todo: clean up condition (first part cannot occur)
-                    if (context.containsNode(tableName, row.rowLink.pks) || stopTablesIncluded.contains(tableName)) {
-                        // termination condition
-                        doNotNestThisRecord = true;
-                    }
-                    context.visitedNodes.put(new RowLink(tableName, row.rowLink.pks), row);
-
-                    if (nesting && !doNotNestThisRecord) {
-                        addSubRowDataFromFks(connection, tableName, row, context);
-                    }
-
                     listOfRows.add(row);
                 }
+            }
+        }
+
+        // now treat subtables
+        for (Record row : listOfRows) {
+            boolean doNotNestThisRecord = false;
+
+            if (stopTablesIncluded.contains(tableName)) {
+                // termination condition
+                doNotNestThisRecord = true;
+            }
+            context.visitedNodes.put(new RowLink(tableName, row.rowLink.pks), row);
+
+            if (nesting && !doNotNestThisRecord) {
+                addSubRowDataFromFks(connection, tableName, row, context);
             }
         }
 
@@ -210,7 +212,11 @@ public class DbExporter {
                 List<Record> subRow = this.readLinkedRecords(connection, subTableName,
                         subFkName, new Object[] {elementWithName.value }, true, context); // todo: fix can there be multiple fields in a fk?
                 if (!subRow.isEmpty()) {
-                    elementWithName.subRow.put(subTableName, subRow);
+                    if (!elementWithName.subRow.containsKey(subTableName)) {
+                        elementWithName.subRow.put(subTableName, subRow);
+                    } else {
+                        elementWithName.subRow.get(subTableName).addAll(subRow);
+                    }
                 }
             }
         }

@@ -282,7 +282,7 @@ public class DbImporter {
             Record.FieldAndValue elementWithName = record.findElementWithName((fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
             if (elementWithName != null) {
                 String subTableName = fk.inverted ? fk.pktable : fk.fktable;
-                JsonNode subJsonNode = json.get(fk.fkcolumn + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
+                JsonNode subJsonNode = json.get(elementWithName.name.toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
                 ArrayList<Record> records = new ArrayList<>();
 
                 if (fk.inverted) {
