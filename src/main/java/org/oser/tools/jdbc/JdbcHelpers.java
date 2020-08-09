@@ -58,9 +58,7 @@ public final class JdbcHelpers {
             }
 
             // remove the constraints that get eliminated by treating those
-            for (String key : dependencyGraph.keySet()) {
-                dependencyGraph.get(key).removeAll(treatedThisTime);
-            }
+            dependencyGraph.keySet().forEach(key -> dependencyGraph.get(key).removeAll(treatedThisTime));
             dependencyGraph.entrySet().removeIf(e -> e.getValue().isEmpty());
         }
 
@@ -115,7 +113,7 @@ public final class JdbcHelpers {
 
         if (isInsert) {
             String questionsMarks = columnMetadata.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
-                    .map(e -> questionMarkOrTypeCasting(e)).collect(Collectors.joining(", "));
+                    .map(JdbcHelpers::questionMarkOrTypeCasting).collect(Collectors.joining(", "));
             result = "insert into " + tableName + " (" + fieldList + ") values (" + questionsMarks + ");";
         } else {
             fieldList += " = ? ";
@@ -174,8 +172,9 @@ public final class JdbcHelpers {
         ResultSet rs = metadata.getColumns(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()), null);
 
         while (rs.next()) {
-            result.put(rs.getString("COLUMN_NAME").toUpperCase(),
-                    new ColumnMetadata(rs.getString("COLUMN_NAME"),
+            String column_name = rs.getString("COLUMN_NAME");
+            result.put(column_name.toUpperCase(),
+                    new ColumnMetadata(column_name,
                             rs.getString("TYPE_NAME"),
                             rs.getInt("DATA_TYPE"),
                             rs.getInt("SOURCE_DATA_TYPE"),

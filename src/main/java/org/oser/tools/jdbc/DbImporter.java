@@ -38,21 +38,22 @@ public class DbImporter {
 
     // options
     private boolean forceInsert = true;
-    private Map<String, PkGenerator> overriddenPkGenerators = new HashMap<>();
-    private PkGenerator defaultPkGenerator = new NextValuePkGenerator();
-    private Map<String, FieldMapper> fieldMappers = new HashMap<>();
+    private final Map<String, PkGenerator> overriddenPkGenerators = new HashMap<>();
+    private final PkGenerator defaultPkGenerator = new NextValuePkGenerator();
+    private final Map<String, FieldMapper> fieldMappers = new HashMap<>();
 
-    private Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
+    private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
             .maximumSize(10_000).build();
 
-    private Cache<String, List<String>> pkCache = Caffeine.newBuilder()
+    private final Cache<String, List<String>> pkCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
-    private Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
+    private final Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
 
     public DbImporter() {
+        // nothing to do
     }
 
 
@@ -105,7 +106,7 @@ public class DbImporter {
         if (testForEscaping.length() > 1 && ((testForEscaping.startsWith("\"") && testForEscaping.endsWith("\"")) ||
                 ((testForEscaping.startsWith("'") && testForEscaping.endsWith("'"))))) {
             valueToInsert = testForEscaping.substring(1, testForEscaping.length() - 1);
-        } else if (testForEscaping == "null") {
+        } else if (testForEscaping.equals("null")) {
             valueToInsert = null;
         }
         return valueToInsert;
@@ -144,7 +145,6 @@ public class DbImporter {
 
 
         List<String> jsonFieldNames = record.getFieldNames();
-        Iterable<Map.Entry<String, JsonNode>> iterable;
 
         // fields must both be in json AND in db metadata, remove those missing in db metadata
         Set<String> columnsDbNames = record.content.stream().map(e -> e.name).collect(Collectors.toSet());
@@ -182,10 +182,7 @@ public class DbImporter {
                     pkMetadata = currentElement.metadata;
                 }
             }
-            if (isInsert) {
-                // do not set version
-                //updateStatement.setLong(statementIndex, 0);
-            } else {
+            if (!isInsert) {
                 if (pkValue != null) {
                     pkValue = pkValue.trim();
                 }
@@ -223,14 +220,13 @@ public class DbImporter {
 
         addInsertionStatements(connection, record.getRowLink().tableName, record, fieldMappers, insertionStatements);
 
-        String result = "";
+        StringBuilder result = new StringBuilder();
         for (String table : tableInsertOrder) {
             if (insertionStatements.containsKey(table)) {
-                String inserts = insertionStatements.get(table) + ";";
-                result += inserts + "\n";
+                result.append(insertionStatements.get(table)).append(";").append("\n");
             }
         }
-        return result;
+        return result.toString();
     }
 
     public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
@@ -241,7 +237,7 @@ public class DbImporter {
     }
 
 
-    Record innerJsonToRecord(Connection connection, String rootTable, JsonNode json) throws IOException, SQLException {
+    Record innerJsonToRecord(Connection connection, String rootTable, JsonNode json) throws SQLException {
         Record record = new Record(rootTable, null);
 
         DatabaseMetaData metadata = connection.getMetaData();
@@ -376,7 +372,7 @@ public class DbImporter {
                         List<Fk> fks = fksByColumnName.get(currentFieldName);
 
                         String earlierIntendedFk = valueToInsert[0];
-                        fks.stream().forEach(fk -> {
+                        fks.forEach(fk -> {
                             valueToInsert[0] = Objects.toString(newKeys.get(new RowLink(fk.pktable, earlierIntendedFk)));
                         });
                     }
@@ -412,7 +408,7 @@ public class DbImporter {
                 savedStatement = statement;
                 int result = statement.executeUpdate();
 
-                LOGGER.info("statement called: {} updateCount:{}", statement.toString(), result);
+                LOGGER.info("statement called: {} updateCount:{}", statement, result);
 
 
             } catch (SQLException throwables) {

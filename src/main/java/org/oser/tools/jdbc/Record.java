@@ -9,6 +9,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +37,7 @@ public class Record {
     String pkName;
     List<Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
 
-    Map<RecordMetadata, Object> optionalMetadata = new HashMap<>();
+    Map<RecordMetadata, Object> optionalMetadata = new EnumMap<>(RecordMetadata.class);
     private Map<String, JdbcHelpers.ColumnMetadata> columnMetadata;
 
     public Record(String tableName, Object pk) {
@@ -98,7 +100,7 @@ public class Record {
         result.add(rowLink);
         result.addAll(content.stream()
                 .filter(e -> !e.subRow.isEmpty())
-                .flatMap(e -> e.subRow.values().stream()).flatMap(e -> e.stream()).flatMap(e->e.getAllNodes().stream())
+                .flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).flatMap(e->e.getAllNodes().stream())
                 .collect(toSet()));
         return result;
     }
@@ -109,7 +111,7 @@ public class Record {
 
         return content.stream().filter(e -> !e.subRow.isEmpty())
                 .flatMap(e -> e.subRow.values().stream())
-                .flatMap(e -> e.stream())
+                .flatMap(Collection::stream)
                 .flatMap(e -> e.visitRecords(visitor).stream()).collect(toSet());
     }
 
@@ -207,7 +209,7 @@ public class Record {
                     Timestamp ts = null;
                     if (value instanceof String) {
                         try {
-                            ts = Timestamp.valueOf((String) ((String) value).replace("T", " "));
+                            ts = Timestamp.valueOf(((String) value).replace("T", " "));
                         } catch (IllegalArgumentException e) {
                             // ok
                         }
@@ -241,21 +243,21 @@ public class Record {
         }
 
         String getValueWithQuoting() {
-            switch (metadata.type) {
+            switch (metadata.type.toUpperCase()) {
                 case "BOOLEAN":
-                case "bool":
-                case "int4":
-                case "int8":
-                case "numeric":
+                case "BOOL":
+                case "INT4":
+                case "INT8":
+                case "NUMERIC":
                 case "DECIMAL":
                     return value != null ? value.toString() : null;
-                case "timestamp":
+                case "TIMESTAMP":
                     return value != null ? ("\"" + DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(((Timestamp) value).toLocalDateTime()) + "\"") : null;
-                case "date":
+                case "DATE":
                     return value != null ? ("\"" + ((Date) value).toLocalDate() + "\"") : null;
                 case "VARCHAR":
-                case "varchar":
-                case "_text":
+                case "_TEXT":
+                case "TEXT":
                 default:
                     if (value == null) {
                         return null;
