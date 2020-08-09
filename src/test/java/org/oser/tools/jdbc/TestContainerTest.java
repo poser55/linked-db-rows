@@ -72,7 +72,7 @@ public class TestContainerTest {
     void testInsert() throws SQLException, ClassNotFoundException, IOException {
         Connection demoConnection = DbExporterSmallTest.getConnection("demo");
 
-        String json = "{ \"id\":7,\"author_id\":1, \"author*\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
+        String json = "{ \"id\":7,\"author_id\":1, \"author_id*author*\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
             DbImporter dbImporter = new DbImporter();
             Record book = dbImporter.jsonToRecord(demoConnection, "book", json);

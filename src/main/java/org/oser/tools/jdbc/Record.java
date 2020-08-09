@@ -104,14 +104,13 @@ public class Record {
     }
 
     /** visit all Records (breath first search). You can ignore the result of this method (used internally). */
-    public Set<Record> visitAllRecords(Consumer<Record> visitor){
-
+    public Set<Record> visitRecords(Consumer<Record> visitor){
         visitor.accept(this);
 
         return content.stream().filter(e -> !e.subRow.isEmpty())
                 .flatMap(e -> e.subRow.values().stream())
                 .flatMap(e -> e.stream())
-                .flatMap(e -> e.visitAllRecords(visitor).stream()).collect(toSet());
+                .flatMap(e -> e.visitRecords(visitor).stream()).collect(toSet());
     }
 
     /** visit all Records in insertion order */
@@ -119,7 +118,7 @@ public class Record {
         List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName);
 
         Map<String, List<Record>> tableToRecords = new HashMap<>();
-        visitAllRecords(r -> {
+        visitRecords(r -> {
             if (!tableToRecords.containsKey(r.rowLink.tableName)) {
                 tableToRecords.put(r.rowLink.tableName, new ArrayList<>());
             }
@@ -168,9 +167,9 @@ public class Record {
         }
 
         private Object convertTypeForValue(JdbcHelpers.ColumnMetadata metadata, Object value) {
-            switch (metadata.type) {
+            switch (metadata.type.toUpperCase()) {
                 case "BOOLEAN":
-                case "bool":
+                case "BOOL":
                     Boolean bool = null;
                     if (value instanceof String) {
                         try {
@@ -180,8 +179,10 @@ public class Record {
                         }
                     }
                     return bool != null ? bool : value;
-                case "int4":
-                case "int8":
+                case "SERIAL":
+                case "INT2":
+                case "INT4":
+                case "INT8":
                     Long l = null;
                     if (value instanceof String) {
                         try {
@@ -191,7 +192,7 @@ public class Record {
                         }
                     }
                     return l != null ? l : value;
-                case "numeric":
+                case "NUMERIC":
                 case "DECIMAL":
                     Double d = null;
                     if (value instanceof String) {
@@ -202,7 +203,7 @@ public class Record {
                         }
                     }
                     return  d != null ? d : value;
-                case "timestamp":
+                case "TIMESTAMP":
                     Timestamp ts = null;
                     if (value instanceof String) {
                         try {
@@ -212,7 +213,7 @@ public class Record {
                         }
                     }
                     return  ts != null ? ts : value;
-                case "date":
+                case "DATE":
                     Date date = null;
                     if (value instanceof String) {
                         try {
@@ -223,9 +224,7 @@ public class Record {
                     }
                     return  date != null ? date : value;
                 case "VARCHAR":
-                case "varchar":
                 case "TEXT":
-                case "text":
                 default:
                     return value;
             }
@@ -235,7 +234,9 @@ public class Record {
         public String toString() {
             return "\"" + name +
                     "\":" + getValueWithQuoting() +
-                    ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElseGet(() -> 0) == 0)) ? (", " + maplistlist2jsonString(subRow)) : "") +
+                    ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElseGet(() -> 0) == 0)) ?
+                            (", " + maplistlist2jsonString(name, subRow)) :
+                            "") +
                     "";
         }
 
@@ -266,9 +267,9 @@ public class Record {
 
         }
 
-        private String maplistlist2jsonString(Map<String, List<Record>> map) {
+        private String maplistlist2jsonString(String name, Map<String, List<Record>> map) {
             // a "*" (star) at the end of a key means this is a subrow added on this level
-            return map.keySet().stream().map(key -> "\"" + key + JSON_SUBTABLE_SUFFIX + "\":[" + listOfData2jsonString(map.get(key)) + "]").collect(Collectors.joining(","));
+            return map.keySet().stream().map(key -> "\"" + getSubtableKeyName(name, key) + "\":[" + listOfData2jsonString(map.get(key)) + "]").collect(Collectors.joining(","));
         }
 
         private String listOfData2jsonString(List<Record> lists) {
@@ -278,5 +279,9 @@ public class Record {
         public String row2json(Record row) {
             return "{" + row.content.stream().map(FieldAndValue::toString).collect(Collectors.joining(",")) + "}";
         }
+    }
+
+    private static String getSubtableKeyName(String name, String key) {
+        return name + JSON_SUBTABLE_SUFFIX + key + JSON_SUBTABLE_SUFFIX;
     }
 }
