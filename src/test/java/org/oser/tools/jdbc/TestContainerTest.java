@@ -44,9 +44,9 @@ public class TestContainerTest {
         assertEquals(mapper.readTree(author1.asJson().toLowerCase()), mapper.readTree(author2.asJson().toLowerCase()));
 
         // as inserts
-        String s = dbImporter.recordAsInserts(demoConnection, book2);
-        System.out.println("\ninserts: "+s);
-        assertEquals(2, s.split("\n").length);
+
+        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, book2);
+        System.out.println("\ninserts: "+rowLinkObjectMap.size());
     }
 
     @Test
@@ -78,7 +78,7 @@ public class TestContainerTest {
             Record book = dbImporter.jsonToRecord(demoConnection, "book", json);
         assertEquals(2, book.getAllNodes().size());
 
-        System.out.println(dbImporter.recordAsInserts(demoConnection, book));
+        System.out.println(dbImporter.insertRecords(demoConnection, book));
     }
 
     @Test

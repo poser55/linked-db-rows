@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -40,8 +41,8 @@ public class Record {
     Map<RecordMetadata, Object> optionalMetadata = new EnumMap<>(RecordMetadata.class);
     private Map<String, JdbcHelpers.ColumnMetadata> columnMetadata;
 
-    public Record(String tableName, Object pk) {
-        rowLink = new RowLink(tableName, pk);
+    public Record(String tableName, Object[] pks) {
+        rowLink = new RowLink(tableName, pks);
     }
 
     /**
@@ -70,8 +71,8 @@ public class Record {
         return content.stream().filter(e -> !e.subRow.isEmpty()).map(e -> e.name).collect(toList());
     }
 
-    public void setPkValue(Object value) {
-        rowLink.pk = RowLink.normalizePk(value);
+    public void setPkValue(Object[] value) {
+        rowLink.setPks(Stream.of(value).map(RowLink::normalizePk).toArray(Object[]::new));
     }
 
     public String metadata() {

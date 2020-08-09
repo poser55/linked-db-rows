@@ -133,101 +133,101 @@ public class DbImporter {
      * recursively add insertion statements starting from the rootTable and the record
      *  Old variant
      */
-    private void addInsertionStatements(Connection connection, String tableName, Record record, Map<String, FieldMapper> mappers, Map<String, String> insertionStatements) throws SQLException {
-        String pkName = record.pkName;
-
-        boolean isInsert = doesPkTableExist(connection, tableName, pkName, record);
-
-
-        if (forceInsert) {
-            isInsert = true;
-        }
-
-
-        List<String> jsonFieldNames = record.getFieldNames();
-
-        // fields must both be in json AND in db metadata, remove those missing in db metadata
-        Set<String> columnsDbNames = record.content.stream().map(e -> e.name).collect(Collectors.toSet());
-        jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
-        // todo log if there is a delta between the 2 sets
-
-        String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(tableName, jsonFieldNames, pkName, isInsert, record.getColumnMetadata());
-        try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
-
-            String pkValue = null;
-            String pkType = "";
-
-            int statementIndex = 1; // statement param
-            JdbcHelpers.ColumnMetadata pkMetadata = null;
-            for (String currentFieldName : jsonFieldNames) {
-                Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
-                String valueToInsert = Objects.toString(currentElement.value);
-
-                valueToInsert = prepareVarcharToInsert(currentElement.metadata.type, currentFieldName, valueToInsert);
-
-                boolean fieldIsPk = currentFieldName.equals(pkName.toUpperCase());
-                if (isInsert || !fieldIsPk) {
-                    valueToInsert = removeQuotes(valueToInsert);
-
-                    if (mappers.containsKey(currentFieldName)) {
-                        mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementIndex, valueToInsert);
-                    } else {
-                        JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, statementIndex, valueToInsert, currentElement.metadata);
-                    }
-
-                    statementIndex++;
-                } else {
-                    pkValue = valueToInsert;
-                    pkType = currentElement.metadata.type;
-                    pkMetadata = currentElement.metadata;
-                }
-            }
-            if (!isInsert) {
-                if (pkValue != null) {
-                    pkValue = pkValue.trim();
-                }
-
-                JdbcHelpers.innerSetStatementField(statement, pkType, statementIndex, pkValue, pkMetadata);
-            }
-
-            if (insertionStatements.containsKey(tableName)) {
-                insertionStatements.put(tableName, insertionStatements.get(tableName) + ";" + statement.toString());
-            } else {
-                insertionStatements.put(tableName, statement.toString());
-            }
-
-
-            // do recursion (treat subtables)
-            for (String subrowName : record.getFieldNamesWithSubrows()) {
-
-                Record.FieldAndValue data = record.findElementWithName(subrowName);
-                for (String linkedTable : data.subRow.keySet()) {
-
-                    for (Record subrecord : data.subRow.get(linkedTable)) {
-                        this.addInsertionStatements(connection, linkedTable, subrecord, mappers, insertionStatements);
-                    }
-                }
-            }
-        }
-    }
+//    private void addInsertionStatements(Connection connection, String tableName, Record record, Map<String, FieldMapper> mappers, Map<String, String> insertionStatements) throws SQLException {
+//        String pkName = record.pkName;
+//
+//        boolean isInsert = doesPkTableExist(connection, tableName, pkName, record);
+//
+//
+//        if (forceInsert) {
+//            isInsert = true;
+//        }
+//
+//
+//        List<String> jsonFieldNames = record.getFieldNames();
+//
+//        // fields must both be in json AND in db metadata, remove those missing in db metadata
+//        Set<String> columnsDbNames = record.content.stream().map(e -> e.name).collect(Collectors.toSet());
+//        jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
+//        // todo log if there is a delta between the 2 sets
+//
+//        String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(tableName, jsonFieldNames, pkName, isInsert, record.getColumnMetadata());
+//        try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
+//
+//            String pkValue = null;
+//            String pkType = "";
+//
+//            int statementIndex = 1; // statement param
+//            JdbcHelpers.ColumnMetadata pkMetadata = null;
+//            for (String currentFieldName : jsonFieldNames) {
+//                Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
+//                String valueToInsert = Objects.toString(currentElement.value);
+//
+//                valueToInsert = prepareVarcharToInsert(currentElement.metadata.type, currentFieldName, valueToInsert);
+//
+//                boolean fieldIsPk = currentFieldName.equals(pkName.toUpperCase());
+//                if (isInsert || !fieldIsPk) {
+//                    valueToInsert = removeQuotes(valueToInsert);
+//
+//                    if (mappers.containsKey(currentFieldName)) {
+//                        mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementIndex, valueToInsert);
+//                    } else {
+//                        JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, statementIndex, valueToInsert, currentElement.metadata);
+//                    }
+//
+//                    statementIndex++;
+//                } else {
+//                    pkValue = valueToInsert;
+//                    pkType = currentElement.metadata.type;
+//                    pkMetadata = currentElement.metadata;
+//                }
+//            }
+//            if (!isInsert) {
+//                if (pkValue != null) {
+//                    pkValue = pkValue.trim();
+//                }
+//
+//                JdbcHelpers.innerSetStatementField(statement, pkType, statementIndex, pkValue, pkMetadata);
+//            }
+//
+//            if (insertionStatements.containsKey(tableName)) {
+//                insertionStatements.put(tableName, insertionStatements.get(tableName) + ";" + statement.toString());
+//            } else {
+//                insertionStatements.put(tableName, statement.toString());
+//            }
+//
+//
+//            // do recursion (treat subtables)
+//            for (String subrowName : record.getFieldNamesWithSubrows()) {
+//
+//                Record.FieldAndValue data = record.findElementWithName(subrowName);
+//                for (String linkedTable : data.subRow.keySet()) {
+//
+//                    for (Record subrecord : data.subRow.get(linkedTable)) {
+//                        this.addInsertionStatements(connection, linkedTable, subrecord, mappers, insertionStatements);
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     /** older variant */
-    public String recordAsInserts(Connection connection, Record record) throws SQLException {
-        List<String> tableInsertOrder = JdbcHelpers.determineOrder(connection, record.getRowLink().tableName);
-
-        // tableName -> insertionStatement
-        Map<String, String> insertionStatements = new HashMap<>();
-
-        addInsertionStatements(connection, record.getRowLink().tableName, record, fieldMappers, insertionStatements);
-
-        StringBuilder result = new StringBuilder();
-        for (String table : tableInsertOrder) {
-            if (insertionStatements.containsKey(table)) {
-                result.append(insertionStatements.get(table)).append(";").append("\n");
-            }
-        }
-        return result.toString();
-    }
+//    public String recordAsInserts(Connection connection, Record record) throws SQLException {
+//        List<String> tableInsertOrder = JdbcHelpers.determineOrder(connection, record.getRowLink().tableName);
+//
+//        // tableName -> insertionStatement
+//        Map<String, String> insertionStatements = new HashMap<>();
+//
+//        addInsertionStatements(connection, record.getRowLink().tableName, record, fieldMappers, insertionStatements);
+//
+//        StringBuilder result = new StringBuilder();
+//        for (String table : tableInsertOrder) {
+//            if (insertionStatements.containsKey(table)) {
+//                result.append(insertionStatements.get(table)).append(";").append("\n");
+//            }
+//        }
+//        return result.toString();
+//    }
 
     public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
         ObjectMapper mapper = new ObjectMapper();
@@ -254,19 +254,22 @@ public class DbImporter {
         jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
         // todo log if there is a delta between the 2 sets
 
+        Map<String, Integer> primaryKeyArrayPosition = JdbcHelpers.getStringIntegerMap(pks);
+        Object[] primaryKeyValues = new Object[pks.size()];
+
         for (String currentFieldName : jsonFieldNames) {
             String valueToInsert = json.get(currentFieldName.toLowerCase()).asText();
 
             valueToInsert = prepareVarcharToInsert(columns, currentFieldName, valueToInsert);
 
-            if (currentFieldName.equals(pkName.toUpperCase())) {
-                record.setPkValue(valueToInsert);
+            if (primaryKeyArrayPosition.containsKey(currentFieldName.toUpperCase())){
+                primaryKeyValues[primaryKeyArrayPosition.get(currentFieldName.toUpperCase())] = valueToInsert;
             }
 
             Record.FieldAndValue d = new Record.FieldAndValue(currentFieldName, columns.get(currentFieldName), valueToInsert);
             record.content.add(d);
         }
-
+        record.setPkValue(primaryKeyValues);
 
         // convert subrecords
 

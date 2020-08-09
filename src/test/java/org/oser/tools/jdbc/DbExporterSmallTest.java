@@ -1,6 +1,7 @@
 package org.oser.tools.jdbc;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -18,11 +19,15 @@ public class DbExporterSmallTest {
     void pkTable() {
         RowLink t1 = new RowLink("lender/1");
         assertEquals("lender", t1.tableName);
-        assertEquals(1L, t1.pk);
+        assertEquals(1L, t1.pks[0]);
 
         Assertions.assertThrows(IllegalArgumentException.class, () -> {new RowLink("l");});
 
         assertEquals(new RowLink("1", (byte)1), new RowLink("1", (long)1));
+
+        RowLink t2 = new RowLink("lender/1/a/a/a");
+
+        System.out.println(t2);
     }
 
     @Test
@@ -53,6 +58,23 @@ public class DbExporterSmallTest {
         System.out.println("book2:"+book2.asJson());
     }
 
+    @Test
+    @Disabled // not working
+    void testGraph() throws SQLException, IOException, ClassNotFoundException {
+        Connection demoConnection = getConnection("demo");
+        DbExporter dbExporter = new DbExporter();
+
+        // todo is wrong
+        Record node1 = dbExporter.contentAsTree(demoConnection, "nodes", "1");
+
+        System.out.println("book:"+node1.asJson());
+
+         // todo is wrong!!!
+        Record book2 = new DbImporter().jsonToRecord(demoConnection, "nodes", node1.asJson());
+
+        System.out.println("book2:"+book2.asJson());
+    }
+
 
     @Test
     void testStopTableIncluded() throws SQLException, ClassNotFoundException, IOException {
@@ -62,6 +84,7 @@ public class DbExporterSmallTest {
         dbExporter.getStopTablesIncluded().add("inventory");
 
         Record actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
+        System.out.println(Record.classifyNodes(actor199.getAllNodes()));
         String asString = actor199.asJson();
 
         Set<RowLink> allNodes = actor199.getAllNodes();

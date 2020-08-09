@@ -6,6 +6,7 @@ import lombok.Getter;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,12 @@ public class Fk {
             fk.fktable = rs.getString("fktable_name");
             fk.fkcolumn = rs.getString("fkcolumn_name");
             fk.inverted = inverted;
+
+//            ResultSetMetaData rsMetaData = rs.getMetaData();
+//            for (int i = 1; i<= rsMetaData.getColumnCount() ; i++){
+//                System.out.println(rsMetaData.getColumnName(i)+" "+rs.getObject(i));
+//            }
+//            System.out.println();
 
             fks.add(fk);
         }

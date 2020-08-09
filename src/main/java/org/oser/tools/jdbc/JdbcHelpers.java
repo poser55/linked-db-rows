@@ -318,4 +318,10 @@ public final class JdbcHelpers {
             return dataType;
         }
     }
+
+    public static Map<String, Integer> getStringIntegerMap(List<String> primaryKeys) {
+        final int[] j = {0};
+        return primaryKeys.stream().collect(Collectors.toMap(e -> e.toUpperCase(), e -> j[0]++));
+    }
+
 }
