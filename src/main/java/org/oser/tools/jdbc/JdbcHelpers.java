@@ -6,9 +6,15 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.Date;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,7 +53,7 @@ public final class JdbcHelpers {
             stillToTreat.removeAll(treatedThisTime);
 
             if (treatedThisTime.isEmpty()) {
-                LOGGER.warn("Not a layered organization of table dependencies - excluding connected tables:"+dependencyGraph);
+                LOGGER.warn("Not a layered organization of table dependencies - excluding connected tables: {}", dependencyGraph);
                 break; // returning a partial list
             }
 
@@ -103,13 +109,13 @@ public final class JdbcHelpers {
     /**
      * generate insert or update statement to insert columnNames into tableName
      */
-    public static String getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert) {
+    public static String getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert, Map<String, ColumnMetadata> columnMetadata) {
         String result;
         String fieldList = columnNames.stream().filter(name -> (isInsert || !name.equals(pkName.toUpperCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
 
         if (isInsert) {
-            String questionsMarks = columnNames.stream().map(name -> "").collect(Collectors.joining("?, ")) + "?";
-
+            String questionsMarks = columnMetadata.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
+                    .map(e -> questionMarkOrTypeCasting(e)).collect(Collectors.joining(", "));
             result = "insert into " + tableName + " (" + fieldList + ") values (" + questionsMarks + ");";
         } else {
             fieldList += " = ? ";
@@ -118,6 +124,15 @@ public final class JdbcHelpers {
         }
 
         return result;
+    }
+
+    private static String questionMarkOrTypeCasting(ColumnMetadata e) {
+        if (e.columnDef != null && e.columnDef.endsWith(e.type)){
+            // to handle inserts e.g. for enums correctly
+            return e.columnDef.replace("'G'", "?");
+        }
+
+        return "?";
     }
 
     public static void assertTableExists(Connection connection, String tableName) throws SQLException {
@@ -163,8 +178,20 @@ public final class JdbcHelpers {
                     new ColumnMetadata(rs.getString("COLUMN_NAME"),
                             rs.getString("TYPE_NAME"),
                             rs.getInt("DATA_TYPE"),
+                            rs.getInt("SOURCE_DATA_TYPE"),
                             rs.getString("COLUMN_SIZE"),
+                            rs.getString("COLUMN_DEF"),
                             rs.getInt("ORDINAL_POSITION")));
+
+            // todo rm again
+//            ResultSetMetaData rsMetaData = rs.getMetaData();
+//            for (int i = 1; i<= rsMetaData.getColumnCount() ; i++){
+//                System.out.println(rsMetaData.getColumnName(i)+" "+rs.getObject(i));
+//                if (rsMetaData.getColumnName(i).equals("COLUMN_DEF") && rs.getObject(i) != null){
+//                    System.out.println(rs.getObject(i).getClass());
+//                }
+//            }
+//            System.out.println();
         }
 
         return result;
@@ -191,22 +218,83 @@ public final class JdbcHelpers {
         return result;
     }
 
+
+    /**
+     * set a value on a jdbc Statement
+     *
+     *   for cases where we have less info, columnMetadata can be null
+     */
+    // todo: one could use the int type info form the metadata
+    // todo: clean up arguments (redundant)
+    public static void innerSetStatementField(PreparedStatement preparedStatement, String typeAsString, int statementIndex, String valueToInsert, ColumnMetadata columnMetadata) throws SQLException {
+        switch (typeAsString.toUpperCase()) {
+            case "BOOLEAN":
+            case "BOOL":
+                preparedStatement.setBoolean(statementIndex, Boolean.parseBoolean(valueToInsert.trim()));
+                break;
+            case "SERIAL":
+            case "INT2":
+            case "INT4":
+            case "INT8":
+                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
+                    preparedStatement.setNull(statementIndex, Types.NUMERIC);
+                } else {
+                    preparedStatement.setLong(statementIndex, Long.parseLong(valueToInsert.trim()));
+                }
+                break;
+            case "NUMERIC":
+            case "DECIMAL":
+                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
+                    preparedStatement.setNull(statementIndex, Types.NUMERIC);
+                } else {
+                    preparedStatement.setDouble(statementIndex, Double.parseDouble(valueToInsert.trim()));
+                }
+                break;
+            case "DATE":
+            case "TIMESTAMP":
+                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
+                    preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
+                } else {
+                    LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
+                    if (typeAsString.equals("TIMESTAMP")) {
+                        preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(localDateTime));
+                    } else {
+                        preparedStatement.setDate(statementIndex, Date.valueOf(String.valueOf(localDateTime.toLocalDate())));
+                    }
+                }
+                break;
+            default:
+                if (columnMetadata != null && columnMetadata.getDataType() != Types.ARRAY ) {
+                    preparedStatement.setObject(statementIndex, valueToInsert, columnMetadata.dataType);
+                } else {
+                    preparedStatement.setObject(statementIndex, valueToInsert);
+                }
+        }
+    }
+
     /**
      * represents simplified JDBC metadata
      */
     public static class ColumnMetadata {
         String name;
         String type;
-        private int dataType;
+        /** {@link java.sql.Types} */
+        private int dataType; //
+        /** source type of a distinct type or user-generated Ref type, SQL type from java.sql.Types (<code>null</code> if DATA_TYPE     isn't DISTINCT or user-generated REF) */
+        private int sourceDataType;
+
         String size; // adapt later?
+        private String columnDef;
         // starts at 1
         private int ordinalPos;
 
-        public ColumnMetadata(String name, String type, int dataType, String size, int ordinalPos) {
+        public ColumnMetadata(String name, String type, int dataType, int sourceDataType, String size, String columnDef, int ordinalPos) {
             this.name = name;
             this.type = type;
             this.dataType = dataType;
+            this.sourceDataType = sourceDataType;
             this.size = size;
+            this.columnDef = columnDef;
             this.ordinalPos = ordinalPos;
         }
 

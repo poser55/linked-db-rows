@@ -36,6 +36,7 @@ public class Record {
     List<Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
 
     Map<RecordMetadata, Object> optionalMetadata = new HashMap<>();
+    private Map<String, JdbcHelpers.ColumnMetadata> columnMetadata;
 
     public Record(String tableName, Object pk) {
         rowLink = new RowLink(tableName, pk);
@@ -141,6 +142,14 @@ public class Record {
                         entry -> entry.getValue().size()));
     }
 
+    public void setColumnMetadata(Map<String, JdbcHelpers.ColumnMetadata> columnMetadata) {
+        this.columnMetadata = columnMetadata;
+    }
+
+    public Map<String, JdbcHelpers.ColumnMetadata> getColumnMetadata() {
+        return columnMetadata;
+    }
+
 
     /**
      * Holds one field with metadata (and potentially nested content)
@@ -242,7 +251,7 @@ public class Record {
                 case "timestamp":
                     return value != null ? ("\"" + DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(((Timestamp) value).toLocalDateTime()) + "\"") : null;
                 case "date":
-                    return value != null ? ("\"" + ((java.sql.Date) value).toLocalDate() + "\"") : null;
+                    return value != null ? ("\"" + ((Date) value).toLocalDate() + "\"") : null;
                 case "VARCHAR":
                 case "varchar":
                 case "_text":

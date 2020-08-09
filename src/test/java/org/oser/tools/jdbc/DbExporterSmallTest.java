@@ -93,10 +93,39 @@ public class DbExporterSmallTest {
         Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
 
         // todo: still many issues with importing due to simplistic type handling!!
+        //dbImporter.insertRecords(sakilaConnection, asRecord);
+
         //Map<RowLink, Object> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
         // System.out.println(actor + " "+actor.size());
     }
 
+    @Test
+    void sakilaJustOneTable() throws SQLException, ClassNotFoundException, IOException {
+        Connection sakilaConnection = getConnection("sakila");
+
+        List<String> actorInsertList = JdbcHelpers.determineOrder(sakilaConnection, "actor");
+        System.out.println("list:"+actorInsertList +"\n");
+
+        DbExporter dbExporter = new DbExporter();
+
+        dbExporter.getStopTablesIncluded().add("film");
+        dbExporter.getStopTablesExcluded().add("inventory");
+
+        Record actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
+        String asString = actor199.asJson();
+
+        Set<RowLink> allNodes = actor199.getAllNodes();
+        System.out.println(asString +" \nnumberNodes:"+ allNodes.size());
+
+        System.out.println("classified:"+Record.classifyNodes(allNodes));
+
+        DbImporter dbImporter = new DbImporter();
+        Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
+
+        // todo: still many issues with importing due to simplistic type handling!!
+        //dbImporter.insertRecords(sakilaConnection, asRecord);
+
+    }
 
 
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {

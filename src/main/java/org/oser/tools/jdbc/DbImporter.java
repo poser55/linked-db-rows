@@ -10,13 +10,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -79,7 +75,7 @@ public class DbImporter {
         boolean isInsert;
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
             Record.FieldAndValue elementWithName = record.findElementWithName(pkName);
-            innerSetStatementField(pkSelectionStatement, elementWithName.metadata.type, 1, elementWithName.value.toString(), null);
+            JdbcHelpers.innerSetStatementField(pkSelectionStatement, elementWithName.metadata.type, 1, elementWithName.value.toString(), null);
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 isInsert = !rs.next();
@@ -132,65 +128,6 @@ public class DbImporter {
 
     ////// code partially from csvToDb
 
-
-    private static void setStatementField(PreparedStatement preparedStatement, String typeAsString, int statementIndex, String header, String valueToInsert, JdbcHelpers.ColumnMetadata columnMetadata) throws SQLException {
-        innerSetStatementField(preparedStatement, typeAsString, statementIndex, valueToInsert, columnMetadata);
-    }
-
-    /**
-     * set a value on a jdbc Statement
-     *
-     *   for cases where we have less info, columnMetadata can be null
-     */
-    // todo: should we recode this with something like StatementCreatorUtils of jdbcTemplate?
-    //  as there are issues with custom types
-    private static void innerSetStatementField(PreparedStatement preparedStatement, String typeAsString, int statementIndex, String valueToInsert, JdbcHelpers.ColumnMetadata columnMetadata) throws SQLException {
-        switch (typeAsString.toUpperCase()) {
-            case "BOOLEAN":
-            case "BOOL":
-                preparedStatement.setBoolean(statementIndex, Boolean.parseBoolean(valueToInsert.trim()));
-                break;
-            case "SERIAL":
-            case "INT2":
-            case "INT4":
-            case "INT8":
-                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
-                    preparedStatement.setNull(statementIndex, Types.NUMERIC);
-                } else {
-                    preparedStatement.setLong(statementIndex, Long.parseLong(valueToInsert.trim()));
-                }
-                break;
-            case "NUMERIC":
-            case "DECIMAL":
-                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
-                    preparedStatement.setNull(statementIndex, Types.NUMERIC);
-                } else {
-                    preparedStatement.setDouble(statementIndex, Double.parseDouble(valueToInsert.trim()));
-                }
-                break;
-            case "DATE":
-            case "TIMESTAMP":
-                if (valueToInsert.trim().isEmpty() || valueToInsert.equals("null")) {
-                    preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
-                } else {
-                    LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
-                    if (typeAsString.equals("TIMESTAMP")) {
-                        preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(localDateTime));
-                    } else {
-                        preparedStatement.setDate(statementIndex, Date.valueOf(String.valueOf(localDateTime.toLocalDate())));
-                    }
-                }
-                break;
-            default:
-                // not yet working: custom types in postgres
-//                if ((columnMetadata != null) && columnMetadata.getDataType() == Types.OTHER) {
-//                    preparedStatement.setObject(statementIndex, valueToInsert, Types.OTHER);
-//                } else {
-                preparedStatement.setObject(statementIndex, valueToInsert);
-//                }
-        }
-    }
-
     /**
      * recursively add insertion statements starting from the rootTable and the record
      *  Old variant
@@ -214,7 +151,7 @@ public class DbImporter {
         jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
         // todo log if there is a delta between the 2 sets
 
-        String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(tableName, jsonFieldNames, pkName, isInsert);
+        String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(tableName, jsonFieldNames, pkName, isInsert, record.getColumnMetadata());
         try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
 
             String pkValue = null;
@@ -235,7 +172,7 @@ public class DbImporter {
                     if (mappers.containsKey(currentFieldName)) {
                         mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementIndex, valueToInsert);
                     } else {
-                        setStatementField(statement, currentElement.metadata.type, statementIndex, currentFieldName, valueToInsert, currentElement.metadata);
+                        JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, statementIndex, valueToInsert, currentElement.metadata);
                     }
 
                     statementIndex++;
@@ -253,7 +190,7 @@ public class DbImporter {
                     pkValue = pkValue.trim();
                 }
 
-                setStatementField(statement, pkType, statementIndex, pkName, pkValue, pkMetadata);
+                JdbcHelpers.innerSetStatementField(statement, pkType, statementIndex, pkValue, pkMetadata);
             }
 
             if (insertionStatements.containsKey(tableName)) {
@@ -296,6 +233,14 @@ public class DbImporter {
         return result;
     }
 
+    public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode json = mapper.readTree(jsonString);
+
+        return innerJsonToRecord(connection, rootTable, json);
+    }
+
+
     Record innerJsonToRecord(Connection connection, String rootTable, JsonNode json) throws IOException, SQLException {
         Record record = new Record(rootTable, null);
 
@@ -305,6 +250,7 @@ public class DbImporter {
 
         final String pkName = pks.get(0);
         record.pkName = pkName;
+        record.setColumnMetadata(columns);
 
         List<String> jsonFieldNames = getJsonFieldNames(json);
         // fields must both be in json AND in db metadata, remove those missing in db metadata
@@ -368,12 +314,6 @@ public class DbImporter {
         return record;
     }
 
-    public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode json = mapper.readTree(jsonString);
-
-        return innerJsonToRecord(connection, rootTable, json);
-    }
 
     /**
      * Insert a record into a database - doing the remapping to other primary keys where needed.
@@ -410,7 +350,8 @@ public class DbImporter {
             jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
             // todo log if there is a delta between the 2 sets, ok for those who map subrows !
 
-            String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.rowLink.tableName, jsonFieldNames, record.pkName, isInsert);
+            Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = record.getColumnMetadata();
+            String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.rowLink.tableName, jsonFieldNames, record.pkName, isInsert, columnMetadata);
             PreparedStatement savedStatement = null;
             try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
 
@@ -423,7 +364,7 @@ public class DbImporter {
 
                 int statementIndex = 1; // statement param
                 int pkStatementIndex = 0;
-                JdbcHelpers.ColumnMetadata columnMetadata = null;
+                JdbcHelpers.ColumnMetadata fieldMetadata = null;
                 for (String currentFieldName : jsonFieldNames) {
                     Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
                     valueToInsert[0] = prepareVarcharToInsert(currentElement.metadata.type, currentFieldName, Objects.toString(currentElement.value));
@@ -445,9 +386,9 @@ public class DbImporter {
                         valueToInsert[0] = removeQuotes(valueToInsert[0]);
 
                         if (mappers.containsKey(currentFieldName)) {
-                            mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementIndex, valueToInsert[0]);
+                            mappers.get(currentFieldName).mapField(currentElement.metadata, statement, columnMetadata.get(currentElement.metadata.name.toUpperCase()).getOrdinalPos(), valueToInsert[0]);
                         } else {
-                            setStatementField(statement, currentElement.metadata.type, statementIndex, currentFieldName, valueToInsert[0], currentElement.metadata);
+                            JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, columnMetadata.get(currentElement.metadata.name.toUpperCase()).getOrdinalPos(), valueToInsert[0], currentElement.metadata);
                         }
                     }
 
@@ -455,7 +396,7 @@ public class DbImporter {
                         pkValue = isInsert ? Objects.toString(candidatePk) : valueToInsert[0];
                         pkType = currentElement.metadata.type;
                         pkStatementIndex = statementIndex;
-                        columnMetadata = currentElement.metadata;
+                        fieldMetadata = currentElement.metadata;
                     }
                     statementIndex++;
                 }
@@ -465,7 +406,7 @@ public class DbImporter {
                 }
 
                 pkValue = isInsert ? Objects.toString(candidatePk) : valueToInsert[0];
-                setStatementField(statement, pkType, pkStatementIndex, record.pkName, pkValue, columnMetadata);
+                JdbcHelpers.innerSetStatementField(statement, pkType, pkStatementIndex, pkValue, fieldMetadata);
 
 
                 savedStatement = statement;

@@ -42,3 +42,5 @@ Usage (longer version)
 Ideas:
 * Use the Sakila https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila demo database more (started, but uses custom types)
 * Performance tuning (one step was already done)
+* Clean ups
+** combine the metadata code lines in readOneRecord and similar methods

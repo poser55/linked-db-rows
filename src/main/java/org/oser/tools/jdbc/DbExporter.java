@@ -2,7 +2,6 @@ package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,9 +11,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,7 +45,7 @@ public class DbExporter {
     protected DbExporter() {}
 
     /**
-     * Main method: recursively scan a tree linked db rows and return it
+     * Main method: recursively read a tree of linked db rows and return it
      */
     public Record contentAsTree(Connection connection, String tableName, Object pkValue) throws SQLException {
         ExportContext context = new ExportContext();
@@ -92,12 +88,15 @@ public class DbExporter {
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName, metadataCache);
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName, pkCache);
 
+        data.setColumnMetadata(columns);
+
         String pkName = primaryKeys.get(0);
         String selectPk = "SELECT * from " + tableName + " where  " + pkName + " = ?";
 
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            innerSetStatementField(columns.get(pkName.toUpperCase()).getType(), pkSelectionStatement, 1, pkValue.toString());
+            JdbcHelpers.ColumnMetadata columnMetadata = columns.get(pkName.toUpperCase());
+            JdbcHelpers.innerSetStatementField(pkSelectionStatement, columnMetadata.getType(), 1, pkValue.toString(), columnMetadata);
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
@@ -135,7 +134,8 @@ public class DbExporter {
         String selectPk = "SELECT * from " + tableName + " where  " + fkName + " = ?";
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            innerSetStatementField(columns.get(pkName.toUpperCase()).getType(), pkSelectionStatement, 1, fkValue.toString());
+            JdbcHelpers.ColumnMetadata columnMetadata = columns.get(pkName.toUpperCase());
+            JdbcHelpers.innerSetStatementField(pkSelectionStatement, columnMetadata.getType(), 1, fkValue.toString(), columnMetadata);
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
@@ -194,6 +194,7 @@ public class DbExporter {
 
     private static Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, String pkName, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount) throws SQLException {
         Record row = new Record(tableName, null);
+        row.setColumnMetadata(columns);
 
         for (int i = 1; i <= columnCount; i++) {
             String columnName = rsMetaData.getColumnName(i);
@@ -209,34 +210,6 @@ public class DbExporter {
     }
 
 
-
-    private static void innerSetStatementField(String typeAsString, PreparedStatement preparedStatement, int statementIndex, String valueToInsert) throws SQLException {
-        switch (typeAsString) {
-            case "BOOLEAN":
-            case "bool":
-                preparedStatement.setBoolean(statementIndex, Boolean.parseBoolean(valueToInsert.trim()));
-                break;
-            case "int2":
-            case "int4":
-            case "int8":
-            case "serial":
-                preparedStatement.setLong(statementIndex, Long.parseLong(valueToInsert.trim()));
-                break;
-            case "numeric":
-            case "DECIMAL":
-                if (valueToInsert.trim().isEmpty()) {
-                    preparedStatement.setNull(statementIndex, Types.NUMERIC);
-                } else {
-                    preparedStatement.setDouble(statementIndex, Double.parseDouble(valueToInsert.trim()));
-                }
-                break;
-            case "timestamp":
-                preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(LocalDateTime.parse(valueToInsert)));
-                break;
-            default:
-                preparedStatement.setObject(statementIndex, valueToInsert);
-        }
-    }
 
     public Set<String> getStopTablesExcluded() {
         return stopTablesExcluded;
