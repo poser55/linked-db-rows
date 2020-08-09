@@ -358,7 +358,6 @@ public class DbImporter {
 
                 final String[] valueToInsert = {"-"};
 
-                int statementIndex = 1; // statement param
                 int pkStatementIndex = 0;
                 JdbcHelpers.ColumnMetadata fieldMetadata = null;
                 for (String currentFieldName : jsonFieldNames) {
@@ -377,24 +376,23 @@ public class DbImporter {
                         });
                     }
 
+                    int statementPosition = columnMetadata.get(currentElement.metadata.name.toUpperCase()).getOrdinalPos();
 
                     if (isInsert || !fieldIsPk) {
                         valueToInsert[0] = removeQuotes(valueToInsert[0]);
 
                         if (mappers.containsKey(currentFieldName)) {
-                            mappers.get(currentFieldName).mapField(currentElement.metadata, statement, columnMetadata.get(currentElement.metadata.name.toUpperCase()).getOrdinalPos(), valueToInsert[0]);
+                            mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementPosition, valueToInsert[0]);
                         } else {
-                            JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, columnMetadata.get(currentElement.metadata.name.toUpperCase()).getOrdinalPos(), valueToInsert[0], currentElement.metadata);
+                            JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, statementPosition, valueToInsert[0], currentElement.metadata);
                         }
                     }
 
                     if (fieldIsPk) {
-                        pkValue = isInsert ? Objects.toString(candidatePk) : valueToInsert[0];
                         pkType = currentElement.metadata.type;
-                        pkStatementIndex = statementIndex;
+                        pkStatementIndex = statementPosition;
                         fieldMetadata = currentElement.metadata;
                     }
-                    statementIndex++;
                 }
 
                 pkValue = isInsert ? Objects.toString(candidatePk) : valueToInsert[0];
