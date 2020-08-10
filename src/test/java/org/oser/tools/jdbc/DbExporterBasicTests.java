@@ -111,8 +111,7 @@ public class DbExporterBasicTests {
 
     @Test
     void testWorkingOnNonExistingPrimaryKey() throws SQLException, ClassNotFoundException, IOException {
-        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                1, "nodes", 77);
-
+        Assertions.assertThrows(IllegalArgumentException.class, ()->TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
+                1, "nodes", 77));
     }
 }

@@ -107,6 +107,8 @@ public class DbExporter {
                         Record.FieldAndValue d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i) );
                         data.content.add(d);
                     }
+                } else {
+                    throw new IllegalArgumentException("Entry not found "+tableName+" "+pkValues);
                 }
             }
         }
