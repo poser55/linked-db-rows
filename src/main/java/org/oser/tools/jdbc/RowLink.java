@@ -2,9 +2,8 @@ package org.oser.tools.jdbc;
 
 import lombok.Getter;
 
-import java.security.cert.CollectionCertStoreParameters;
+import java.util.Arrays;
 import java.util.Objects;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -66,7 +65,11 @@ public class RowLink {
 
     @Override
     public String toString() {
-        return tableName + "/" + Stream.of(pks).map(Object::toString).collect(Collectors.joining("/"));
+        return tableName + "/" + (notNull(pks) ? Stream.of(pks).map(Object::toString).collect(Collectors.joining("/")): "null");
+    }
+
+    private boolean notNull(Object[] pks) {
+        return pks != null && Arrays.stream(pks).allMatch(e -> e != null);
     }
 
     public void setTableName(String tableName) {

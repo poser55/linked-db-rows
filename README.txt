@@ -15,8 +15,8 @@ Limitations:
 * Test coverage needs improving
 * It solves a problem I have - quite hacky in many ways
 * Proprietary json structure
-* Only simple primary keys supported for now
-* No custom db types are supported
+* Only one-element foreign keys per table supported for now
+* No arrays are currently supported
 
 License:
 * Apache version 2.0
@@ -40,8 +40,9 @@ Usage (longer version)
 
 
 Ideas:
-* Use the Sakila https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila demo database more (started, but uses custom types)
+* Use the Sakila https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila demo database more (started, but uses arrays)
 * Performance tuning (one step was already done)
+* Allow excluding fields
 * Clean ups
 ** combine the metadata code lines in readOneRecord and similar methods
 * Fix bugs:

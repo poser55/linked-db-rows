@@ -5,7 +5,6 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
 import org.h2.tools.Server;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -21,7 +20,7 @@ public class TestContainerTest {
 
     @Test
     void testJsonToRecord() throws SQLException, IOException, ClassNotFoundException {
-        Connection demoConnection = DbExporterSmallTest.getConnection("demo"); // getConnectionTestContainer("demo");
+        Connection demoConnection = TestHelpers.getConnection("demo"); // getConnectionTestContainer("demo");
         DbExporter db2Graphdemo = new DbExporter();
         Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
 
@@ -51,7 +50,7 @@ public class TestContainerTest {
 
     @Test
     void testRemapping() throws SQLException, IOException, ClassNotFoundException {
-        Connection demoConnection = DbExporterSmallTest.getConnection("demo"); // getConnectionTestContainer("demo");
+        Connection demoConnection = TestHelpers.getConnection("demo"); // getConnectionTestContainer("demo");
         DbExporter db2Graphdemo = new DbExporter();
         Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
 
@@ -70,7 +69,7 @@ public class TestContainerTest {
 
     @Test
     void testInsert() throws SQLException, ClassNotFoundException, IOException {
-        Connection demoConnection = DbExporterSmallTest.getConnection("demo");
+        Connection demoConnection = TestHelpers.getConnection("demo");
 
         String json = "{ \"id\":7,\"author_id\":1, \"author_id*author*\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
@@ -79,13 +78,6 @@ public class TestContainerTest {
         assertEquals(2, book.getAllNodes().size());
 
         System.out.println(dbImporter.insertRecords(demoConnection, book));
-    }
-
-    @Test
-    void tableNotExistingTest() throws SQLException, IOException, ClassNotFoundException {
-        Connection demo = DbExporterSmallTest.getConnection("demo");
-        Assertions.assertThrows(IllegalArgumentException.class, () -> JdbcHelpers.assertTableExists(demo, "xxx"));
-        JdbcHelpers.assertTableExists(demo, "book");
     }
 
 

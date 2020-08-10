@@ -1,85 +1,41 @@
 package org.oser.tools.jdbc;
 
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class DbExporterSmallTest {
-
-    @Test
-    void pkTable() {
-        RowLink t1 = new RowLink("lender/1");
-        assertEquals("lender", t1.tableName);
-        assertEquals(1L, t1.pks[0]);
-
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {new RowLink("l");});
-
-        assertEquals(new RowLink("1", (byte)1), new RowLink("1", (long)1));
-
-        RowLink t2 = new RowLink("lender/1/a/a/a");
-
-        System.out.println(t2);
-    }
+public class DbExporterBasicTests {
 
     @Test
     void datatypesTest() throws SQLException, ClassNotFoundException, IOException {
-        Connection demoConnection = getConnection("demo");
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"), 1, "datatypes", 1);
+        assertEquals(6, basicChecksResult.getAsRecordAgain().content.size());
+        assertEquals(6, basicChecksResult.getAsRecord().content.size());
+    }
 
-        Record datatypes = new DbExporter().contentAsTree(demoConnection, "datatypes", 1);
-        String asString = datatypes.asJson();
-        System.out.println("datatypes:"+asString);
 
-        Record asRecord = new DbImporter().jsonToRecord(demoConnection, "datatypes", asString);
-        String asStringAgain = asRecord.asJson();
-
-        assertEquals(asString.toUpperCase(), asStringAgain.toUpperCase());
-        assertEquals(1, asRecord.getAllNodes().size());
+    @Test
+    void testBookTable() throws SQLException, IOException, ClassNotFoundException {
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"), 2, "book", 1);
     }
 
     @Test
-    void testJsonToRecord() throws SQLException, IOException, ClassNotFoundException {
-        Connection demoConnection = getConnection("demo");
-        DbExporter dbExporter = new DbExporter();
-        Record book = dbExporter.contentAsTree(demoConnection, "book", "1");
-
-        System.out.println("book:"+book.asJson());
-
-        Record book2 = new DbImporter().jsonToRecord(demoConnection, "book", book.asJson());
-
-        System.out.println("book2:"+book2.asJson());
-    }
-
-    @Test
-    //@Disabled // not working
     void testGraph() throws SQLException, IOException, ClassNotFoundException {
-        Connection demoConnection = getConnection("demo");
-        DbExporter dbExporter = new DbExporter();
-
-        // todo is wrong
-        Record node1 = dbExporter.contentAsTree(demoConnection, "nodes", "1");
-
-        System.out.println("all nodes:"+node1.getAllNodes());
-        System.out.println("book:"+node1.asJson());
-
-         // todo is wrong!!!
-        Record book2 = new DbImporter().jsonToRecord(demoConnection, "nodes", node1.asJson());
-
-        System.out.println("book2:"+book2.asJson());
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
+                10, "nodes", 1);
     }
 
 
     @Test
     void testStopTableIncluded() throws SQLException, ClassNotFoundException, IOException {
-        Connection sakilaConnection = getConnection("sakila");
+        Connection sakilaConnection = TestHelpers.getConnection("sakila");
 
         DbExporter dbExporter = new DbExporter();
         dbExporter.getStopTablesIncluded().add("inventory");
@@ -97,7 +53,7 @@ public class DbExporterSmallTest {
 
     @Test // is a bit slow
     void sakila() throws SQLException, ClassNotFoundException, IOException {
-        Connection sakilaConnection = getConnection("sakila");
+        Connection sakilaConnection = TestHelpers.getConnection("sakila");
 
         List<String> actorInsertList = JdbcHelpers.determineOrder(sakilaConnection, "actor");
         System.out.println("list:"+actorInsertList +"\n");
@@ -116,7 +72,7 @@ public class DbExporterSmallTest {
         DbImporter dbImporter = new DbImporter();
         Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
 
-        // todo: still many issues with importing due to simplistic type handling!!
+        // todo: still many issues with importing due to missing array support
         //dbImporter.insertRecords(sakilaConnection, asRecord);
 
         //Map<RowLink, Object> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
@@ -125,7 +81,7 @@ public class DbExporterSmallTest {
 
     @Test
     void sakilaJustOneTable() throws SQLException, ClassNotFoundException, IOException {
-        Connection sakilaConnection = getConnection("sakila");
+        Connection sakilaConnection = TestHelpers.getConnection("sakila");
 
         List<String> actorInsertList = JdbcHelpers.determineOrder(sakilaConnection, "actor");
         System.out.println("list:"+actorInsertList +"\n");
@@ -145,22 +101,18 @@ public class DbExporterSmallTest {
 
         DbImporter dbImporter = new DbImporter();
         Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
-
-        // todo: still many issues with importing due to simplistic type handling!!
-        //dbImporter.insertRecords(sakilaConnection, asRecord);
-
     }
 
-
-    public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
-        Class.forName("org.postgresql.Driver");
-
-        Connection con = DriverManager.getConnection(
-                "jdbc:postgresql://localhost/" + dbName, "postgres", "admin");
-
-        con.setAutoCommit(true);
-        return con;
+    @Test
+    void testWorkingOnNonExistingTable() throws SQLException, ClassNotFoundException, IOException {
+        Assertions.assertThrows(IllegalArgumentException.class, ()-> TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
+                0, "notExisting", 1));
     }
 
+    @Test
+    void testWorkingOnNonExistingPrimaryKey() throws SQLException, ClassNotFoundException, IOException {
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
+                1, "nodes", 77);
 
+    }
 }
