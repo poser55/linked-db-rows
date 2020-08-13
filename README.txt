@@ -45,5 +45,6 @@ Ideas:
 * Allow excluding fields
 * Clean ups
 ** combine the metadata code lines in readOneRecord and similar methods
+** some operations take a lot of stack for large data sets (e.g. put -Xss515m as JVM parameters)
 * Fix bugs:
 ** Upper/ lower case names in json

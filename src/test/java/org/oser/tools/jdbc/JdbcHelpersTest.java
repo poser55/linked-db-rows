@@ -45,4 +45,16 @@ class JdbcHelpersTest {
         Assertions.assertThrows(IllegalArgumentException.class, () -> JdbcHelpers.assertTableExists(demo, "xxx"));
         JdbcHelpers.assertTableExists(demo, "book");
     }
+
+    @Test
+    void doesPkTableExist() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo = TestHelpers.getConnection("demo");
+        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = JdbcHelpers.getColumnMetadata(demo.getMetaData(), "edge");
+        assertTrue(JdbcHelpers.doesPkTableExist(demo, "edge", Arrays.asList("begin_id", "end_id"), Arrays.asList(1, 2), columnMetadata));
+        assertFalse(JdbcHelpers.doesPkTableExist(demo, "edge", Arrays.asList("begin_id", "end_id"), Arrays.asList(1, 9), columnMetadata));
+
+        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata2 = JdbcHelpers.getColumnMetadata(demo.getMetaData(), "nodes");
+        assertTrue(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(5), columnMetadata2));
+        assertFalse(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(77), columnMetadata2));
+    }
 }

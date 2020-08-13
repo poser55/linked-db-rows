@@ -2,13 +2,16 @@ package org.oser.tools.jdbc;
 
 import lombok.Getter;
 
+import java.sql.DatabaseMetaData;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A table and 1 concrete primary key  (uniquely identifies a db row)
+ * A table and 1 concrete primary key  (uniquely identifies a db row)<br/>
+ *  What is the order of the pks?  As I get it from the database metadata.
+ *    E.g. via {@link JdbcHelpers#getPrimaryKeys(DatabaseMetaData, String)}
  */
 @Getter
 public class RowLink {

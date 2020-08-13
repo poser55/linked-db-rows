@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,6 +20,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -125,7 +127,7 @@ public final class JdbcHelpers {
     }
 
     private static String questionMarkOrTypeCasting(ColumnMetadata e) {
-        if (e.columnDef != null && e.columnDef.endsWith(e.type)){
+        if (e != null && e.columnDef != null && e.columnDef.endsWith(e.type)){
             // to handle inserts e.g. for enums correctly
             return e.columnDef.replace("'G'", "?");
         }
@@ -196,6 +198,7 @@ public final class JdbcHelpers {
         return result;
     }
 
+    /** @see #getPrimaryKeys(DatabaseMetaData, String) with optional caching */
     public static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName, Cache<String, List<String>> cache) throws SQLException {
         List<String> result = cache.getIfPresent(tableName);
         if (result == null){
@@ -205,21 +208,20 @@ public final class JdbcHelpers {
         return result;
     }
 
+    /** Get the list of primary keys of a table */
     public static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName) throws SQLException {
         List<String> result = new ArrayList<>();
 
         ResultSet rs = metadata.getPrimaryKeys(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()));
-
         while (rs.next()) {
             result.add(rs.getString("COLUMN_NAME"));
         }
-
         return result;
     }
 
 
     /**
-     * set a value on a jdbc Statement
+     * Set a value on a jdbc Statement
      *
      *   for cases where we have less info, columnMetadata can be null
      */
@@ -255,11 +257,12 @@ public final class JdbcHelpers {
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
                 } else {
-                    LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
-                    if (typeAsString.equals("TIMESTAMP")) {
+                    if (typeAsString.toUpperCase().equals("TIMESTAMP")) {
+                        LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
                         preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(localDateTime));
                     } else {
-                        preparedStatement.setDate(statementIndex, Date.valueOf(String.valueOf(localDateTime.toLocalDate())));
+                        LocalDate localDate = LocalDate.parse(valueToInsert.replace(" ", "T"));
+                        preparedStatement.setDate(statementIndex, Date.valueOf(String.valueOf(localDate)));
                     }
                 }
                 break;
@@ -319,9 +322,42 @@ public final class JdbcHelpers {
         }
     }
 
+    /** get Map with keys = the field names and value = index of the key (0 started) */
     public static Map<String, Integer> getStringIntegerMap(List<String> primaryKeys) {
         final int[] j = {0};
         return primaryKeys.stream().collect(Collectors.toMap(e -> e.toUpperCase(), e -> j[0]++));
     }
 
+    /** Does the row of the table tableName and primary key pkNames and the pkValues exist? */
+    public static boolean doesPkTableExist(Connection connection, String tableName, List<String> pkNames,
+                                           List<Object> pkValues, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata) throws SQLException {
+        String selectStatement = selectStatementByPks(tableName, pkNames, columnMetadata);
+
+        boolean exists = false;
+        try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectStatement)) {
+            setPksStatementFields(pkSelectionStatement, pkNames, columnMetadata, pkValues);
+            try (ResultSet rs = pkSelectionStatement.executeQuery()) {
+                exists = rs.next();
+            }
+        }
+        return exists;
+    }
+
+    private static String selectStatementByPks(String tableName, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata) {
+        String whereClause = primaryKeys.stream().map(e -> e + " = " + questionMarkOrTypeCasting(columnMetadata.get(e.toUpperCase())))
+                .collect(Collectors.joining(" and "));
+        return "SELECT * from " + tableName + " where  " + whereClause;
+    }
+
+    private static void setPksStatementFields(PreparedStatement pkSelectionStatement, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata, List<Object> values) throws SQLException {
+        int i = 0;
+        for (String pkName : primaryKeys) {
+            JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(pkName.toUpperCase());
+            if (fieldMetadata == null) {
+                throw new IllegalArgumentException("Issue with metadata " + columnMetadata);
+            }
+            JdbcHelpers.innerSetStatementField(pkSelectionStatement, fieldMetadata.getType(), i + 1, Objects.toString(values.get(i)), fieldMetadata);
+            i++;
+        }
+    }
 }

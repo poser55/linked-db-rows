@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Represents one foreign key constraint */
 @Getter
@@ -38,7 +39,7 @@ public class Fk {
      * get FK metadata of one table (both direction of metadata, exported and imported FKs)
      */
     public static List<Fk> getFksOfTable(Connection connection, String table) throws SQLException {
-        List<Fk> fks = new ArrayList<>();
+        List<Fk> fks = new CopyOnWriteArrayList<>();
         DatabaseMetaData dm = connection.getMetaData();
 
         ResultSet rs = dm.getExportedKeys(null, null, table);

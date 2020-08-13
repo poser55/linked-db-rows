@@ -162,7 +162,6 @@ public class DbExporter {
         String selectPk = selectStatementByPks(tableName, fkName, primaryKeys);
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            JdbcHelpers.ColumnMetadata columnMetadata = columns.get(pkName.toUpperCase());
             setPksStatementFields(pkSelectionStatement, primaryKeys, columns, fkValues, fkName);
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
@@ -174,6 +173,7 @@ public class DbExporter {
                         continue; // we have already read this node
                     }
 
+                    context.visitedNodes.put(new RowLink(tableName, row.rowLink.pks), row);
                     listOfRows.add(row);
                 }
             }
@@ -181,15 +181,7 @@ public class DbExporter {
 
         // now treat subtables
         for (Record row : listOfRows) {
-            boolean doNotNestThisRecord = false;
-
-            if (stopTablesIncluded.contains(tableName)) {
-                // termination condition
-                doNotNestThisRecord = true;
-            }
-            context.visitedNodes.put(new RowLink(tableName, row.rowLink.pks), row);
-
-            if (nesting && !doNotNestThisRecord) {
+            if (nesting && !stopTablesIncluded.contains(tableName)) {
                 addSubRowDataFromFks(connection, tableName, row, context);
             }
         }
@@ -202,6 +194,8 @@ public class DbExporter {
      */
     void addSubRowDataFromFks(Connection connection, String tableName, Record data, ExportContext context) throws SQLException {
         List<Fk> fks = getFksOfTable(connection, tableName, fkCache);
+
+        data.optionalFks = fks;
 
         for (Fk fk : fks) {
             context.treatedFks.add(fk);
@@ -225,7 +219,6 @@ public class DbExporter {
     }
 
 
-
     private static Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, String pkName, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys) throws SQLException {
         Record row = new Record(tableName, null);
         row.setColumnMetadata(columns);
@@ -245,7 +238,6 @@ public class DbExporter {
         row.setPkValue(primaryKeyValues);
         return row;
     }
-
 
 
     public Set<String> getStopTablesExcluded() {

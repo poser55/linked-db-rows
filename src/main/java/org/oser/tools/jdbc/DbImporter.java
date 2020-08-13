@@ -70,6 +70,7 @@ public class DbImporter {
 
     /** Does the row of the table tableName and primary key pkName and the record record exist? */
     // todo: remove dependency on record, mv to JdbHelpers
+    @Deprecated
     public static boolean doesPkTableExist(Connection connection, String tableName, String pkName, Record record) throws SQLException {
         String selectPk = "SELECT " + pkName + " from " + tableName + " where  " + pkName + " = ?";
 
@@ -333,44 +334,70 @@ public class DbImporter {
 
     private void insertOneRecord(Connection connection, Record record, Map<RowLink, Object> newKeys, Map<String, FieldMapper> mappers) {
         try {
-            boolean isInsert = forceInsert || doesPkTableExist(connection, record.getRowLink().tableName, record.pkName, record);
+            DatabaseMetaData metadata = connection.getMetaData();
+            List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metadata, record.getRowLink().getTableName(), pkCache);
+
+            // todo : bug sometimes the optionalFk is not correct on record (e.g. on node)
+            //  so for now, we get it from the cache:
+            List<Fk> fksOfTable = getFksOfTable(connection, record.rowLink.tableName, fkCache);
+
+            Map<String, List<Fk>> fksByColumnName = fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toUpperCase()));
+            List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
+
+            List<Object> pkValues = remapPrimaryKeyValues(record, newKeys, primaryKeys, fksByColumnName, isFreePk);
+
+            boolean entryExists = JdbcHelpers.doesPkTableExist(connection, record.getRowLink().getTableName(), primaryKeys, pkValues, record.getColumnMetadata());
+            boolean isInsert =  forceInsert || entryExists;
 
             Object candidatePk = null;
-            if (isInsert) {
-                candidatePk = getCandidatePk(connection, record.getRowLink().tableName, record.findElementWithName(record.pkName).metadata.type, record.pkName);
-                RowLink key = new RowLink(record.getRowLink().tableName, record.findElementWithName(record.pkName).value);
-                newKeys.put(key, candidatePk);
+            String primaryKeyFieldWithNewValue = null;
+            if (isInsert && entryExists) {
+                // iterate over all entries of the primary key, generate a candidate for first that is possible
+
+                for (int i = 0; i < primaryKeys.size(); i++) {
+                    if (isFreePk.get(i)) {
+                        Record.FieldAndValue elementWithName = record.findElementWithName(primaryKeys.get(i));
+
+                        candidatePk = getCandidatePk(connection, record.getRowLink().tableName, elementWithName.metadata.type, primaryKeys.get(i));
+                        RowLink key = new RowLink(record.getRowLink().tableName, record.findElementWithName(record.pkName).value);
+                        newKeys.put(key, candidatePk);
+
+                        pkValues.set(i, candidatePk); // maybe not needed (catched by later remapping?)
+                        primaryKeyFieldWithNewValue = elementWithName.name; // maybe not needed (catched by later remapping?)
+                        break;
+                    }
+                }
             }
 
-            List<String> jsonFieldNames = record.getFieldNames();
+            List<String> fieldNames = record.getFieldNames();
 
             // fields must both be in json AND in db metadata, remove those missing in db metadata
             Set<String> columnsDbNames = record.content.stream().map(e -> e.name).collect(Collectors.toSet());
-            jsonFieldNames.removeIf(e -> !columnsDbNames.contains(e));
+            fieldNames.removeIf(e -> !columnsDbNames.contains(e));
             // todo log if there is a delta between the 2 sets, ok for those who map subrows !
 
             Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = record.getColumnMetadata();
-            String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.rowLink.tableName, jsonFieldNames, record.pkName, isInsert, columnMetadata);
+            String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.rowLink.tableName, fieldNames, record.pkName, isInsert, columnMetadata);
             PreparedStatement savedStatement = null;
             try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
 
                 String pkValue = null;
                 String pkType = "";
 
-                Map<String, List<Fk>> fksByColumnName = record.optionalFks.stream().collect(Collectors.groupingBy(fk1 -> fk1.getFkcolumn().toUpperCase()));
-
                 final String[] valueToInsert = {"-"};
 
                 int pkStatementIndex = 0;
                 JdbcHelpers.ColumnMetadata fieldMetadata = null;
-                for (String currentFieldName : jsonFieldNames) {
+                for (String currentFieldName : fieldNames) {
                     Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
                     valueToInsert[0] = prepareVarcharToInsert(currentElement.metadata.type, currentFieldName, Objects.toString(currentElement.value));
 
-                    boolean fieldIsPk = currentFieldName.equals(record.pkName.toUpperCase());
+                    boolean fieldIsPk = primaryKeys.stream().map(String::toUpperCase).anyMatch(e -> currentFieldName.toUpperCase().equals(e));
 
-                    // remap fks!
-                    if (isInsert && fksByColumnName.containsKey(currentFieldName)) {
+                    if (fieldIsPk) {
+                        valueToInsert[0] = Objects.toString(pkValues.get(JdbcHelpers.getStringIntegerMap(primaryKeys).get(currentFieldName.toUpperCase())));
+                    } else if (isInsert && fksByColumnName.containsKey(currentFieldName)) {
+                        // remap fks!
                         List<Fk> fks = fksByColumnName.get(currentFieldName);
 
                         String earlierIntendedFk = valueToInsert[0];
@@ -381,26 +408,18 @@ public class DbImporter {
 
                     int statementPosition = columnMetadata.get(currentElement.metadata.name.toUpperCase()).getOrdinalPos();
 
-                    if (isInsert || !fieldIsPk) {
+
                         valueToInsert[0] = removeQuotes(valueToInsert[0]);
 
                         if (mappers.containsKey(currentFieldName)) {
                             mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementPosition, valueToInsert[0]);
                         } else {
                             JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, statementPosition, valueToInsert[0], currentElement.metadata);
-                        }
+
                     }
 
-                    if (fieldIsPk) {
-                        pkType = currentElement.metadata.type;
-                        pkStatementIndex = statementPosition;
-                        fieldMetadata = currentElement.metadata;
-                    }
+
                 }
-
-                pkValue = isInsert ? Objects.toString(candidatePk) : valueToInsert[0];
-                JdbcHelpers.innerSetStatementField(statement, pkType, pkStatementIndex, pkValue, fieldMetadata);
-
 
                 savedStatement = statement;
                 int result = statement.executeUpdate();
@@ -416,6 +435,34 @@ public class DbImporter {
             throwables.printStackTrace();
         }
     }
+
+    /**
+     * @return the primary key values that are remapped if needed (if e.g. another inserted row has a pk that was remapped before)
+     *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
+     * */
+    private List<Object> remapPrimaryKeyValues(Record record, Map<RowLink, Object> newKeys, List<String> primaryKeys, Map<String, List<Fk>> fksByColumnName, List<Boolean> isFreePk) {
+        List<Object> pkValues = new ArrayList<>(primaryKeys.size());
+        int i = 0;
+        for (String primaryKey : primaryKeys) {
+            Record.FieldAndValue elementWithName = record.findElementWithName(primaryKey.toUpperCase());
+
+            // do the remapping from the newKeys
+            Object[] potentialValueToInsert = {null};
+            if (fksByColumnName.containsKey(primaryKey.toUpperCase())) {
+                List<Fk> fks = fksByColumnName.get(primaryKey.toUpperCase());
+                fks.forEach(fk -> {
+                    potentialValueToInsert[0] = newKeys.get(new RowLink(fk.pktable, elementWithName.value));
+                });
+            }
+            // if it is remapped, it is a fk from somewhere else -> so we cannot set it freely
+            isFreePk.add(potentialValueToInsert[0] == null);
+
+            pkValues.add(potentialValueToInsert[0] != null ? potentialValueToInsert[0]: elementWithName.value);
+            i++;
+        }
+        return pkValues;
+    }
+
 
     private Object getCandidatePk(Connection connection, String tableName, String type, String pkName) throws SQLException {
         PkGenerator generatorToUse = defaultPkGenerator;
