@@ -170,6 +170,9 @@ public class Record {
         }
 
         private Object convertTypeForValue(JdbcHelpers.ColumnMetadata metadata, Object value) {
+            if ("null".equals(value)) {
+                return null;
+            }
             switch (metadata.type.toUpperCase()) {
                 case "BOOLEAN":
                 case "BOOL":

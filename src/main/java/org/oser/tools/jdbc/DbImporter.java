@@ -402,12 +402,12 @@ public class DbImporter {
 
                         String earlierIntendedFk = valueToInsert[0];
                         fks.forEach(fk -> {
-                            valueToInsert[0] = Objects.toString(newKeys.get(new RowLink(fk.pktable, earlierIntendedFk)));
+                            Object potentialNewValue = newKeys.get(new RowLink(fk.pktable, earlierIntendedFk));
+                            valueToInsert[0] = potentialNewValue != null ? Objects.toString(potentialNewValue) : valueToInsert[0];
                         });
                     }
 
                     int statementPosition = columnMetadata.get(currentElement.metadata.name.toUpperCase()).getOrdinalPos();
-
 
                         valueToInsert[0] = removeQuotes(valueToInsert[0]);
 

@@ -55,6 +55,6 @@ class JdbcHelpersTest {
 
         Map<String, JdbcHelpers.ColumnMetadata> columnMetadata2 = JdbcHelpers.getColumnMetadata(demo.getMetaData(), "nodes");
         assertTrue(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(5), columnMetadata2));
-        assertFalse(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(77), columnMetadata2));
+        assertFalse(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(99999999999L), columnMetadata2));
     }
 }
