@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class DbExporterBasicTests {
 
     @Test
-    void datatypesTest() throws SQLException, ClassNotFoundException, IOException {
+    void datatypesTest() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"), 1, "datatypes", 1);
         assertEquals(6, basicChecksResult.getAsRecordAgain().content.size());
         assertEquals(6, basicChecksResult.getAsRecord().content.size());
@@ -24,20 +24,20 @@ public class DbExporterBasicTests {
 
 
     @Test
-    void testBookTable() throws SQLException, IOException, ClassNotFoundException {
+    void testBookTable() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 2, "book", 1);
     }
 
     @Test
-    void testGraph() throws SQLException, IOException, ClassNotFoundException {
+    void testGraph() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 10, "nodes", 1);
     }
 
     @Test
     @Disabled // todo: not yet working
-    void testStopTableIncluded() throws SQLException, ClassNotFoundException, IOException {
+    void testStopTableIncluded() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("sakila"),
                 17645, dbExporter -> dbExporter.getStopTablesIncluded().add("inventory"), null, "actor", 199);
 
@@ -92,7 +92,7 @@ public class DbExporterBasicTests {
     }
 
     @Test
-    void sakilaJustOneTable() throws SQLException, ClassNotFoundException, IOException {
+    void sakilaJustOneTable() throws Exception {
         Connection connection = TestHelpers.getConnection("sakila");
 
         List<String> actorInsertList = JdbcHelpers.determineOrder(connection, "actor");

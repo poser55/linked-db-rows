@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class TestContainerTest {
 
     @Test
-    void testJsonToRecord() throws SQLException, IOException, ClassNotFoundException {
+    void testJsonToRecord() throws Exception {
         Connection demoConnection = TestHelpers.getConnection("demo"); // getConnectionTestContainer("demo");
         DbExporter db2Graphdemo = new DbExporter();
         Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
@@ -49,7 +49,7 @@ public class TestContainerTest {
     }
 
     @Test
-    void testRemapping() throws SQLException, IOException, ClassNotFoundException {
+    void testRemapping() throws Exception {
         Connection demoConnection = TestHelpers.getConnection("demo"); // getConnectionTestContainer("demo");
         DbExporter db2Graphdemo = new DbExporter();
         Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
@@ -68,7 +68,7 @@ public class TestContainerTest {
 
 
     @Test
-    void testInsert() throws SQLException, ClassNotFoundException, IOException {
+    void testInsert() throws Exception {
         Connection demoConnection = TestHelpers.getConnection("demo");
 
         String json = "{ \"id\":7,\"author_id\":1, \"author_id*author*\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";

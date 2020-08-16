@@ -238,6 +238,8 @@ public final class JdbcHelpers {
             case "INT2":
             case "INT4":
             case "INT8":
+            case "FLOAT4":
+            case "FLOAT8":
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.NUMERIC);
                 } else {
@@ -268,8 +270,13 @@ public final class JdbcHelpers {
                 break;
             default:
                 if (columnMetadata != null && columnMetadata.getDataType() != Types.ARRAY ) {
-                    preparedStatement.setObject(statementIndex, valueToInsert, columnMetadata.dataType);
+                    if (valueToInsert == null){
+                        preparedStatement.setNull(statementIndex, columnMetadata.getDataType());
+                    } else {
+                        preparedStatement.setObject(statementIndex, valueToInsert, columnMetadata.dataType);
+                    }
                 } else {
+                    // todo: do we need more null handling? (but we lack the int dataType)
                     preparedStatement.setObject(statementIndex, valueToInsert);
                 }
         }

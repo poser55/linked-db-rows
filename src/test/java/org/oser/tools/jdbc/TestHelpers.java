@@ -1,6 +1,10 @@
 package org.oser.tools.jdbc;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 import lombok.Getter;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -24,16 +28,24 @@ public class TestHelpers {
 
     /** Makes a full test with a RowLink */
     public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, int numberNodes,
-                                                                String tableName, Object primaryKeyValue) throws SQLException, ClassNotFoundException, IOException {
+                                                                String tableName, Object primaryKeyValue) throws Exception {
         return testExportImportBasicChecks(demoConnection, numberNodes, null, null, tableName, primaryKeyValue);
     }
 
-    /** Makes a full test with a RowLink <br/>
-     *   Allows to configure the DbImporter/ DbExporter */
     public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, int numberNodes,
                                                                 Consumer<DbExporter> optionalExporterConfigurer,
                                                                 Consumer<DbImporter> optionalImporterConfigurer,
-                                                                String tableName, Object primaryKeyValue) throws SQLException, ClassNotFoundException, IOException {
+                                                                String tableName, Object primaryKeyValue) throws Exception {
+        return testExportImportBasicChecks(demoConnection, numberNodes, optionalExporterConfigurer, optionalImporterConfigurer, null, tableName, primaryKeyValue);
+    }
+
+        /** Makes a full test with a RowLink <br/>
+         *   Allows to configure the DbImporter/ DbExporter */
+    public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, int numberNodes,
+                                                                Consumer<DbExporter> optionalExporterConfigurer,
+                                                                Consumer<DbImporter> optionalImporterConfigurer,
+                                                                Consumer<Record> optionalRecordChanger,
+                                                                String tableName, Object primaryKeyValue) throws Exception {
         DbExporter dbExporter = new DbExporter();
         if (optionalExporterConfigurer != null) {
             optionalExporterConfigurer.accept(dbExporter);
@@ -51,12 +63,24 @@ public class TestHelpers {
 
         assertEquals(numberNodes, asRecord.getAllNodes().size());
         assertEquals(numberNodes, asRecordAgain.getAllNodes().size());
-        assertEquals(asString.toUpperCase(), asStringAgain.toUpperCase());
+        assertEquals(canonicalize(asString), canonicalize(asStringAgain));
+
+        if (optionalRecordChanger != null) {
+            optionalRecordChanger.accept(asRecordAgain);
+        }
 
         // todo: bug: asRecord is missing columnMetadata/ other values
         Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, asRecordAgain);
 
         return  new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap);
+    }
+
+    @NotNull
+    private static String canonicalize(String asString) {
+        return asString.toUpperCase()
+                // remove precision differences
+                .replace(".000,", ",")
+                .replace(".0,", ",");
     }
 
     @Getter
@@ -74,5 +98,11 @@ public class TestHelpers {
             this.asStringAgain = asStringAgain;
             this.rowLinkObjectMap = rowLinkObjectMap;
         }
+    }
+
+    public static void initLogback() {
+        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
+        ch.qos.logback.classic.Logger rootLogger = lc.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+        rootLogger.setLevel(Level.INFO);
     }
 }

@@ -3,9 +3,9 @@ package org.oser.tools.jdbc;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -117,7 +117,7 @@ public class Record {
     }
 
     /** visit all Records in insertion order */
-    public void visitRecordsInInsertionOrder(Connection connection, Consumer<Record> visitor) throws SQLException {
+    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor) throws Exception {
         List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName);
 
         Map<String, List<Record>> tableToRecords = new HashMap<>();
@@ -131,7 +131,9 @@ public class Record {
         for (String tableName : insertionOrder) {
             List<Record> records = tableToRecords.get(tableName);
             if (records != null) {
-                records.forEach(r -> visitor.accept(r));
+                for (Record record : records) {
+                    visitor.apply(record);
+                }
             }
         }
     }
@@ -200,10 +202,10 @@ public class Record {
                     return l != null ? l : value;
                 case "NUMERIC":
                 case "DECIMAL":
-                    Double d = null;
+                    BigDecimal d = null;
                     if (value instanceof String) {
                         try {
-                            d = Double.parseDouble((String) value);
+                            d = new BigDecimal((String) value);
                         } catch (NumberFormatException e) {
                             // ok
                         }
