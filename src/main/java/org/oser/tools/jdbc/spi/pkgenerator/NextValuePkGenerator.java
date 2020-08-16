@@ -1,4 +1,6 @@
-package org.oser.tools.jdbc;
+package org.oser.tools.jdbc.spi.pkgenerator;
+
+import org.oser.tools.jdbc.PkGenerator;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

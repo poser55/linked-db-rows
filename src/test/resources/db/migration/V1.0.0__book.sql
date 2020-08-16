@@ -36,3 +36,6 @@ CREATE TABLE datatypes (
 insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (1, 'varchar', 'my text', true, '2019-01-01T12:19:11',
                                                                                                      '2020-02-03');
 
+-- just for tests
+create sequence datatypes_id_seq start with 1050 increment by 50;
+create sequence strange_id_seq start with 1050 increment by 50;

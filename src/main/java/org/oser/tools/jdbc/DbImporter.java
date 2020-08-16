@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import org.oser.tools.jdbc.spi.pkgenerator.NextValuePkGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
