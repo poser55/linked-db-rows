@@ -55,7 +55,6 @@ Ideas:
 * Allow excluding fields
 * Clean ups
     - combine the metadata code lines in readOneRecord and similar methods
-    - some operations take a lot of stack space for large data sets (e.g. put -Xss515m as JVM parameter)
     - reduce the limitations
     - Fix hints marked as todo
 * Fix bugs:

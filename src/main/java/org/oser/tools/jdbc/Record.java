@@ -99,10 +99,12 @@ public class Record {
     public Set<RowLink> getAllNodes(){
         Set<RowLink> result = new HashSet<>();
         result.add(rowLink);
-        result.addAll(content.stream()
-                .filter(e -> !e.subRow.isEmpty())
-                .flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).flatMap(e->e.getAllNodes().stream())
-                .collect(toSet()));
+
+        // not fully implemented via streams (as nested streams use more stack levels)
+        List<Record> subRecords = content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).collect(toList());
+        for (Record record : subRecords) {
+            result.addAll(record.getAllNodes());
+        }
         return result;
     }
 
@@ -254,6 +256,8 @@ public class Record {
                 case "BOOL":
                 case "INT4":
                 case "INT8":
+                case "FLOAT8":
+                case "FLOAT4":
                 case "NUMERIC":
                 case "DECIMAL":
                     return value != null ? value.toString() : null;
@@ -272,20 +276,37 @@ public class Record {
 
                     return ("\"" + valueEscaped.replace("\"", "\\\"") + "\"");
             }
-
         }
 
         private String maplistlist2jsonString(String name, Map<String, List<Record>> map) {
             // a "*" (star) at the end of a key means this is a subrow added on this level
-            return map.keySet().stream().map(key -> "\"" + getSubtableKeyName(name, key) + "\":[" + listOfData2jsonString(map.get(key)) + "]").collect(Collectors.joining(","));
+
+            List<String> subResult = new ArrayList<>();
+            for (Map.Entry<String, List<Record>> entry : map.entrySet()){
+                subResult.add("\"" + getSubtableKeyName(name, entry.getKey()) + "\":[" + listOfData2jsonString(entry.getValue()) + "]");
+            }
+
+            return String.join(",", subResult);
         }
 
         private String listOfData2jsonString(List<Record> lists) {
-            return lists.stream().map(this::row2json).collect(Collectors.joining(","));
+            // splitting the stream in 2 steps (to be more stack friendly)
+            List<String> records = new ArrayList<>();
+            for (Record record : lists) {
+                records.add(row2json(record));
+            }
+
+            return String.join(",", records);
         }
 
-        public String row2json(Record row) {
-            return "{" + row.content.stream().map(FieldAndValue::toString).collect(Collectors.joining(",")) + "}";
+        public static String row2json(Record row) {
+            // splitting the stream in 2 steps (to be more stack friendly)
+            List<String> fieldList = new ArrayList<>();
+            for (FieldAndValue field : row.content) {
+                fieldList.add(field.toString());
+            }
+
+            return "{" + String.join(",", fieldList) + "}";
         }
     }
 
