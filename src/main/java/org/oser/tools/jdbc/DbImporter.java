@@ -43,7 +43,7 @@ public class DbImporter {
     // options
     private boolean forceInsert = true;
     private final Map<String, PkGenerator> overriddenPkGenerators = new HashMap<>();
-    private final PkGenerator defaultPkGenerator = new NextValuePkGenerator();
+    private PkGenerator defaultPkGenerator = new NextValuePkGenerator();
     private final Map<String, FieldMapper> fieldMappers = new HashMap<>();
 
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
@@ -385,6 +385,14 @@ public class DbImporter {
 
     public void setForceInsert(boolean forceInsert) {
         this.forceInsert = forceInsert;
+    }
+
+    public Map<String, PkGenerator> getOverriddenPkGenerators() {
+        return overriddenPkGenerators;
+    }
+
+    public void setDefaultPkGenerator(PkGenerator generator) {
+        defaultPkGenerator = generator;
     }
 
     public Map<String, FieldMapper> getFieldMappers() {
