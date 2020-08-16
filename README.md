@@ -37,6 +37,7 @@ Additional features:
 
 Usage (longer version):
 -----------------------
+#### Configure how to export and import
 There are accessors on DbImporter and DbExporter that allow setting various options:
 1. Exporter
     * stopTablesExcluded: tables that we do NOT want in the exported tree - the export is stopped before those
@@ -46,7 +47,14 @@ There are accessors on DbImporter and DbExporter that allow setting various opti
     * defaultPkGenerator:  how to generate primary keys for new entries (default NextValuePkGenerator)
     * overriddenPkGenerators: pk generator overrides for special tables
     * fieldMappers: if you want to treat inserting certain fields in a special way (matching by field name for now)
+#### Remapping entries to add them somewhere else
+One can add a tree of linked db rows in *another* part of the graph. E.g. one can take a blog entry (with its comments) and 
+duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTests#blog test: it takes a blogs entry 
+(with the blogpost, its comments and with the link to its user) and adds it to *another* user.   
 
+Ideas:
+-------
+How to run: it expects a local postgresql database with the name "demo" that is initialized with the *.sql files.
 
 Ideas:
 -------
@@ -57,6 +65,8 @@ Ideas:
     - combine the metadata code lines in readOneRecord and similar methods
     - reduce the limitations
     - Fix hints marked as todo
+    - Support for different schemas
 * Fix bugs:
     - Upper/ lower case names in JSON
+    - escaping of table and field names
 

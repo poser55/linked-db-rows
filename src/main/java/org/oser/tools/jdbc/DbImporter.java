@@ -228,13 +228,26 @@ public class DbImporter {
      * Assumes someone external handles the transaction or autocommit
      * @return the remapped keys (RowLink -> new primary key)
      *
-     * CAVEAT: cannot handle cycles in the graph! Will insert just partial data (the first tables without cycles).
+     * CAVEAT: it cannot handle cycles in the db tables!
+     * Will insert just partial data (the first tables without cycles).
      */
     public Map<RowLink, Object> insertRecords(Connection connection, Record record) throws Exception {
         Map<RowLink, Object> newKeys = new HashMap<>();
 
+        return insertRecords(connection, record, newKeys);
+    }
+
+    /** Alternative to {@link #insertRecords(Connection, Record)} that allows to remap certain elements (e.g. if you want to connect
+     *    some nodes of the JSON tree to an existing RowLink)
+     *     E.g. insert a blog entry to a new person. Refer to the test org.oser.tools.jdbc.DbExporterBasicTests#blog()
+     *     CAVEAT: newKeys must be a mutable map (it will add all the other remappings also) */
+    public Map<RowLink, Object> insertRecords(Connection connection, Record record, Map<RowLink, Object> newKeys) throws Exception {
+        Set<RowLink> rowLinksNotToInsert = newKeys.keySet();
+
         CheckedFunction<Record, Void> insertOneRecord = (CheckedFunction<Record, Void>) (Record r) -> {
-            this.insertOneRecord(connection, r, newKeys, fieldMappers);
+            if (!rowLinksNotToInsert.contains(r.rowLink)) {
+                this.insertOneRecord(connection, r, newKeys, fieldMappers);
+            }
             return null; // strange that we need this hack
         };
         record.visitRecordsInInsertionOrder(connection, insertOneRecord);

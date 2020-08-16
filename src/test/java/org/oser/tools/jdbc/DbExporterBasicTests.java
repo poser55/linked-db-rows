@@ -1,6 +1,7 @@
 package org.oser.tools.jdbc;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -8,18 +9,41 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class DbExporterBasicTests {
 
+    @BeforeAll
+    public static void init() {
+        TestHelpers.initLogback();
+    }
+
     @Test
     void datatypesTest() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"), 1, "datatypes", 1);
         assertEquals(6, basicChecksResult.getAsRecordAgain().content.size());
         assertEquals(6, basicChecksResult.getAsRecord().content.size());
+    }
+
+    @Test
+    void blog() throws Exception {
+        Connection demo = TestHelpers.getConnection("demo");
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
+                3, "blogpost", 2);
+
+        // now duplicate this blog post entry to user_table/1 (it is now linked to user_table/2)
+
+        DbImporter importer = new DbImporter();
+        Map<RowLink, Object> remapping = new HashMap<>();
+        remapping.put(new RowLink("user_table/2"), 1);
+        // to make it interesting, adapt the entry
+        basicChecksResult.getAsRecordAgain().findElementWithName("title").value = "new title";
+        importer.insertRecords(demo, basicChecksResult.getAsRecordAgain(), remapping);
     }
 
 
