@@ -43,7 +43,7 @@ public class DbExporter {
             .maximumSize(1000).build();
 
 
-    protected DbExporter() {}
+    public DbExporter() {}
 
     /**
      * Main method: recursively read a tree of linked db rows and return it
