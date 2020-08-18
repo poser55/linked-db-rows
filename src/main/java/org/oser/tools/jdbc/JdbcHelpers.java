@@ -290,7 +290,8 @@ public final class JdbcHelpers {
         String type;
         /** {@link java.sql.Types} */
         private final int dataType; //
-        /** source type of a distinct type or user-generated Ref type, SQL type from java.sql.Types (<code>null</code> if DATA_TYPE     isn't DISTINCT or user-generated REF) */
+        /** source type of a distinct type or user-generated Ref type, SQL type from java.sql.Types
+         * (<code>null</code> if DATA_TYPE  isn't DISTINCT or user-generated REF) */
         private final int sourceDataType;
 
         String size; // adapt later?

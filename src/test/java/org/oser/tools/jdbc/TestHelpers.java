@@ -6,7 +6,6 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -85,11 +84,11 @@ public class TestHelpers {
 
     @Getter
     public static class BasicChecksResult {
-        private Record asRecord;
-        private String asString;
-        private Record asRecordAgain;
-        private String asStringAgain;
-        private Map<RowLink, Object> rowLinkObjectMap;
+        private final Record asRecord;
+        private final String asString;
+        private final Record asRecordAgain;
+        private final String asStringAgain;
+        private final Map<RowLink, Object> rowLinkObjectMap;
 
         public BasicChecksResult(Record asRecord, String asString, Record asRecordAgain, String asStringAgain, Map<RowLink, Object> rowLinkObjectMap) {
             this.asRecord = asRecord;

@@ -70,8 +70,6 @@ public class DbImporter {
     }
 
 
-
-
     /** Does the row of the table tableName and primary key pkName and the record record exist? */
     // todo: remove dependency on record, mv to JdbHelpers
     @Deprecated
@@ -152,8 +150,7 @@ public class DbImporter {
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable, metadataCache);
         List<String> pks = JdbcHelpers.getPrimaryKeys(metadata, rootTable, pkCache);
 
-        final String pkName = pks.get(0);
-        record.pkName = pkName;
+        record.pkName = pks.get(0);
         record.setColumnMetadata(columns);
 
         List<String> jsonFieldNames = getJsonFieldNames(json);
@@ -245,7 +242,7 @@ public class DbImporter {
     public Map<RowLink, Object> insertRecords(Connection connection, Record record, Map<RowLink, Object> newKeys) throws Exception {
         Set<RowLink> rowLinksNotToInsert = newKeys.keySet();
 
-        CheckedFunction<Record, Void> insertOneRecord = (CheckedFunction<Record, Void>) (Record r) -> {
+        CheckedFunction<Record, Void> insertOneRecord = (Record r) -> {
             if (!rowLinksNotToInsert.contains(r.rowLink)) {
                 this.insertOneRecord(connection, r, newKeys, fieldMappers);
             }
@@ -272,8 +269,7 @@ public class DbImporter {
         boolean entryExists = JdbcHelpers.doesPkTableExist(connection, record.getRowLink().getTableName(), primaryKeys, pkValues, record.getColumnMetadata());
         boolean isInsert = forceInsert || entryExists;
 
-        Object candidatePk = null;
-        String primaryKeyFieldWithNewValue = null;
+        Object candidatePk;
         if (isInsert && entryExists) {
             // iterate over all entries of the primary key, generate a candidate for first that is possible
 
@@ -286,7 +282,6 @@ public class DbImporter {
                     newKeys.put(key, candidatePk);
 
                     pkValues.set(i, candidatePk); // maybe not needed (catched by later remapping?)
-                    primaryKeyFieldWithNewValue = elementWithName.name; // maybe not needed (catched by later remapping?)
                     break;
                 }
             }

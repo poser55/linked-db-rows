@@ -8,7 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
 
-/** Trivial primary key generator strategy */
+/** Trivial primary key generation strategy: returns max (id) + 1 for integers, or a UUID for strings. */
 public class NextValuePkGenerator implements PkGenerator {
 
     @Override

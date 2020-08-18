@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
@@ -63,15 +62,15 @@ public class DbExporterBasicTests {
     @Disabled // todo: not yet working
     void testStopTableIncluded() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("sakila"),
-                17645, dbExporter -> dbExporter.getStopTablesIncluded().add("inventory"), null, "actor", 199);
+                18079, dbExporter -> dbExporter.getStopTablesIncluded().add("inventory"), null, "actor", 199);
 
         System.out.println("classified:"+Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
     }
 
 
     @Test
-    // todo: replace with new version once string diff is ok
-    void testStopTableIncluded_old() throws SQLException, ClassNotFoundException, IOException {
+    // todo: replace with new version above once re-inserting is ok
+    void testStopTableIncluded_old() throws SQLException, ClassNotFoundException {
         Connection sakilaConnection = TestHelpers.getConnection("sakila");
 
         DbExporter dbExporter = new DbExporter();
@@ -122,12 +121,7 @@ public class DbExporterBasicTests {
         List<String> actorInsertList = JdbcHelpers.determineOrder(connection, "actor");
         System.out.println("list:"+actorInsertList +"\n");
 
-        final FieldMapper nopFieldMapper = new FieldMapper() {
-            @Override
-            public void mapField(JdbcHelpers.ColumnMetadata metadata, PreparedStatement statement, int insertIndex, String value) throws SQLException {
-                statement.setArray(insertIndex, null);
-            }
-        };
+        final FieldMapper nopFieldMapper = (metadata, statement, insertIndex, value) -> statement.setArray(insertIndex, null);
 
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,
                 31, dbExporter -> {  dbExporter.getStopTablesIncluded().add("film");
@@ -141,13 +135,13 @@ public class DbExporterBasicTests {
     }
 
     @Test
-    void testWorkingOnNonExistingTable() throws SQLException, ClassNotFoundException, IOException {
+    void testWorkingOnNonExistingTable() {
         Assertions.assertThrows(IllegalArgumentException.class, ()-> TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 0, "notExisting", 1));
     }
 
     @Test
-    void testWorkingOnNonExistingPrimaryKey() throws SQLException, ClassNotFoundException, IOException {
+    void testWorkingOnNonExistingPrimaryKey() {
         Assertions.assertThrows(IllegalArgumentException.class, ()->TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 0, "nodes", 9999999999999L));
     }

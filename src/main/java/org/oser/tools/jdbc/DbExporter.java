@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -95,7 +96,6 @@ public class DbExporter {
         String selectPk = selectStatementByPks(tableName, pkName, primaryKeys);
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            JdbcHelpers.ColumnMetadata columnMetadata = columns.get(pkName.toUpperCase());
             setPksStatementFields(pkSelectionStatement, primaryKeys, columns, pkValues, pkName);
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
@@ -108,7 +108,7 @@ public class DbExporter {
                         data.content.add(d);
                     }
                 } else {
-                    throw new IllegalArgumentException("Entry not found "+tableName+" "+pkValues);
+                    throw new IllegalArgumentException("Entry not found "+tableName+" "+ Arrays.toString(pkValues));
                 }
             }
         }
@@ -143,7 +143,7 @@ public class DbExporter {
     }
 
 
-    List<Record> readLinkedRecords(Connection connection, String tableName, String fkName, Object[] fkValues, boolean nesting, ExportContext context) throws SQLException {
+    List<Record> readLinkedRecords(Connection connection, String tableName, String fkName, Object[] fkValues, ExportContext context) throws SQLException {
         List<Record> listOfRows = new ArrayList<>();
 
         if (stopTablesExcluded.contains(tableName)) {
@@ -168,7 +168,7 @@ public class DbExporter {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
                 int columnCount = rsMetaData.getColumnCount();
                 while (rs.next()) { // treat 1 fk-link
-                    Record row = innerReadRecord(tableName, columns, pkName, rs, rsMetaData, columnCount, primaryKeys);
+                    Record row = innerReadRecord(tableName, columns, rs, rsMetaData, columnCount, primaryKeys);
                     if (context.containsNode(tableName, row.rowLink.pks)) {
                         continue; // we have already read this node
                     }
@@ -181,7 +181,7 @@ public class DbExporter {
 
         // now treat subtables
         for (Record row : listOfRows) {
-            if (nesting && !stopTablesIncluded.contains(tableName)) {
+            if (!stopTablesIncluded.contains(tableName)) {
                 addSubRowDataFromFks(connection, tableName, row, context);
             }
         }
@@ -206,7 +206,7 @@ public class DbExporter {
                 String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
 
                 List<Record> subRow = this.readLinkedRecords(connection, subTableName,
-                        subFkName, new Object[] {elementWithName.value }, true, context); // todo: fix can there be multiple fields in a fk?
+                        subFkName, new Object[] {elementWithName.value }, context); // todo: fix can there be multiple fields in a fk?
                 if (!subRow.isEmpty()) {
                     if (!elementWithName.subRow.containsKey(subTableName)) {
                         elementWithName.subRow.put(subTableName, subRow);
@@ -219,7 +219,7 @@ public class DbExporter {
     }
 
 
-    private static Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, String pkName, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys) throws SQLException {
+    private static Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys) throws SQLException {
         Record row = new Record(tableName, null);
         row.setColumnMetadata(columns);
 

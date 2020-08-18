@@ -24,12 +24,12 @@ public class TestContainerTest {
         DbExporter db2Graphdemo = new DbExporter();
         Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
 
-        System.out.println("book:"+book.asJson());
+        System.out.println("book:" + book.asJson());
 
         DbImporter dbImporter = new DbImporter();
         Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJson());
 
-        System.out.println("book2:"+book2.asJson());
+        System.out.println("book2:" + book2.asJson());
 
         ObjectMapper mapper = new ObjectMapper();
 
@@ -45,7 +45,7 @@ public class TestContainerTest {
         // as inserts
 
         Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, book2);
-        System.out.println("\ninserts: "+rowLinkObjectMap.size());
+        System.out.println("\ninserts: " + rowLinkObjectMap.size());
     }
 
     @Test
@@ -73,8 +73,8 @@ public class TestContainerTest {
 
         String json = "{ \"id\":7,\"author_id\":1, \"author_id*author*\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
-            DbImporter dbImporter = new DbImporter();
-            Record book = dbImporter.jsonToRecord(demoConnection, "book", json);
+        DbImporter dbImporter = new DbImporter();
+        Record book = dbImporter.jsonToRecord(demoConnection, "book", json);
         assertEquals(2, book.getAllNodes().size());
 
         System.out.println(dbImporter.insertRecords(demoConnection, book));
@@ -102,7 +102,7 @@ public class TestContainerTest {
         }
 
         DriverDataSource ds = new DriverDataSource(TestContainerTest.class.getClassLoader(),
-                "", "jdbc:tc:postgresql:12.3:///" + dbName +"?TC_DAEMON=true", "postgres", "admin" );
+                "", "jdbc:tc:postgresql:12.3:///" + dbName + "?TC_DAEMON=true", "postgres", "admin");
 
         // db console at  http://localhost:8082/
         Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082", "-webAdminPassword", "admin").start();
