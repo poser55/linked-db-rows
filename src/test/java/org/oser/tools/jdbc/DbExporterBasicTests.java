@@ -59,31 +59,17 @@ public class DbExporterBasicTests {
     }
 
     @Test
-    @Disabled // todo: not yet working
     void testStopTableIncluded() throws Exception {
+        final FieldMapper nopFieldMapper = (metadata, statement, insertIndex, value) -> statement.setArray(insertIndex, null);
+
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("sakila"),
-                18079, dbExporter -> dbExporter.getStopTablesIncluded().add("inventory"), null, "actor", 199);
+                12448, dbExporter -> dbExporter.getStopTablesIncluded().add("inventory"),
+                dbImporter -> {
+                    dbImporter.getFieldMappers().put("SPECIAL_FEATURES", nopFieldMapper);
+
+                }, "actor", 199);
 
         System.out.println("classified:"+Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
-    }
-
-
-    @Test
-    // todo: replace with new version above once re-inserting is ok
-    void testStopTableIncluded_old() throws SQLException, ClassNotFoundException {
-        Connection sakilaConnection = TestHelpers.getConnection("sakila");
-
-        DbExporter dbExporter = new DbExporter();
-        dbExporter.getStopTablesIncluded().add("inventory");
-
-        Record actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
-        System.out.println(Record.classifyNodes(actor199.getAllNodes()));
-        String asString = actor199.asJson();
-
-        Set<RowLink> allNodes = actor199.getAllNodes();
-        System.out.println("numberNodes:" + allNodes.size());
-
-        System.out.println("classified:"+Record.classifyNodes(allNodes));
     }
 
     @Test // is a bit slow
@@ -123,13 +109,22 @@ public class DbExporterBasicTests {
 
         final FieldMapper nopFieldMapper = (metadata, statement, insertIndex, value) -> statement.setArray(insertIndex, null);
 
+        HashMap<RowLink, Object> remapping = new HashMap<>();
+        // why is this needed? Somehow he does not detect that language (originally =1 for these films) should be remapped
+        // and the other test with all entries fails (as he adds the entries inserted here to what he exports in the other test)
+        remapping.put(new RowLink("language/1"), 7);
+
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,
-                31, dbExporter -> {  dbExporter.getStopTablesIncluded().add("film");
+                31,
+                dbExporter -> {  dbExporter.getStopTablesIncluded().add("film");
                                                     dbExporter.getStopTablesExcluded().add("inventory");
                                         },
                 dbImporter -> {
                     dbImporter.getFieldMappers().put("SPECIAL_FEATURES", nopFieldMapper);
-                }, "actor", 199);
+                },
+                null,
+                remapping,
+                "actor", 199);
 
         System.out.println("classified:"+Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
     }

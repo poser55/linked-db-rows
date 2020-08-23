@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -35,7 +36,8 @@ public class TestHelpers {
                                                                 Consumer<DbExporter> optionalExporterConfigurer,
                                                                 Consumer<DbImporter> optionalImporterConfigurer,
                                                                 String tableName, Object primaryKeyValue) throws Exception {
-        return testExportImportBasicChecks(demoConnection, numberNodes, optionalExporterConfigurer, optionalImporterConfigurer, null, tableName, primaryKeyValue);
+        return testExportImportBasicChecks(demoConnection, numberNodes, optionalExporterConfigurer, optionalImporterConfigurer, null,
+                new HashMap<>(), tableName, primaryKeyValue);
     }
 
         /** Makes a full test with a RowLink <br/>
@@ -44,6 +46,7 @@ public class TestHelpers {
                                                                 Consumer<DbExporter> optionalExporterConfigurer,
                                                                 Consumer<DbImporter> optionalImporterConfigurer,
                                                                 Consumer<Record> optionalRecordChanger,
+                                                                Map<RowLink, Object> remapping,
                                                                 String tableName, Object primaryKeyValue) throws Exception {
         DbExporter dbExporter = new DbExporter();
         if (optionalExporterConfigurer != null) {
@@ -69,9 +72,9 @@ public class TestHelpers {
         }
 
         // todo: bug: asRecord is missing columnMetadata/ other values
-        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, asRecordAgain);
+        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, asRecordAgain, remapping);
 
-        return  new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap);
+        return new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap);
     }
 
     @NotNull

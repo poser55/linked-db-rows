@@ -112,10 +112,11 @@ public class Record {
     public Set<Record> visitRecords(Consumer<Record> visitor){
         visitor.accept(this);
 
-        return content.stream().filter(e -> !e.subRow.isEmpty())
+        List<Record> toVisit = content.stream().filter(e -> !e.subRow.isEmpty())
                 .flatMap(e -> e.subRow.values().stream())
-                .flatMap(Collection::stream)
-                .flatMap(e -> e.visitRecords(visitor).stream()).collect(toSet());
+                .flatMap(Collection::stream).collect(toList());
+
+        return toVisit.stream().flatMap(e -> e.visitRecords(visitor).stream()).collect(toSet());
     }
 
     /** visit all Records in insertion order */
