@@ -247,4 +247,8 @@ public class DbExporter {
     public Set<String> getStopTablesIncluded() {
         return stopTablesIncluded;
     }
+
+    public Cache<String, List<Fk>> getFkCache() {
+        return fkCache;
+    }
 }

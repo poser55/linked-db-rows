@@ -1,6 +1,7 @@
 package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,16 +34,22 @@ public final class JdbcHelpers {
 
     private JdbcHelpers() {}
 
+
+    public static List<String> determineOrder(Connection connection, String rootTable) throws SQLException {
+        return determineOrder(connection, rootTable, Caffeine.newBuilder()
+                .maximumSize(10_000).build());
+    }
+
     /** if one would like to import the tree starting at rootTable, what order should one insert the tables?
      *  @return a List<String> with the table names in the order in which to insert them
      *  CAVEAT: may return a partial list (in case there are cycles/ there is no layering in the table dependencies)
      *
      *  todo: could we all separate non cyclic parts of the graph? Would that help?
      *  */
-    public static List<String> determineOrder(Connection connection, String rootTable) throws SQLException {
+    public static List<String> determineOrder(Connection connection, String rootTable, Cache<String, List<Fk>> cache) throws SQLException {
         Set<String> treated = new HashSet<>();
 
-        Map<String, Set<String>> dependencyGraph = calculateDependencyGraph(rootTable, treated, connection);
+        Map<String, Set<String>> dependencyGraph = calculateDependencyGraph(rootTable, treated, connection, cache);
         List<String> orderedTables = new ArrayList<>();
 
         Set<String> stillToTreat = new HashSet<>(treated);
@@ -67,7 +74,7 @@ public final class JdbcHelpers {
         return orderedTables;
     }
 
-    private static Map<String, Set<String>> calculateDependencyGraph(String rootTable, Set<String> treated, Connection connection) throws SQLException {
+    private static Map<String, Set<String>> calculateDependencyGraph(String rootTable, Set<String> treated, Connection connection, Cache<String, List<Fk>> cache) throws SQLException {
         Set<String> tablesToTreat = new HashSet<>();
         tablesToTreat.add(rootTable);
 
@@ -77,7 +84,7 @@ public final class JdbcHelpers {
             String next = tablesToTreat.stream().findFirst().get();
             tablesToTreat.remove(next);
 
-            List<Fk> fks = getFksOfTable(connection, next);
+            List<Fk> fks = getFksOfTable(connection, next, cache);
             for (Fk fk : fks) {
                 String tableToAdd = fk.pktable;
                 String otherTable = fk.fktable;

@@ -20,9 +20,16 @@ public class Fk {
     public String fktable;
     public String fkcolumn;
 
-    public String type;
-
     public boolean inverted; // excluded in equals!
+
+
+    public Fk(String pktable, String pkcolumn, String fktable, String fkcolumn, boolean inverted) {
+        this.pktable = pktable;
+        this.pkcolumn = pkcolumn;
+        this.fktable = fktable;
+        this.fkcolumn = fkcolumn;
+        this.inverted = inverted;
+    }
 
     public static List<Fk> getFksOfTable(Connection connection, String table, Cache<String, List<Fk>> cache) throws SQLException {
         List<Fk> result = cache.getIfPresent(table);
@@ -51,13 +58,8 @@ public class Fk {
 
     private static void addFks(List<Fk> fks, ResultSet rs, boolean inverted) throws SQLException {
         while (rs.next()) {
-            Fk fk = new Fk();
-
-            fk.pktable = rs.getString("pktable_name");
-            fk.pkcolumn = rs.getString("pkcolumn_name");
-            fk.fktable = rs.getString("fktable_name");
-            fk.fkcolumn = rs.getString("fkcolumn_name");
-            fk.inverted = inverted;
+            Fk fk = new Fk(rs.getString("pktable_name"), rs.getString("pkcolumn_name"),
+                    rs.getString("fktable_name"), rs.getString("fkcolumn_name"), inverted);
 
 //            ResultSetMetaData rsMetaData = rs.getMetaData();
 //            for (int i = 1; i<= rsMetaData.getColumnCount() ; i++){
@@ -76,7 +78,6 @@ public class Fk {
                 ", fkcolumn='" + fkcolumn + '\'' +
                 ", pktable='" + pktable + '\'' +
                 ", pfcolumn='" + pkcolumn + '\'' +
-                ", type='" + type + '\'' +
                 ", inverted=" + inverted +
                 '}';
     }
@@ -90,7 +91,6 @@ public class Fk {
 
         if (!Objects.equals(fktable, fk.fktable)) return false;
         if (!Objects.equals(pkcolumn, fk.pkcolumn)) return false;
-        if (!Objects.equals(type, fk.type)) return false;
         if (!Objects.equals(pktable, fk.pktable)) return false;
         return Objects.equals(fkcolumn, fk.fkcolumn);
     }
@@ -99,7 +99,6 @@ public class Fk {
     public int hashCode() {
         int result = fktable != null ? fktable.hashCode() : 0;
         result = 31 * result + (pkcolumn != null ? pkcolumn.hashCode() : 0);
-        result = 31 * result + (type != null ? type.hashCode() : 0);
         result = 31 * result + (pktable != null ? pktable.hashCode() : 0);
         result = 31 * result + (fkcolumn != null ? fkcolumn.hashCode() : 0);
         return result;

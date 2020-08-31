@@ -2,7 +2,6 @@ package org.oser.tools.jdbc;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -12,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -43,6 +43,43 @@ public class DbExporterBasicTests {
         // to make it interesting, adapt the entry
         basicChecksResult.getAsRecordAgain().findElementWithName("title").value = "new title";
         importer.insertRecords(demo, basicChecksResult.getAsRecordAgain(), remapping);
+    }
+
+    @Test
+    void blog_artificialFk() throws Exception {
+        Connection demo = TestHelpers.getConnection("demo");
+        AtomicReference<DbImporter> importer = new AtomicReference<>(new DbImporter());
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
+                4, // now we have 1 node more than in #blog(), the preferences
+                dbExporter -> {
+                    try {
+                        List<Fk> fks = Fk.getFksOfTable(demo, "user_table", dbExporter.getFkCache());
+                        // add artificial FK
+                        fks.add(new Fk("user_table", "id", "preferences", "user_id", false));
+                        dbExporter.getFkCache().put("user_table", fks);
+                    } catch (SQLException throwables) {
+                        throwables.printStackTrace();
+                    }
+                },
+                dbImporter -> {
+                    try {
+                        List<Fk> fksUserTable = Fk.getFksOfTable(demo, "user_table", dbImporter.getFkCache());
+                        // add artificial FK
+                        fksUserTable.add(new Fk("user_table", "id", "preferences", "user_id", false));
+                        dbImporter.getFkCache().put("user_table", fksUserTable);
+
+                        List<Fk> fksPreferences = Fk.getFksOfTable(demo, "preferences", dbImporter.getFkCache());
+                        // add artificial FK (reverted)
+                        fksPreferences.add(new Fk("user_table", "id", "preferences", "user_id", true));
+                        dbImporter.getFkCache().put("preferences", fksPreferences);
+
+                        importer.set(dbImporter);
+                    } catch (SQLException throwables) {
+                        throwables.printStackTrace();
+                    }
+                },
+                "blogpost", 2);
+
     }
 
 
@@ -112,6 +149,7 @@ public class DbExporterBasicTests {
         HashMap<RowLink, Object> remapping = new HashMap<>();
         // why is this needed? Somehow he does not detect that language (originally =1 for these films) should be remapped
         // and the other test with all entries fails (as he adds the entries inserted here to what he exports in the other test)
+        // it is correct: the stop-table avoids that we add (and remap!) the language table
         remapping.put(new RowLink("language/1"), 7);
 
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,

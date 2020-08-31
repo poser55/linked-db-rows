@@ -237,7 +237,7 @@ public class DbImporter {
 
     /** Alternative to {@link #insertRecords(Connection, Record)} that allows to remap certain elements (e.g. if you want to connect
      *    some nodes of the JSON tree to an existing RowLink)
-     *     E.g. insert a blog entry to a new person. Refer to the test org.oser.tools.jdbc.DbExporterBasicTests#blog()
+     *     E.g. insert a blog entry at another person that the one in the Record. Refer to the test org.oser.tools.jdbc.DbExporterBasicTests#blog()
      *     CAVEAT: newKeys must be a mutable map (it will add all the other remappings also) */
     public Map<RowLink, Object> insertRecords(Connection connection, Record record, Map<RowLink, Object> newKeys) throws Exception {
         Set<RowLink> rowLinksNotToInsert = newKeys.keySet();
@@ -248,7 +248,7 @@ public class DbImporter {
             }
             return null; // strange that we need this hack
         };
-        record.visitRecordsInInsertionOrder(connection, insertOneRecord);
+        record.visitRecordsInInsertionOrder(connection, insertOneRecord, fkCache);
 
         return newKeys;
     }
@@ -392,5 +392,9 @@ public class DbImporter {
 
     public Map<String, FieldMapper> getFieldMappers() {
         return fieldMappers;
+    }
+
+    public Cache<String, List<Fk>> getFkCache() {
+        return fkCache;
     }
 }

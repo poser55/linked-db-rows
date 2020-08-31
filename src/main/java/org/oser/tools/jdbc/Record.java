@@ -1,5 +1,7 @@
 package org.oser.tools.jdbc;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -119,9 +121,13 @@ public class Record {
         return toVisit.stream().flatMap(e -> e.visitRecords(visitor).stream()).collect(toSet());
     }
 
-    /** visit all Records in insertion order */
     public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor) throws Exception {
-        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName);
+        visitRecordsInInsertionOrder(connection, visitor, Caffeine.newBuilder().maximumSize(10_000).build());
+    }
+
+    /** visit all Records in insertion order */
+    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, Cache<String, List<Fk>> cache) throws Exception {
+        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName, cache);
 
         Map<String, List<Record>> tableToRecords = new HashMap<>();
         visitRecords(r -> {
