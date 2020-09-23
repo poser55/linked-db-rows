@@ -121,7 +121,9 @@ public final class JdbcHelpers {
         String fieldList = columnNames.stream().filter(name -> (isInsert || !name.equals(pkName.toUpperCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
 
         if (isInsert) {
-            String questionsMarks = columnMetadata.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
+            Map<String, ColumnMetadata> metadataInCurrentTableAndInsert = columnMetadata.entrySet().stream().filter(e -> columnNames.contains(e.getKey())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            String questionsMarks = metadataInCurrentTableAndInsert.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
                     .map(JdbcHelpers::questionMarkOrTypeCasting).collect(Collectors.joining(", "));
             result = "insert into " + tableName + " (" + fieldList + ") values (" + questionsMarks + ");";
         } else {

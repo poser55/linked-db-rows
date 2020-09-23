@@ -10,6 +10,7 @@ CREATE TABLE book (
     id integer NOT NULL,
     author_id integer NOT NULL,
     title varchar(50) NOT NULL,
+    number_pages integer,
     CONSTRAINT book_pkey PRIMARY KEY (id),
     CONSTRAINT fk_book_author FOREIGN KEY (author_id)
         REFERENCES author (id) MATCH SIMPLE

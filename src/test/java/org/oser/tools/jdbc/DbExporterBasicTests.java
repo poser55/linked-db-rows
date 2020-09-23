@@ -79,7 +79,6 @@ public class DbExporterBasicTests {
                     }
                 },
                 "blogpost", 2);
-
     }
 
 
@@ -87,6 +86,19 @@ public class DbExporterBasicTests {
     void testBookTable() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 2, "book", 1);
+    }
+
+    @Test // Bug https://github.com/poser55/linked-db-rows/issues/1
+    void testLocalDbHasMoreFields() throws Exception {
+        // this insert is missing the "page_number" field:
+        String toInsert = "{ \t\"id\": 1, \t\"author_id\": 2, \t\"author_id*author*\": [ \t\t{ \t\t\t\"id\": 2, \t\t\t\"last_name\": \"Huxley22\" \t\t} \t], \"title\": \"Brave new world2\", \"newfield\": \"xxx\"  }";
+
+        Connection demo = TestHelpers.getConnection("demo");
+
+        DbImporter dbImporter = new DbImporter();
+        Record asRecordAgain = dbImporter.jsonToRecord(demo, "book", toInsert);
+
+        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demo, asRecordAgain);
     }
 
     @Test
