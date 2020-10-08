@@ -190,4 +190,19 @@ public class DbExporterBasicTests {
         Assertions.assertThrows(IllegalArgumentException.class, ()->TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 0, "nodes", 9999999999999L));
     }
+
+    @Test
+    // https://github.com/poser55/linked-db-rows/issues/2
+    void testNullHandlingVarcharVsText() throws Exception {
+        Connection demoConnection = TestHelpers.getConnection("demo");
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demoConnection, 1, "datatypes", 100);
+
+        Long o = (Long) basicChecksResult.getRowLinkObjectMap().values().stream().findFirst().get();
+
+        DbExporter dbExporter = new DbExporter();
+        Record asRecord = dbExporter.contentAsTree(demoConnection, "datatypes", o);
+
+        assertEquals(asRecord.findElementWithName("text_type").value, null);
+    }
+
 }

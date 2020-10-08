@@ -89,19 +89,16 @@ public class DbImporter {
     }
 
 
-    private static String prepareVarcharToInsert(String typeAsString, String currentFieldName, String valueToInsert) {
-        if (typeAsString.toUpperCase().equals("VARCHAR")) {
+    private static String prepareStringTypeToInsert(String typeAsString, String valueToInsert) {
+        if (typeAsString.toUpperCase().equals("VARCHAR") || typeAsString.toUpperCase().equals("TEXT")) {
             valueToInsert = getInnerValueToInsert(valueToInsert);
         }
         return valueToInsert;
     }
 
 
-    private static String prepareVarcharToInsert(Map<String, JdbcHelpers.ColumnMetadata> columns, String currentFieldName, String valueToInsert) {
-        if (columns.get(currentFieldName).getType().toUpperCase().equals("VARCHAR")) {
-            valueToInsert = getInnerValueToInsert(valueToInsert);
-        }
-        return valueToInsert;
+    private static String prepareStringTypeToInsert(Map<String, JdbcHelpers.ColumnMetadata> columns, String currentFieldName, String valueToInsert) {
+        return prepareStringTypeToInsert(columns.get(currentFieldName).getType(), valueToInsert);
     }
 
     private static String getInnerValueToInsert(String valueToInsert) {
@@ -165,7 +162,7 @@ public class DbImporter {
         for (String currentFieldName : jsonFieldNames) {
             String valueToInsert = json.get(currentFieldName.toLowerCase()).asText();
 
-            valueToInsert = prepareVarcharToInsert(columns, currentFieldName, valueToInsert);
+            valueToInsert = prepareStringTypeToInsert(columns, currentFieldName, valueToInsert);
 
             if (primaryKeyArrayPosition.containsKey(currentFieldName.toUpperCase())){
                 primaryKeyValues[primaryKeyArrayPosition.get(currentFieldName.toUpperCase())] = valueToInsert;
@@ -302,7 +299,7 @@ public class DbImporter {
 
             for (String currentFieldName : fieldNames) {
                 Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
-                valueToInsert[0] = prepareVarcharToInsert(currentElement.metadata.type, currentFieldName, Objects.toString(currentElement.value));
+                valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, Objects.toString(currentElement.value));
 
                 boolean fieldIsPk = primaryKeys.stream().map(String::toUpperCase).anyMatch(e -> currentFieldName.toUpperCase().equals(e));
 
