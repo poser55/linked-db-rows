@@ -1,5 +1,9 @@
 package org.oser.tools.jdbc;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
@@ -47,9 +51,18 @@ public class Record {
         rowLink = new RowLink(tableName, pks);
     }
 
-    /**
-     * returns json String of this record
-     */
+    /** JsonNode representation (less tested yet than asJson()) */
+    public JsonNode asJsonNode() {
+        ObjectMapper mapper = new ObjectMapper();
+
+        ObjectNode record = mapper.createObjectNode();
+        content.forEach(field -> field.addToJsonNode(record));
+        return record;
+    }
+
+        /**
+         * returns json String of this record
+         */
     public String asJson() {
         return "{ " +
                 content.stream().map(FieldAndValue::toString).collect(Collectors.joining(",")) +
@@ -247,6 +260,14 @@ public class Record {
             }
         }
 
+        public void addToJsonNode(ObjectNode topLevelNode) {
+            putFieldToJsonNode(topLevelNode);
+            if  ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElseGet(() -> 0) == 0))) {
+                addSubRowToJsonNode(topLevelNode);
+            }
+        }
+
+
         @Override
         public String toString() {
             return "\"" + name +
@@ -284,6 +305,49 @@ public class Record {
                     return ("\"" + valueEscaped.replace("\"", "\\\"") + "\"");
             }
         }
+
+        void putFieldToJsonNode(ObjectNode node) {
+            if (value == null) {
+                node.put(name, (String)null);
+            } else if (value instanceof Integer) {
+                    node.put(name, (Integer) value);
+            } else if (value instanceof BigDecimal) {
+                node.put(name, (BigDecimal) value);
+            } else if (value instanceof Long) {
+                node.put(name, (Long) value);
+            } else if (value instanceof String) {
+                node.put(name, (String) value);
+            } else if (value instanceof Boolean) {
+                node.put(name, (Boolean) value);
+            } else if (value instanceof Timestamp) {
+                node.put(name,  DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(((Timestamp) value).toLocalDateTime()));
+            } else if (value instanceof Date) {
+                node.put(name,  ((Date) value).toLocalDate().toString());
+            }
+        }
+
+
+        private void addSubRowToJsonNode(ObjectNode topLevelNode) {
+            // a "*" (star) at the end of a key means this is a subrow added on this level
+
+            for (Map.Entry<String, List<Record>> entry : subRow.entrySet()){
+                ArrayNode jsonNodes = topLevelNode.putArray(getSubtableKeyName(name, entry.getKey()));
+                addAllSubtableElements(jsonNodes, entry.getValue());
+            }
+        }
+
+        private void addAllSubtableElements(ArrayNode array, List<Record> lists) {
+            for (Record subrow : lists) {
+                ObjectMapper mapper = new ObjectMapper();
+                ObjectNode subRecord = mapper.createObjectNode();
+
+                for (FieldAndValue field : subrow.content) {
+                    field.addToJsonNode(subRecord);
+                }
+                array.add(subRecord);
+            }
+        }
+
 
         private String maplistlist2jsonString(String name, Map<String, List<Record>> map) {
             // a "*" (star) at the end of a key means this is a subrow added on this level

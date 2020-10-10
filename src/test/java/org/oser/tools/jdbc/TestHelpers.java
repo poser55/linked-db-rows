@@ -2,6 +2,7 @@ package org.oser.tools.jdbc;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,8 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestHelpers {
+    static ObjectMapper mapper = new ObjectMapper();
+
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
         Class.forName("org.postgresql.Driver");
 
@@ -54,7 +57,8 @@ public class TestHelpers {
         }
         Record asRecord = dbExporter.contentAsTree(demoConnection, tableName, primaryKeyValue);
         String asString = asRecord.asJson();
-        System.out.println("export as json:"+asString);
+        //System.out.println("export as json1:"+asString);
+        System.out.println("export as json2:"+mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode()));
 
         DbImporter dbImporter = new DbImporter();
         if (optionalImporterConfigurer != null) {
