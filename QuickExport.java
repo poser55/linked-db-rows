@@ -44,7 +44,6 @@ public class QuickExport implements Callable<Integer> {
         Class.forName("org.postgresql.Driver");
 
         Connection con = DriverManager.getConnection(url, "postgres", "admin");
-        Connection con = DriverManager.getConnection(url, "postgres", "admin");
 
         con.setAutoCommit(true);
         return con;
