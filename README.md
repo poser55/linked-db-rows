@@ -72,8 +72,12 @@ One can configure foreign keys that do not exist in the db, just for the exporti
 in the  org.oser.tools.jdbc.DbExporterBasicTests#blog_artificialFk test. We added a new table `preferences` that holds the
 user preferences. There is no FK between the `user_table` and the `preferences` table. The test demonstrates how to add a virtual FK externally.
 CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is inverted (inverted = true). (2) one needs to get the existing FKs and can then add the new FK. 
- #### Sakila database example
+#### Sakila database example
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
+#### Export script
+*jbang QuickExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo
+*Requires installing https://www.jbang.dev/
+*Help about options:  jbang QuickExport.java -h
 
 How to run the tests:
 ---------------------
