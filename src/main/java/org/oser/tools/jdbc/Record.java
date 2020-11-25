@@ -11,6 +11,7 @@ import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
@@ -30,10 +31,11 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
+import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
 /**
  * Contains full data of 1 record= 1 row of a database table. A RowLink identifies the root of such a record.
- * Can hold nested sub-records (those that were linked to this RowLink via FKs) - but this is optional.
+ * Can hold nested sub-records (those that were linked to this RowLink via foreign keys) - but this is optional.
  * Organizes data as a <em>tree</em>.
  */
 @Getter
@@ -51,18 +53,18 @@ public class Record {
         rowLink = new RowLink(tableName, pks);
     }
 
+    ObjectMapper mapper = JdbcHelpers.getObjectMapper();
+
     /** JsonNode representation (less tested yet than asJson()) */
     public JsonNode asJsonNode() {
-        ObjectMapper mapper = new ObjectMapper();
-
         ObjectNode record = mapper.createObjectNode();
         content.forEach(field -> field.addToJsonNode(record));
         return record;
     }
 
-        /**
-         * returns json String of this record
-         */
+    /**
+     * returns json String of this record
+     */
     public String asJson() {
         return "{ " +
                 content.stream().map(FieldAndValue::toString).collect(Collectors.joining(",")) +
@@ -74,6 +76,17 @@ public class Record {
             if (d.name.toUpperCase().equals(columnName.toUpperCase())) {
                 return d;
             }
+        }
+        return null;
+    }
+
+    public Integer findElementPositionWithName(String columnName) {
+        int position = 1;
+        for (FieldAndValue d : content) {
+            if (d.name.toUpperCase().equals(columnName.toUpperCase())) {
+                return position;
+            }
+            position++;
         }
         return null;
     }
@@ -193,6 +206,8 @@ public class Record {
             this.value = convertTypeForValue(metadata, value);
         }
 
+        private ObjectMapper mapper = JdbcHelpers.getObjectMapper();
+
         private Object convertTypeForValue(JdbcHelpers.ColumnMetadata metadata, Object value) {
             if ("null".equals(value)) {
                 return null;
@@ -282,11 +297,13 @@ public class Record {
             switch (metadata.type.toUpperCase()) {
                 case "BOOLEAN":
                 case "BOOL":
+                case "INT2":
                 case "INT4":
                 case "INT8":
                 case "FLOAT8":
                 case "FLOAT4":
                 case "NUMERIC":
+                case "SERIAL":
                 case "DECIMAL":
                     return value != null ? value.toString() : null;
                 case "TIMESTAMP":
@@ -323,6 +340,8 @@ public class Record {
                 node.put(name,  DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(((Timestamp) value).toLocalDateTime()));
             } else if (value instanceof Date) {
                 node.put(name,  ((Date) value).toLocalDate().toString());
+            } else {
+                node.put(name, value.toString());
             }
         }
 
@@ -338,7 +357,6 @@ public class Record {
 
         private void addAllSubtableElements(ArrayNode array, List<Record> lists) {
             for (Record subrow : lists) {
-                ObjectMapper mapper = new ObjectMapper();
                 ObjectNode subRecord = mapper.createObjectNode();
 
                 for (FieldAndValue field : subrow.content) {
@@ -384,4 +402,84 @@ public class Record {
     private static String getSubtableKeyName(String name, String key) {
         return name + JSON_SUBTABLE_SUFFIX + key + JSON_SUBTABLE_SUFFIX;
     }
+
+    /**
+     *  todo: THIS DOES NOT YET WORK!
+     *  emerging: remap the keys so that they are canonical (2 same exports with the same data lead to the same json structure)
+     *   the id oder is determined based on the original order (so assuming integer primary keys this should be stable for equality)
+     *
+     *   needs the connection to determine the insertionOrder traversal
+     *
+     *   Updates this record and all other records (assumes that it works on the root record)
+     */
+    public void canonicalizeIds(Connection connection, Cache<String, List<Fk>> fkCache) throws Exception {
+        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName);
+
+        Map<String, List<Record>> tableToRecords = new HashMap<>();
+        visitRecords(r -> {
+            if (!tableToRecords.containsKey(r.rowLink.tableName)) {
+                tableToRecords.put(r.rowLink.tableName, new ArrayList<>());
+            }
+            tableToRecords.get(r.rowLink.tableName).add(r);
+        });
+
+        Map<RowLink, Object> newKeys = new HashMap<>();
+
+        for (String tableName : insertionOrder) {
+            List<Record> records = tableToRecords.get(tableName);
+
+            DatabaseMetaData metaData = connection.getMetaData();
+            List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName);
+            List<List<Object>> primaryKeyValues = records.stream().map(record -> primaryKeys.stream().map(pkName -> record.findElementWithName(pkName).value).collect(toList())).collect(toList());
+
+            List<Fk> fksOfTable = getFksOfTable(connection, records.get(0).rowLink.tableName, fkCache);
+
+            Map<String, List<Fk>> fksByColumnName = fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toUpperCase()));
+            List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
+
+            // we only need to get the free PKs
+            DbImporter.remapPrimaryKeyValues(records.get(0), newKeys, primaryKeys, fksByColumnName, isFreePk);
+
+            for (int i = 0; i < records.size(); i++) {
+                // todo: does this work for FKs to the same table? Probably yes?
+                remapKeysAndUpdateNewKeys(records.get(i), i, primaryKeys, primaryKeyValues.get(i), isFreePk, newKeys);
+            }
+        }
+    }
+
+    /**
+     * 1. determine new keys for the entries of the record
+     * 2. remap fields to with foreign keys that were remapped before */
+    private void remapKeysAndUpdateNewKeys(Record r, int i, List<String> primaryKeys, List<Object> primaryKeyValues, List<Boolean> isFreePk, Map<RowLink, Object> newKeys) {
+        // 1. determine new keys for the entries of the record
+        List<Object> newKeysForThisRecord = determineNewCanonicalPrimaryKeys(i, primaryKeyValues, isFreePk);
+
+
+
+    }
+
+    private List<Object> determineNewCanonicalPrimaryKeys(int i, List<Object> primaryKeyValues, List<Boolean> isFreePk) {
+        List<Object> newKeys = new ArrayList <>();
+        primaryKeyValues.forEach(currentValue -> createAndAddKey(i, currentValue, isFreePk.get(i), newKeys));
+        return newKeys;
+    }
+
+    private void createAndAddKey(int i, Object currentValue, Boolean isAFreePkValue, List<Object> newKeys) {
+        Object newValue = isAFreePkValue ? getKeyForIndex(i, currentValue)  : currentValue;
+        newKeys.add(newValue);
+    }
+
+    // todo: only works for Long and String
+    private Object getKeyForIndex(int i, Object currentValue) {
+        if (currentValue instanceof Number) {
+            return (long) i;
+        }
+        // todo treat uuid/ string pks correctly
+        return getCharForNumber(i);
+    }
+
+    private String getCharForNumber(int i) {
+        return i > 0 && i < 27 ? String.valueOf((char)(i + 64)) : null;
+    }
+
 }

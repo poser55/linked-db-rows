@@ -43,6 +43,8 @@ public class DbExporter {
     private final Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
+    private final Map<String, FieldExporter> fieldExporter = new HashMap<>();
+
 
     public DbExporter() {}
 
@@ -104,8 +106,12 @@ public class DbExporter {
                 if (rs.next()) {
                     for (int i = 1; i <= columnCount; i++) {
                         String columnName = rsMetaData.getColumnName(i);
-                        Record.FieldAndValue d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i) );
-                        data.content.add(d);
+
+                        Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName);
+
+                        if (d != null) {
+                            data.content.add(d);
+                        }
                     }
                 } else {
                     throw new IllegalArgumentException("Entry not found "+tableName+" "+ Arrays.toString(pkValues));
@@ -115,6 +121,17 @@ public class DbExporter {
         context.visitedNodes.put(new RowLink(tableName, pkValues), data);
 
         return data;
+    }
+
+    private Record.FieldAndValue retrieveFieldAndValue(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, int i, String columnName) throws SQLException {
+        FieldExporter fieldExporter = getFieldExporter(tableName, columnName);
+        Record.FieldAndValue d = null;
+        if (fieldExporter != null) {
+            d = fieldExporter.exportField(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i), rs);
+        } else {
+            d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i));
+        }
+        return d;
     }
 
 
@@ -219,7 +236,7 @@ public class DbExporter {
     }
 
 
-    private static Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys) throws SQLException {
+    private Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys) throws SQLException {
         Record row = new Record(tableName, null);
         row.setColumnMetadata(columns);
 
@@ -228,11 +245,14 @@ public class DbExporter {
 
         for (int i = 1; i <= columnCount; i++) {
             String columnName = rsMetaData.getColumnName(i);
-            Record.FieldAndValue d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i));
-            row.content.add(d);
+            Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName);
+            if (d != null) {
+                row.content.add(d);
 
-            if (primaryKeyArrayPosition.containsKey(d.name.toUpperCase())){
-                primaryKeyValues[primaryKeyArrayPosition.get(d.name.toUpperCase())] = d.value;
+                if (primaryKeyArrayPosition.containsKey(d.name.toUpperCase())){
+                    primaryKeyValues[primaryKeyArrayPosition.get(d.name.toUpperCase())] = d.value;
+                }
+
             }
         }
         row.setPkValue(primaryKeyValues);
@@ -250,5 +270,13 @@ public class DbExporter {
 
     public Cache<String, List<Fk>> getFkCache() {
         return fkCache;
+    }
+
+    public Map<String, FieldExporter> getFieldExporters() {
+        return fieldExporter;
+    }
+
+    private FieldExporter getFieldExporter(String tableName, String fieldName) {
+        return getFieldExporters().get(fieldName);
     }
 }

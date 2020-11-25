@@ -31,7 +31,7 @@ public class TestContainerTest {
 
         System.out.println("book2:" + book2.asJson());
 
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JdbcHelpers.getObjectMapper();
 
         // todo: known issue .jsonToRecord converts json keys to upper case
         assertEquals(mapper.readTree(book.asJson().toLowerCase()), mapper.readTree(book2.asJson().toLowerCase()));

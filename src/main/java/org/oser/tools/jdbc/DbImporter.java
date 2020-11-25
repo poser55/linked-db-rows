@@ -129,10 +129,7 @@ public class DbImporter {
     ////// code partially from csvToDb
 
     public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
-        mapper.configure(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true);
-        mapper.setNodeFactory(JsonNodeFactory.withExactBigDecimals(true));
+        ObjectMapper mapper = JdbcHelpers.getObjectMapper();
 
         JsonNode json = mapper.readTree(jsonString);
 
@@ -316,7 +313,12 @@ public class DbImporter {
                     });
                 }
 
-                int statementPosition = columnMetadata.get(currentElement.metadata.name.toUpperCase()).getOrdinalPos();
+                Integer statementPosition =  record.findElementPositionWithName(currentFieldName);
+                if (statementPosition == null) {
+                    LOGGER.warn("unexpected element position for field {}", currentFieldName);
+                    continue;
+                }
+
                 valueToInsert[0] = removeQuotes(valueToInsert[0]);
 
                 if (mappers.containsKey(currentFieldName)) {
@@ -342,7 +344,7 @@ public class DbImporter {
      * @return the primary key values that are remapped if needed (if e.g. another inserted row has a pk that was remapped before)
      *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
      * */
-    private List<Object> remapPrimaryKeyValues(Record record, Map<RowLink, Object> newKeys, List<String> primaryKeys, Map<String, List<Fk>> fksByColumnName, List<Boolean> isFreePk) {
+    public static List<Object> remapPrimaryKeyValues(Record record, Map<RowLink, Object> newKeys, List<String> primaryKeys, Map<String, List<Fk>> fksByColumnName, List<Boolean> isFreePk) {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
         int i = 0;
         for (String primaryKey : primaryKeys) {

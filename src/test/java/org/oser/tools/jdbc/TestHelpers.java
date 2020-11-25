@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestHelpers {
-    static ObjectMapper mapper = new ObjectMapper();
+    static ObjectMapper mapper = JdbcHelpers.getObjectMapper();
 
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
         Class.forName("org.postgresql.Driver");
@@ -57,8 +57,9 @@ public class TestHelpers {
         }
         Record asRecord = dbExporter.contentAsTree(demoConnection, tableName, primaryKeyValue);
         String asString = asRecord.asJson();
-        //System.out.println("export as json1:"+asString);
+
         System.out.println("export as json2:"+mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode()));
+        assertEquals(mapper.readTree(asRecord.asJson()).toString(), asRecord.asJsonNode().toString());
 
         DbImporter dbImporter = new DbImporter();
         if (optionalImporterConfigurer != null) {
@@ -69,6 +70,8 @@ public class TestHelpers {
 
         assertEquals(numberNodes, asRecord.getAllNodes().size());
         assertEquals(numberNodes, asRecordAgain.getAllNodes().size());
+
+        // still subtle differences in asString operation
         assertEquals(canonicalize(asString), canonicalize(asStringAgain));
 
         if (optionalRecordChanger != null) {
