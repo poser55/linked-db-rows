@@ -1,12 +1,12 @@
 create table user_table (
-    id serial4 not null,
+    id integer not null,
     username varchar(128) not null,
     email varchar(128) not null,
     profile text null,
     primary key (id)
 );
 create table blogpost (
-    id serial4 not null,
+    id integer not null,
     title varchar(128) not null,
     content text not null,
     tags text null,
@@ -20,7 +20,7 @@ create table blogpost (
             references user_table (id) on delete cascade on update restrict
 );
 create table comment (
-   id serial4 not null,
+   id integer not null,
    content text not null,
    status int not null,
    create_time int null,
@@ -34,7 +34,7 @@ create table comment (
            references blogpost (id) on delete cascade on update restrict
 );
 create table tag_table (
-     id serial4 not null,
+     id integer not null,
      name varchar(128) not null,
      frequency int null default 1,
      primary key (id)
@@ -42,7 +42,7 @@ create table tag_table (
 
 -- table that lacks a FK to user (we add it during exporting)
 create table preferences (
-    id serial4 not null,
+    id integer not null,
     locale varchar(2),
     user_id int not null,
     primary key (id)
@@ -112,6 +112,7 @@ values (
            'test'
        );
 insert into comment (
+    id,
     content,
     status,
     create_time,
@@ -119,7 +120,7 @@ insert into comment (
     email,
     post_id
 )
-values (
+values ( 1,
            'This is a test comment.',
            2,
            1250952187,
@@ -128,9 +129,9 @@ values (
            2
        );
 
-insert into tag_table (name) values ('tag');
-insert into tag_table (name) values ('blog');
-insert into tag_table (name) values ('test');
+insert into tag_table (id, name) values (1, 'tag');
+insert into tag_table (id, name) values (2, 'blog');
+insert into tag_table (id, name) values (3, 'test');
 
 insert into preferences (id, locale, user_id) values (1, 'fr', 1);
 insert into preferences (id, locale, user_id) values (2, 'de', 2);

@@ -12,10 +12,7 @@ CREATE TABLE book (
     title varchar(50) NOT NULL,
     number_pages integer,
     CONSTRAINT book_pkey PRIMARY KEY (id),
-    CONSTRAINT fk_book_author FOREIGN KEY (author_id)
-        REFERENCES author (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
+    foreign key (author_id) references author(id)
 );
 
 insert into author (id, last_name) values (1, 'Hemingway');

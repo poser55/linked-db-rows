@@ -4,32 +4,103 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
+import lombok.ToString;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.internal.jdbc.DriverDataSource;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/** Helper methods for testing. <\br>
+ *  Allows choosing the db via the env variable <code>ACTIVE_DB</code> (default: postgres).
+ *  Add new databases in <code>DB_CONFIGS_LIST</code>*/
 public class TestHelpers {
     static ObjectMapper mapper = JdbcHelpers.getObjectMapper();
 
-    public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
-        Class.forName("org.postgresql.Driver");
+    static List<DbBaseConfig> DB_CONFIGS_LIST =
+            List.of(
+                    new DbBaseConfig("postgres", "org.postgresql.Driver",
+                            "jdbc:postgresql://localhost/","postgres", "admin", false),
+                    new DbBaseConfig("h2", "org.h2.Driver",
+                            "jdbc:h2:mem:","sa", "", true));
 
-        Connection con = DriverManager.getConnection(
-                "jdbc:postgresql://localhost/" + dbName, "postgres", "admin");
+    static Map<String, DbBaseConfig> DB_CONFIGS =
+            DB_CONFIGS_LIST.stream().collect(Collectors.toMap(DbBaseConfig::getShortname, Function.identity()));
+
+    static String activeDB = Objects.toString(System.getenv("ACTIVE_DB"), "postgres");
+
+    static boolean firstTime = true;
+
+    public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
+        DbBaseConfig baseConfig = Objects.requireNonNullElse(DB_CONFIGS.get(activeDB), DB_CONFIGS_LIST.get(0));
+
+        boolean initDbNow = false;
+
+        if (firstTime) {
+            System.out.println("activeDb:"+baseConfig);
+            if (baseConfig.isInitDb()) {
+                initDbNow = true;
+            }
+            firstTime = false;
+        }
+
+        Class.forName(baseConfig.driverName);
+
+        DriverDataSource ds = new DriverDataSource(TestContainerTest.class.getClassLoader(),
+                baseConfig.driverName, baseConfig.urlPrefix + dbName, baseConfig.getDefaultUser(), baseConfig.defaultPassword);
+
+        Connection con = ds.getConnection();
+//                DriverManager.getConnection(
+//                baseConfig.urlPrefix + dbName, baseConfig.getDefaultUser(), baseConfig.defaultPassword);
 
         con.setAutoCommit(true);
+
+        if (initDbNow) {
+            Flyway flyway = Flyway.configure().dataSource(ds).load();
+            flyway.migrate();
+        }
+
         return con;
     }
 
-    /** Makes a full test with a RowLink */
+    @Getter
+    @ToString
+    static class DbBaseConfig {
+        public DbBaseConfig(String shortname, String driverName, String urlPrefix, String defaultUser, String defaultPassword, boolean initDb) {
+            this.shortname = shortname;
+            this.driverName = driverName;
+            this.urlPrefix = urlPrefix;
+            this.defaultUser = defaultUser;
+            this.defaultPassword = defaultPassword;
+            this.initDb = initDb;
+        }
+
+        String shortname;
+        String driverName;
+        /**
+         * prefix without db name
+         */
+        String urlPrefix;
+        String defaultUser;
+        String defaultPassword;
+        private boolean initDb;
+    }
+
+
+    /**
+     * Makes a full test with a RowLink
+     */
     public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, int numberNodes,
                                                                 String tableName, Object primaryKeyValue) throws Exception {
         return testExportImportBasicChecks(demoConnection, numberNodes, null, null, tableName, primaryKeyValue);
@@ -43,8 +114,10 @@ public class TestHelpers {
                 new HashMap<>(), tableName, primaryKeyValue);
     }
 
-        /** Makes a full test with a RowLink <br/>
-         *   Allows to configure the DbImporter/ DbExporter */
+    /**
+     * Makes a full test with a RowLink <br/>
+     * Allows to configure the DbImporter/ DbExporter
+     */
     public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, int numberNodes,
                                                                 Consumer<DbExporter> optionalExporterConfigurer,
                                                                 Consumer<DbImporter> optionalImporterConfigurer,
@@ -58,7 +131,7 @@ public class TestHelpers {
         Record asRecord = dbExporter.contentAsTree(demoConnection, tableName, primaryKeyValue);
         String asString = asRecord.asJson();
 
-        System.out.println("export as json2:"+mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode()));
+        System.out.println("export as json2:" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode()));
         assertEquals(mapper.readTree(asRecord.asJson()).toString(), asRecord.asJsonNode().toString());
 
         DbImporter dbImporter = new DbImporter();

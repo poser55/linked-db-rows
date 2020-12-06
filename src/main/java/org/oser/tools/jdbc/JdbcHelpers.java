@@ -151,7 +151,7 @@ public final class JdbcHelpers {
     public static void assertTableExists(Connection connection, String tableName) throws SQLException {
         DatabaseMetaData dbm = connection.getMetaData();
 
-        ResultSet tables = dbm.getTables(null, null, tableName, null);
+        ResultSet tables = dbm.getTables(null, null, adaptCaseForDb(tableName, dbm.getDatabaseProductName()), null);
         if (tables.next()) {
             return; // Table exists
         }
