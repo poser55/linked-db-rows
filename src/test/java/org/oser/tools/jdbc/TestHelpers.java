@@ -13,9 +13,11 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -28,31 +30,35 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class TestHelpers {
     static ObjectMapper mapper = JdbcHelpers.getObjectMapper();
 
-    static List<DbBaseConfig> DB_CONFIGS_LIST =
+    static List<DbBaseConfig> DB_CONFIG_LIST =
             List.of(
                     new DbBaseConfig("postgres", "org.postgresql.Driver",
                             "jdbc:postgresql://localhost/","postgres", "admin", false),
                     new DbBaseConfig("h2", "org.h2.Driver",
                             "jdbc:h2:mem:","sa", "", true));
 
+        // add here also container dbs
+
+
     static Map<String, DbBaseConfig> DB_CONFIGS =
-            DB_CONFIGS_LIST.stream().collect(Collectors.toMap(DbBaseConfig::getShortname, Function.identity()));
+            DB_CONFIG_LIST.stream().collect(Collectors.toMap(DbBaseConfig::getShortname, Function.identity()));
 
     static String activeDB = Objects.toString(System.getenv("ACTIVE_DB"), "postgres");
 
-    static boolean firstTime = true;
+    static Set<String> firstTimeForEachDb = new HashSet<>();
 
+    /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
-        DbBaseConfig baseConfig = Objects.requireNonNullElse(DB_CONFIGS.get(activeDB), DB_CONFIGS_LIST.get(0));
+        DbBaseConfig baseConfig = Objects.requireNonNullElse(DB_CONFIGS.get(activeDB), DB_CONFIG_LIST.get(0));
 
         boolean initDbNow = false;
 
-        if (firstTime) {
+        if (!firstTimeForEachDb.contains(dbName)) {
             System.out.println("activeDb:"+baseConfig);
             if (baseConfig.isInitDb()) {
                 initDbNow = true;
             }
-            firstTime = false;
+            firstTimeForEachDb.add(dbName);
         }
 
         Class.forName(baseConfig.driverName);
@@ -61,13 +67,21 @@ public class TestHelpers {
                 baseConfig.driverName, baseConfig.urlPrefix + dbName, baseConfig.getDefaultUser(), baseConfig.defaultPassword);
 
         Connection con = ds.getConnection();
-//                DriverManager.getConnection(
-//                baseConfig.urlPrefix + dbName, baseConfig.getDefaultUser(), baseConfig.defaultPassword);
-
         con.setAutoCommit(true);
 
         if (initDbNow) {
-            Flyway flyway = Flyway.configure().dataSource(ds).load();
+            //  add here placeholders such a h2_exclude_start, postgres_include_end
+            Map<String, String> placeholdersMap = new HashMap<>();
+            placeholdersMap.put(baseConfig.shortname+"_include_start", "");
+            placeholdersMap.put(baseConfig.shortname+"_include_end", "");
+            for (DbBaseConfig config : DB_CONFIG_LIST) {
+                if (!config.getShortname().equals(baseConfig.shortname)) {
+                    placeholdersMap.put(baseConfig.shortname+"_exclude_start", "/*");
+                    placeholdersMap.put(baseConfig.shortname+"_exclude_end", "*/");
+                }
+            }
+
+            Flyway flyway = Flyway.configure().placeholders(placeholdersMap).dataSource(ds).load();
             flyway.migrate();
         }
 
@@ -132,7 +146,8 @@ public class TestHelpers {
         String asString = asRecord.asJson();
 
         System.out.println("export as json2:" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode()));
-        assertEquals(mapper.readTree(asRecord.asJson()).toString(), asRecord.asJsonNode().toString());
+        // this assertion was dropped, as the old .asJson() method handles int types wrong (it quotes them in some cases)
+        //assertEquals(mapper.readTree(asRecord.asJson()).toString(), asRecord.asJsonNode().toString());
 
         DbImporter dbImporter = new DbImporter();
         if (optionalImporterConfigurer != null) {

@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static org.oser.tools.jdbc.JdbcHelpers.adaptCaseForDb;
+
 /** Represents one foreign key constraint */
 @Getter
 public class Fk {
@@ -47,10 +49,12 @@ public class Fk {
         List<Fk> fks = new CopyOnWriteArrayList<>();
         DatabaseMetaData dm = connection.getMetaData();
 
-        ResultSet rs = dm.getExportedKeys(null, null, table);
+        String adaptedTableName = adaptCaseForDb(table, dm.getDatabaseProductName());
+
+        ResultSet rs = dm.getExportedKeys(null, null, adaptedTableName);
         addFks(fks, rs, false);
 
-        rs = dm.getImportedKeys(null, null, table);
+        rs = dm.getImportedKeys(null, null, adaptedTableName);
         addFks(fks, rs, true);
 
         return fks;

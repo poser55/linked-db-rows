@@ -55,7 +55,7 @@ public class Record {
 
     ObjectMapper mapper = JdbcHelpers.getObjectMapper();
 
-    /** JsonNode representation (less tested yet than asJson()) */
+    /** JsonNode representation  */
     public JsonNode asJsonNode() {
         ObjectNode record = mapper.createObjectNode();
         content.forEach(field -> field.addToJsonNode(record));
@@ -64,7 +64,9 @@ public class Record {
 
     /**
      * returns json String of this record
+     * @deprecated use #asJsonNode() as it handles quoting of number types better
      */
+    @Deprecated
     public String asJson() {
         return "{ " +
                 content.stream().map(FieldAndValue::toString).collect(Collectors.joining(",")) +
