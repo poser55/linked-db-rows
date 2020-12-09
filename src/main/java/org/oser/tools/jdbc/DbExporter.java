@@ -2,6 +2,7 @@ package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +46,8 @@ public class DbExporter {
 
     private final Map<String, FieldExporter> fieldExporter = new HashMap<>();
 
+    /** experimental feature to order results by first pk when exporting */
+    private boolean orderResults = true;
 
     public DbExporter() {}
 
@@ -52,7 +55,7 @@ public class DbExporter {
      * Main method: recursively read a tree of linked db rows and return it
      */
     public Record contentAsTree(Connection connection, String tableName, Object... pkValue) throws SQLException {
-        ExportContext context = new ExportContext();
+        ExportContext context = new ExportContext(connection);
 
         JdbcHelpers.assertTableExists(connection, tableName);
 
@@ -67,9 +70,18 @@ public class DbExporter {
     /**
      * stores context about the export (to avoid infinite loops)
      */
+    @Getter
     public static class ExportContext {
         Map<RowLink, Record> visitedNodes = new HashMap<>();
         Set<Fk> treatedFks = new HashSet<>();
+
+        DatabaseMetaData metaData;
+        String dbProductName;
+
+        public ExportContext(Connection connection) throws SQLException {
+            metaData = connection.getMetaData();
+            dbProductName = metaData.getDatabaseProductName();
+        }
 
         @Override
         public String toString() {
@@ -80,7 +92,7 @@ public class DbExporter {
         }
 
         public boolean containsNode(String tableName, Object[] pk){
-            return visitedNodes.containsKey(new RowLink(tableName, pk));
+            return visitedNodes.containsKey(new RowLink(tableName.toLowerCase(), pk));
         }
 
     }
@@ -95,7 +107,7 @@ public class DbExporter {
         data.setColumnMetadata(columns);
 
         String pkName = primaryKeys.get(0);
-        String selectPk = selectStatementByPks(tableName, pkName, primaryKeys);
+        String selectPk = selectStatementByPks(tableName, pkName, primaryKeys, false);
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
             setPksStatementFields(pkSelectionStatement, primaryKeys, columns, pkValues, pkName);
@@ -107,7 +119,7 @@ public class DbExporter {
                     for (int i = 1; i <= columnCount; i++) {
                         String columnName = rsMetaData.getColumnName(i);
 
-                        Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName);
+                        Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
 
                         if (d != null) {
                             data.content.add(d);
@@ -123,13 +135,21 @@ public class DbExporter {
         return data;
     }
 
-    private Record.FieldAndValue retrieveFieldAndValue(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, int i, String columnName) throws SQLException {
+    private Set<Integer> STRING_TYPES = Set.of(12, 2004, 2005);
+
+    private Record.FieldAndValue retrieveFieldAndValue(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, int i, String columnName, ExportContext context) throws SQLException {
         FieldExporter fieldExporter = getFieldExporter(tableName, columnName);
         Record.FieldAndValue d = null;
+
+        // this is a bit hacky for now (as we do not yet have full type support and h2 behaves strangely)
+        boolean useGetString = context.getDbProductName().equals("H2") &&
+                STRING_TYPES.contains(columns.get(columnName.toUpperCase()).getDataType());
+        Object valueAsObject = useGetString ? rs.getString(i) : rs.getObject(i);
+
         if (fieldExporter != null) {
-            d = fieldExporter.exportField(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i), rs);
+            d = fieldExporter.exportField(columnName, columns.get(columnName.toUpperCase()), valueAsObject, rs);
         } else {
-            d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), rs.getObject(i));
+            d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), valueAsObject);
         }
         return d;
     }
@@ -137,8 +157,9 @@ public class DbExporter {
 
     // todo: for now we just support such select statement with 1 fkName
 
-    private String selectStatementByPks(String tableName, String fkName, List<String> primaryKeys) {
-        return  "SELECT * from " + tableName + " where  " + fkName + " = ?";
+    private String selectStatementByPks(String tableName, String fkName, List<String> primaryKeys, boolean orderResult) {
+        return  "SELECT * from " + tableName + " where  " + fkName + " = ?" +
+                (orderResult ? (" order by "+primaryKeys.get(0)+" asc " ) : "");
 //        } else {
 //            LOGGER.error("!!! multiple fks not yet supported! {} {}", tableName, primaryKeys);
 //            String whereClause = primaryKeys.stream().collect(Collectors.joining(" = ?,", "", " = ?"));
@@ -176,7 +197,7 @@ public class DbExporter {
         }
 
         String pkName = primaryKeys.get(0);
-        String selectPk = selectStatementByPks(tableName, fkName, primaryKeys);
+        String selectPk = selectStatementByPks(tableName, fkName, primaryKeys, orderResults);
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
             setPksStatementFields(pkSelectionStatement, primaryKeys, columns, fkValues, fkName);
@@ -185,7 +206,7 @@ public class DbExporter {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
                 int columnCount = rsMetaData.getColumnCount();
                 while (rs.next()) { // treat 1 fk-link
-                    Record row = innerReadRecord(tableName, columns, rs, rsMetaData, columnCount, primaryKeys);
+                    Record row = innerReadRecord(tableName, columns, rs, rsMetaData, columnCount, primaryKeys, context);
                     if (context.containsNode(tableName, row.rowLink.pks)) {
                         continue; // we have already read this node
                     }
@@ -236,7 +257,7 @@ public class DbExporter {
     }
 
 
-    private Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys) throws SQLException {
+    private Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys, ExportContext context) throws SQLException {
         Record row = new Record(tableName, null);
         row.setColumnMetadata(columns);
 
@@ -245,7 +266,7 @@ public class DbExporter {
 
         for (int i = 1; i <= columnCount; i++) {
             String columnName = rsMetaData.getColumnName(i);
-            Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName);
+            Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
             if (d != null) {
                 row.content.add(d);
 
@@ -278,5 +299,10 @@ public class DbExporter {
 
     private FieldExporter getFieldExporter(String tableName, String fieldName) {
         return getFieldExporters().get(fieldName);
+    }
+
+    /** experimental feature to order results by first pk when exporting (default: true) */
+    public void setOrderResults(boolean orderResults) {
+        this.orderResults = orderResults;
     }
 }

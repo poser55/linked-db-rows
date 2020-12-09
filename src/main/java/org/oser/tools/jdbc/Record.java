@@ -202,7 +202,7 @@ public class Record {
         public Map<String, List<Record>> subRow = new HashMap<>();
 
         public FieldAndValue(String name, JdbcHelpers.ColumnMetadata metadata, Object value) {
-            this.name = name;
+            this.name = name.toLowerCase();
             this.metadata = metadata;
 
             this.value = convertTypeForValue(metadata, value);

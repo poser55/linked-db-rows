@@ -9,14 +9,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A table and 1 concrete primary key  (uniquely identifies a db row)<br/>
- *  What is the order of the pks?  As I get it from the database metadata.
+ * A table and a set of concrete primary keys  (uniquely identifies a db row)<br/>
+ *  What is the order of the pks?  As we get it from the database metadata.
  *    E.g. via {@link JdbcHelpers#getPrimaryKeys(DatabaseMetaData, String)}
  */
 @Getter
 public class RowLink {
     public RowLink(String tableName, Object ... pks) {
-        this.setTableName(tableName);
+        this.setTableName(tableName.toLowerCase());
         if (pks != null) {
             this.setPks(Stream.of(pks).map(RowLink::normalizePk).toArray(Object[]::new));
         }
@@ -36,7 +36,7 @@ public class RowLink {
         if ( split.length < 2) {
             throw new IllegalArgumentException("Wrong format, missing /:"+shortExpression);
         }
-        setTableName(split[0]);
+        setTableName(split[0].toLowerCase());
         setPks(Stream.of(split).skip(1).map(this::parseOneKey).map(RowLink::normalizePk).toArray(Object[]::new));
     }
 
@@ -76,7 +76,7 @@ public class RowLink {
     }
 
     public void setTableName(String tableName) {
-        this.tableName = tableName;
+        this.tableName = tableName.toLowerCase();
     }
 
     public void setPks(Object[] pks) {

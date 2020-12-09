@@ -125,7 +125,7 @@ public final class JdbcHelpers {
         String fieldList = columnNames.stream().filter(name -> (isInsert || !name.equals(pkName.toUpperCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
 
         if (isInsert) {
-            Map<String, ColumnMetadata> metadataInCurrentTableAndInsert = columnMetadata.entrySet().stream().filter(e -> columnNames.contains(e.getKey())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            Map<String, ColumnMetadata> metadataInCurrentTableAndInsert = columnMetadata.entrySet().stream().filter(e -> columnNames.contains(e.getKey().toLowerCase())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
             String questionsMarks = metadataInCurrentTableAndInsert.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
                     .map(JdbcHelpers::questionMarkOrTypeCasting).collect(Collectors.joining(", "));
@@ -208,6 +208,7 @@ public final class JdbcHelpers {
 //            System.out.println();
         }
 
+
         return result;
     }
 
@@ -245,7 +246,11 @@ public final class JdbcHelpers {
         switch (typeAsString.toUpperCase()) {
             case "BOOLEAN":
             case "BOOL":
-                preparedStatement.setBoolean(statementIndex, Boolean.parseBoolean(valueToInsert.trim()));
+                if (isEmpty) {
+                    preparedStatement.setNull(statementIndex, Types.BOOLEAN);
+                } else {
+                    preparedStatement.setBoolean(statementIndex, Boolean.parseBoolean(valueToInsert.trim()));
+                }
                 break;
             case "SERIAL":
             case "INT2":

@@ -88,7 +88,7 @@ public class DbImporter {
 
     private static String prepareStringTypeToInsert(String typeAsString, String valueToInsert) {
         if (typeAsString.toUpperCase().equals("VARCHAR") || typeAsString.toUpperCase().equals("TEXT")) {
-            valueToInsert = getInnerValueToInsert(valueToInsert);
+            valueToInsert = valueToInsert == null ? null : getInnerValueToInsert(valueToInsert);
         }
         return valueToInsert;
     }
@@ -293,7 +293,7 @@ public class DbImporter {
 
             for (String currentFieldName : fieldNames) {
                 Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
-                valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, Objects.toString(currentElement.value));
+                valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, Objects.toString(currentElement.value,null));
 
                 boolean fieldIsPk = primaryKeys.stream().map(String::toUpperCase).anyMatch(e -> currentFieldName.toUpperCase().equals(e));
 

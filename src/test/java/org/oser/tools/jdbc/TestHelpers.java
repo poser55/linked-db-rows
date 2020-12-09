@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -33,11 +34,16 @@ public class TestHelpers {
     static List<DbBaseConfig> DB_CONFIG_LIST =
             List.of(
                     new DbBaseConfig("postgres", "org.postgresql.Driver",
-                            "jdbc:postgresql://localhost/","postgres", "admin", false),
+                            "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
                     new DbBaseConfig("h2", "org.h2.Driver",
-                            "jdbc:h2:mem:","sa", "", true));
+                            "jdbc:h2:mem:","sa", "", true,Map.of("sakila","false")));
 
         // add here also container dbs
+
+//    DriverDataSource ds = new DriverDataSource(TestContainerTest.class.getClassLoader(),
+//            "", "jdbc:tc:postgresql:12.3:///" + dbName + "?TC_DAEMON=true", "postgres", "admin");
+
+
 
 
     static Map<String, DbBaseConfig> DB_CONFIGS =
@@ -63,7 +69,7 @@ public class TestHelpers {
 
         Class.forName(baseConfig.driverName);
 
-        DriverDataSource ds = new DriverDataSource(TestContainerTest.class.getClassLoader(),
+        DriverDataSource ds = new DriverDataSource(TestHelpers.class.getClassLoader(),
                 baseConfig.driverName, baseConfig.urlPrefix + dbName, baseConfig.getDefaultUser(), baseConfig.defaultPassword);
 
         Connection con = ds.getConnection();
@@ -83,7 +89,14 @@ public class TestHelpers {
 
             Flyway flyway = Flyway.configure().placeholders(placeholdersMap).dataSource(ds).load();
             flyway.migrate();
+
+            baseConfig.getSysProperties().forEach((key, value) -> {
+                System.getProperty(key, value);
+            });
         }
+
+        // db console at  http://localhost:8082/
+       // Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082", "-webAdminPassword", "admin").start();
 
         return con;
     }
@@ -91,13 +104,14 @@ public class TestHelpers {
     @Getter
     @ToString
     static class DbBaseConfig {
-        public DbBaseConfig(String shortname, String driverName, String urlPrefix, String defaultUser, String defaultPassword, boolean initDb) {
+        public DbBaseConfig(String shortname, String driverName, String urlPrefix, String defaultUser, String defaultPassword, boolean initDb, Map<String, String> sysProperties) {
             this.shortname = shortname;
             this.driverName = driverName;
             this.urlPrefix = urlPrefix;
             this.defaultUser = defaultUser;
             this.defaultPassword = defaultPassword;
             this.initDb = initDb;
+            this.sysProperties = sysProperties;
         }
 
         String shortname;
@@ -109,6 +123,7 @@ public class TestHelpers {
         String defaultUser;
         String defaultPassword;
         private boolean initDb;
+        private Map<String, String> sysProperties;
     }
 
 

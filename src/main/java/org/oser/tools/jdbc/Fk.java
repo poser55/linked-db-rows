@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -56,6 +57,8 @@ public class Fk {
 
         rs = dm.getImportedKeys(null, null, adaptedTableName);
         addFks(fks, rs, true);
+
+        fks.sort(Comparator.comparing(Fk::getFktable).thenComparing(Fk::getFkcolumn));
 
         return fks;
     }
