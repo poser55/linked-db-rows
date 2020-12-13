@@ -34,10 +34,10 @@ Example export:
 
 Limitations:
 ------------
-* Only tested on Postgresql for now
+* Only tested on Postgresql for now (first tests with h2)
 * Test coverage needs improving
 * It solves a problem I have - quite hacky in many ways
-* Proprietary JSON structure
+* Cycles in FKs are not treated for insertion (refer to Sakila)
 * Arrays (as e.g. Postgresql supports them) and other advanced constructs are currently not supported
 
 License:

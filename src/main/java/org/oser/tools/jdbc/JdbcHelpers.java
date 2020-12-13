@@ -1,9 +1,5 @@
 package org.oser.tools.jdbc;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
@@ -15,6 +11,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDate;
@@ -38,19 +35,23 @@ public final class JdbcHelpers {
 
     private JdbcHelpers() {}
 
-
-    public static List<String> determineOrder(Connection connection, String rootTable) throws SQLException {
-        return determineOrder(connection, rootTable, Caffeine.newBuilder()
+    /** @see JdbcHelpers#determineOrder(Connection, String, boolean, Cache) */
+    public static List<String> determineOrder(Connection connection, String rootTable, boolean exceptionWithCycles) throws SQLException {
+        return determineOrder(connection, rootTable, exceptionWithCycles, Caffeine.newBuilder()
                 .maximumSize(10_000).build());
     }
 
-    /** if one would like to import the tree starting at rootTable, what order should one insert the tables?
-     *  @return a List<String> with the table names in the order in which to insert them
+    /** If one would like to import the tree starting at rootTable, what order should one insert the tables?
+     *  @return a List<String> with the table names in the order in which to insert them, the table names are converted to
+     *   lower case
      *  CAVEAT: may return a partial list (in case there are cycles/ there is no layering in the table dependencies)
+     *
+     * @throws IllegalStateException if there is a cycle and exceptionWithCycles is true
+     * @throws SQLException if there is an issue with SQL metadata queries <p>
      *
      *  todo: could we all separate non cyclic parts of the graph? Would that help?
      *  */
-    public static List<String> determineOrder(Connection connection, String rootTable, Cache<String, List<Fk>> cache) throws SQLException {
+    public static List<String> determineOrder(Connection connection, String rootTable, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws SQLException {
         Set<String> treated = new HashSet<>();
 
         Map<String, Set<String>> dependencyGraph = calculateDependencyGraph(rootTable, treated, connection, cache);
@@ -67,6 +68,8 @@ public final class JdbcHelpers {
 
             if (treatedThisTime.isEmpty()) {
                 LOGGER.warn("Not a layered organization of table dependencies - excluding connected tables: {}", dependencyGraph);
+                if (exceptionWithCycles)
+                    throw new IllegalStateException("cyclic sql dependencies - aborting "+dependencyGraph);
                 break; // returning a partial list
             }
 
@@ -78,11 +81,21 @@ public final class JdbcHelpers {
         return orderedTables;
     }
 
+    /**
+     *  Determine all "Y requires X" relationships between the tables of the db, starting from rootTable
+     *  @param rootTable is the root table we start from <p>
+     *  @param treated all tables followed<p>
+     *  @param cache is the FK cache <p>
+     *
+     * @return constraints in the form Map<X, Y> :  X is used in all Y (X is the key, Y are the values (Y is a set of all values),
+     * all tables are lower case
+     */
     private static Map<String, Set<String>> calculateDependencyGraph(String rootTable, Set<String> treated, Connection connection, Cache<String, List<Fk>> cache) throws SQLException {
+        rootTable = rootTable.toLowerCase();
         Set<String> tablesToTreat = new HashSet<>();
         tablesToTreat.add(rootTable);
 
-        Map<String, Set<String>> dependencyGraph = new HashMap<>();
+        Map<String, Set<String>> dependencyGraph = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
         while (!tablesToTreat.isEmpty()) {
             String next = tablesToTreat.stream().findFirst().get();
@@ -90,8 +103,8 @@ public final class JdbcHelpers {
 
             List<Fk> fks = getFksOfTable(connection, next, cache);
             for (Fk fk : fks) {
-                String tableToAdd = fk.pktable;
-                String otherTable = fk.fktable;
+                String tableToAdd = fk.pktable.toLowerCase();
+                String otherTable = fk.fktable.toLowerCase();
 
                 addToTreat(tablesToTreat, treated, tableToAdd);
                 addToTreat(tablesToTreat, treated, otherTable);
@@ -122,7 +135,7 @@ public final class JdbcHelpers {
      */
     public static String getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert, Map<String, ColumnMetadata> columnMetadata) {
         String result;
-        String fieldList = columnNames.stream().filter(name -> (isInsert || !name.equals(pkName.toUpperCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
+        String fieldList = columnNames.stream().filter(name -> (isInsert || !name.toLowerCase().equals(pkName.toLowerCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
 
         if (isInsert) {
             Map<String, ColumnMetadata> metadataInCurrentTableAndInsert = columnMetadata.entrySet().stream().filter(e -> columnNames.contains(e.getKey().toLowerCase())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -182,13 +195,13 @@ public final class JdbcHelpers {
      * @return Map à la fieldName1 -> ColumnMetadata (simplified JDBC metadata)
      */
     public static SortedMap<String, ColumnMetadata> getColumnMetadata(DatabaseMetaData metadata, String tableName) throws SQLException {
-        SortedMap<String, ColumnMetadata> result = new TreeMap<>();
+        SortedMap<String, ColumnMetadata> result = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
         ResultSet rs = metadata.getColumns(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()), null);
 
         while (rs.next()) {
-            String column_name = rs.getString("COLUMN_NAME");
-            result.put(column_name.toUpperCase(),
+            String column_name = rs.getString("COLUMN_NAME").toLowerCase();
+            result.put(column_name,
                     new ColumnMetadata(column_name,
                             rs.getString("TYPE_NAME"),
                             rs.getInt("DATA_TYPE"),
@@ -351,7 +364,7 @@ public final class JdbcHelpers {
     /** get Map with keys = the field names and value = index of the key (0 started) */
     public static Map<String, Integer> getStringIntegerMap(List<String> primaryKeys) {
         final int[] j = {0};
-        return primaryKeys.stream().collect(Collectors.toMap(e -> e.toUpperCase(), e -> j[0]++));
+        return primaryKeys.stream().collect(Collectors.toMap(e -> e.toLowerCase(), e -> j[0]++));
     }
 
     /** Does the row of the table tableName and primary key pkNames and the pkValues exist? */
@@ -370,7 +383,7 @@ public final class JdbcHelpers {
     }
 
     private static String selectStatementByPks(String tableName, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata) {
-        String whereClause = primaryKeys.stream().map(e -> e + " = " + questionMarkOrTypeCasting(columnMetadata.get(e.toUpperCase())))
+        String whereClause = primaryKeys.stream().map(e -> e + " = " + questionMarkOrTypeCasting(columnMetadata.get(e.toLowerCase())))
                 .collect(Collectors.joining(" and "));
         return "SELECT * from " + tableName + " where  " + whereClause;
     }
@@ -378,7 +391,7 @@ public final class JdbcHelpers {
     private static void setPksStatementFields(PreparedStatement pkSelectionStatement, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata, List<Object> values) throws SQLException {
         int i = 0;
         for (String pkName : primaryKeys) {
-            JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(pkName.toUpperCase());
+            JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(pkName.toLowerCase());
             if (fieldMetadata == null) {
                 throw new IllegalArgumentException("Issue with metadata " + columnMetadata);
             }
@@ -387,12 +400,31 @@ public final class JdbcHelpers {
         }
     }
 
-    public static ObjectMapper getObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
-        mapper.configure(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true);
-        mapper.setNodeFactory(JsonNodeFactory.withExactBigDecimals(true));
-        return mapper;
+    /** not yet very optimized */
+    public static Map<String, Integer> getNumberElementsInEachTable(Connection connection) throws SQLException {
+        Map<String, Integer> result = new HashMap<>();
+
+        for (String tableName : getAllTableNames(connection)) {
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery("select count(*) from \""+tableName+"\"");
+
+            while (resultSet.next()) {
+                result.put(tableName, resultSet.getInt(1));
+            }
+        }
+
+        return result;
+    }
+
+    public static List<String> getAllTableNames(Connection connection) throws SQLException {
+        List<String> tableNames = new ArrayList<>();
+
+        DatabaseMetaData md = connection.getMetaData();
+        ResultSet rs = md.getTables(null, null, "%", new String[]{"TABLE"});
+        while (rs.next()) {
+            tableNames.add(rs.getString("TABLE_NAME"));
+        }
+        return tableNames;
     }
 
 }

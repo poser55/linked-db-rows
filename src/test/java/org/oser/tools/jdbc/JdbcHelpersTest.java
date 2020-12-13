@@ -19,8 +19,8 @@ class JdbcHelpersTest {
         List<String> primaryKeys = Arrays.asList("A", "B", "C", "d");
         Map<String, Integer> stringIntegerMap = JdbcHelpers.getStringIntegerMap(primaryKeys);
 
-        assertEquals(3, stringIntegerMap.get("D"));
-        assertEquals(0, stringIntegerMap.get("A"));
+        assertEquals(3, stringIntegerMap.get("d"));
+        assertEquals(0, stringIntegerMap.get("a"));
         assertEquals(4, stringIntegerMap.keySet().size());
     }
 
@@ -56,5 +56,18 @@ class JdbcHelpersTest {
         Map<String, JdbcHelpers.ColumnMetadata> columnMetadata2 = JdbcHelpers.getColumnMetadata(demo.getMetaData(), "nodes");
         assertTrue(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(5), columnMetadata2));
         assertFalse(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(99999999L), columnMetadata2));
+    }
+
+    @Test
+    void getNumberElementsInEachTable() throws SQLException, ClassNotFoundException {
+        Connection demo1 = TestHelpers.getConnection("demo");
+        List<String> allTableNames = JdbcHelpers.getAllTableNames(demo1);
+        Map<String, Integer> counts = JdbcHelpers.getNumberElementsInEachTable(demo1);
+        assertNotNull(allTableNames);
+        assertNotNull(counts);
+
+        System.out.println(counts + " "+allTableNames);
+        assertTrue( counts.keySet().size() >= 10);
+        assertTrue(allTableNames.size() >= 10);
     }
 }

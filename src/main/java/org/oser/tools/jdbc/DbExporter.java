@@ -14,6 +14,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.TreeMap;
 
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
@@ -44,7 +46,7 @@ public class DbExporter {
     private final Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
-    private final Map<String, FieldExporter> fieldExporter = new HashMap<>();
+    private final Map<String, FieldExporter> fieldExporter = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     /** experimental feature to order results by first pk when exporting */
     private boolean orderResults = true;
@@ -117,7 +119,7 @@ public class DbExporter {
                 int columnCount = rsMetaData.getColumnCount();
                 if (rs.next()) {
                     for (int i = 1; i <= columnCount; i++) {
-                        String columnName = rsMetaData.getColumnName(i);
+                        String columnName = rsMetaData.getColumnName(i).toLowerCase();
 
                         Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
 
@@ -143,13 +145,13 @@ public class DbExporter {
 
         // this is a bit hacky for now (as we do not yet have full type support and h2 behaves strangely)
         boolean useGetString = context.getDbProductName().equals("H2") &&
-                STRING_TYPES.contains(columns.get(columnName.toUpperCase()).getDataType());
+                STRING_TYPES.contains(columns.get(columnName.toLowerCase()).getDataType());
         Object valueAsObject = useGetString ? rs.getString(i) : rs.getObject(i);
 
         if (fieldExporter != null) {
-            d = fieldExporter.exportField(columnName, columns.get(columnName.toUpperCase()), valueAsObject, rs);
+            d = fieldExporter.exportField(columnName, columns.get(columnName.toLowerCase()), valueAsObject, rs);
         } else {
-            d = new Record.FieldAndValue(columnName, columns.get(columnName.toUpperCase()), valueAsObject);
+            d = new Record.FieldAndValue(columnName, columns.get(columnName.toLowerCase()), valueAsObject);
         }
         return d;
     }
@@ -168,7 +170,7 @@ public class DbExporter {
     }
 
     private void setPksStatementFields(PreparedStatement pkSelectionStatement, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata, Object[] values, String fkName) throws SQLException {
-        JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(fkName.toUpperCase());
+        JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(fkName.toLowerCase());
         JdbcHelpers.innerSetStatementField(pkSelectionStatement, fieldMetadata.getType(), 1, Objects.toString(values[0]), fieldMetadata);
 
 //            int i = 0;
@@ -240,8 +242,8 @@ public class DbExporter {
 
             Record.FieldAndValue elementWithName = data.findElementWithName(fk.inverted ? fk.fkcolumn : fk.pkcolumn);
             if ((elementWithName != null) && (elementWithName.value != null)) {
-                String subTableName = fk.inverted ? fk.pktable : fk.fktable;
-                String subFkName = fk.inverted ? fk.pkcolumn : fk.fkcolumn;
+                String subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
+                String subFkName = (fk.inverted ? fk.pkcolumn : fk.fkcolumn).toLowerCase();
 
                 List<Record> subRow = this.readLinkedRecords(connection, subTableName,
                         subFkName, new Object[] {elementWithName.value }, context); // todo: fix can there be multiple fields in a fk?
@@ -270,8 +272,8 @@ public class DbExporter {
             if (d != null) {
                 row.content.add(d);
 
-                if (primaryKeyArrayPosition.containsKey(d.name.toUpperCase())){
-                    primaryKeyValues[primaryKeyArrayPosition.get(d.name.toUpperCase())] = d.value;
+                if (primaryKeyArrayPosition.containsKey(d.name.toLowerCase())){
+                    primaryKeyValues[primaryKeyArrayPosition.get(d.name.toLowerCase())] = d.value;
                 }
 
             }

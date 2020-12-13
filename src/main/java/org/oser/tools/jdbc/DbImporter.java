@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -34,14 +35,20 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
  * License: Apache 2.0
  */
 public class DbImporter {
+    public static enum Loggers {
+        I_META, I_UPDATES, I_EXISTENCE_CHECK
+    }
+
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DbImporter.class);
+    private static final Logger LOGGER_UPDATES = LoggerFactory.getLogger(DbImporter.class + "." + Loggers.I_UPDATES.name());
     public static final String JSON_SUBTABLE_SUFFIX = "*";
 
     // options
     private boolean forceInsert = true;
-    private final Map<String, PkGenerator> overriddenPkGenerators = new HashMap<>();
+    private final Map<String, PkGenerator> overriddenPkGenerators = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private PkGenerator defaultPkGenerator = new NextValuePkGenerator();
-    private final Map<String, FieldMapper> fieldMappers = new HashMap<>();
+    private final Map<String, FieldMapper> fieldMappers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
             .maximumSize(10_000).build();
@@ -52,6 +59,8 @@ public class DbImporter {
     private final Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
+    /** with cycles in the FKs we would throw an exceptions - we can try inserting what we can anyway */
+    private boolean ignoreFkCycles = false;
 
     public DbImporter() {
         // nothing to do
@@ -113,7 +122,7 @@ public class DbImporter {
         Iterable<Map.Entry<String, JsonNode>> iterable = json::fields;
         return StreamSupport
                 .stream(iterable.spliterator(), false).filter(e -> e.getValue().isValueNode()).map(Map.Entry::getKey)
-                .map(String::toUpperCase).collect(Collectors.toList());
+                .map(String::toLowerCase).collect(Collectors.toList());
     }
 
     private static String removeQuotes(String valueToInsert) {
@@ -126,7 +135,7 @@ public class DbImporter {
     ////// code partially from csvToDb
 
     public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
-        ObjectMapper mapper = JdbcHelpers.getObjectMapper();
+        ObjectMapper mapper = Record.getObjectMapper();
 
         JsonNode json = mapper.readTree(jsonString);
 
@@ -158,8 +167,8 @@ public class DbImporter {
 
             valueToInsert = prepareStringTypeToInsert(columns, currentFieldName, valueToInsert);
 
-            if (primaryKeyArrayPosition.containsKey(currentFieldName.toUpperCase())){
-                primaryKeyValues[primaryKeyArrayPosition.get(currentFieldName.toUpperCase())] = valueToInsert;
+            if (primaryKeyArrayPosition.containsKey(currentFieldName.toLowerCase())){
+                primaryKeyValues[primaryKeyArrayPosition.get(currentFieldName.toLowerCase())] = valueToInsert;
             }
 
             Record.FieldAndValue d = new Record.FieldAndValue(currentFieldName, columns.get(currentFieldName), valueToInsert);
@@ -175,9 +184,9 @@ public class DbImporter {
 
         for (Fk fk : getFksOfTable(connection, rootTable, fkCache)) {
 
-            Record.FieldAndValue elementWithName = record.findElementWithName((fk.inverted ? fk.fkcolumn : fk.pkcolumn).toUpperCase());
+            Record.FieldAndValue elementWithName = record.findElementWithName((fk.inverted ? fk.fkcolumn : fk.pkcolumn));
             if (elementWithName != null) {
-                String subTableName = fk.inverted ? fk.pktable : fk.fktable;
+                String subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
                 JsonNode subJsonNode = json.get(elementWithName.name.toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
                 ArrayList<Record> records = new ArrayList<>();
 
@@ -239,7 +248,7 @@ public class DbImporter {
             }
             return null; // strange that we need this hack
         };
-        record.visitRecordsInInsertionOrder(connection, insertOneRecord, fkCache);
+        record.visitRecordsInInsertionOrder(connection, insertOneRecord, !ignoreFkCycles, fkCache);
 
         return newKeys;
     }
@@ -252,7 +261,7 @@ public class DbImporter {
         //  so for now, we get it from the cache:
         List<Fk> fksOfTable = getFksOfTable(connection, record.rowLink.tableName, fkCache);
 
-        Map<String, List<Fk>> fksByColumnName = fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toUpperCase()));
+        Map<String, List<Fk>> fksByColumnName = fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toLowerCase()));
         List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
 
         List<Object> pkValues = remapPrimaryKeyValues(record, newKeys, primaryKeys, fksByColumnName, isFreePk);
@@ -295,10 +304,10 @@ public class DbImporter {
                 Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
                 valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, Objects.toString(currentElement.value,null));
 
-                boolean fieldIsPk = primaryKeys.stream().map(String::toUpperCase).anyMatch(e -> currentFieldName.toUpperCase().equals(e));
+                boolean fieldIsPk = primaryKeys.stream().map(String::toLowerCase).anyMatch(e -> currentFieldName.toLowerCase().equals(e));
 
                 if (fieldIsPk) {
-                    valueToInsert[0] = Objects.toString(pkValues.get(JdbcHelpers.getStringIntegerMap(primaryKeys).get(currentFieldName.toUpperCase())));
+                    valueToInsert[0] = Objects.toString(pkValues.get(JdbcHelpers.getStringIntegerMap(primaryKeys).get(currentFieldName.toLowerCase())));
                 } else if (isInsert && fksByColumnName.containsKey(currentFieldName)) {
                     // remap fks!
                     List<Fk> fks = fksByColumnName.get(currentFieldName);
@@ -329,7 +338,7 @@ public class DbImporter {
             savedStatement = statement;
             int result = statement.executeUpdate();
 
-            LOGGER.debug("statement called: {} updateCount:{}", statement, result);
+            LOGGER_UPDATES.debug("statement called: {} updateCount:{}", statement, result);
 
         } catch (SQLException e) {
             LOGGER.info("issue with statement: {} ", savedStatement);
@@ -345,12 +354,12 @@ public class DbImporter {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
         int i = 0;
         for (String primaryKey : primaryKeys) {
-            Record.FieldAndValue elementWithName = record.findElementWithName(primaryKey.toUpperCase());
+            Record.FieldAndValue elementWithName = record.findElementWithName(primaryKey);
 
             // do the remapping from the newKeys
             Object[] potentialValueToInsert = {null};
-            if (fksByColumnName.containsKey(primaryKey.toUpperCase())) {
-                List<Fk> fks = fksByColumnName.get(primaryKey.toUpperCase());
+            if (fksByColumnName.containsKey(primaryKey.toLowerCase())) {
+                List<Fk> fks = fksByColumnName.get(primaryKey.toLowerCase());
                 fks.forEach(fk -> {
                     potentialValueToInsert[0] = newKeys.get(new RowLink(fk.pktable, elementWithName.value));
                 });
@@ -392,5 +401,10 @@ public class DbImporter {
 
     public Cache<String, List<Fk>> getFkCache() {
         return fkCache;
+    }
+
+    /** with cycles in the FKs we would throw an exceptions - we can try inserting what we can anyway (default: false) */
+    public void setIgnoreFkCycles(boolean ignoreFkCycles) {
+        this.ignoreFkCycles = ignoreFkCycles;
     }
 }

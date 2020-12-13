@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -29,14 +30,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *  Allows choosing the db via the env variable <code>ACTIVE_DB</code> (default: postgres).
  *  Add new databases in <code>DB_CONFIGS_LIST</code>*/
 public class TestHelpers {
-    static ObjectMapper mapper = JdbcHelpers.getObjectMapper();
+    static ObjectMapper mapper = Record.getObjectMapper();
 
     static List<DbBaseConfig> DB_CONFIG_LIST =
             List.of(
                     new DbBaseConfig("postgres", "org.postgresql.Driver",
                             "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
                     new DbBaseConfig("h2", "org.h2.Driver",
-                            "jdbc:h2:mem:","sa", "", true,Map.of("sakila","false")));
+                            "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false")));
 
         // add here also container dbs
 
@@ -90,9 +91,7 @@ public class TestHelpers {
             Flyway flyway = Flyway.configure().placeholders(placeholdersMap).dataSource(ds).load();
             flyway.migrate();
 
-            baseConfig.getSysProperties().forEach((key, value) -> {
-                System.getProperty(key, value);
-            });
+            baseConfig.getSysProperties().forEach(System::setProperty);
         }
 
         // db console at  http://localhost:8082/
@@ -130,34 +129,28 @@ public class TestHelpers {
     /**
      * Makes a full test with a RowLink
      */
-    public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, int numberNodes,
-                                                                String tableName, Object primaryKeyValue) throws Exception {
-        return testExportImportBasicChecks(demoConnection, numberNodes, null, null, tableName, primaryKeyValue);
+    public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
+        return testExportImportBasicChecks(demoConnection, null, null, tableName, primaryKeyValue, numberNodes);
     }
 
-    public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, int numberNodes,
-                                                                Consumer<DbExporter> optionalExporterConfigurer,
-                                                                Consumer<DbImporter> optionalImporterConfigurer,
-                                                                String tableName, Object primaryKeyValue) throws Exception {
-        return testExportImportBasicChecks(demoConnection, numberNodes, optionalExporterConfigurer, optionalImporterConfigurer, null,
-                new HashMap<>(), tableName, primaryKeyValue);
+    public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, Consumer<DbExporter> optionalExporterConfigurer, Consumer<DbImporter> optionalImporterConfigurer, String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
+        return testExportImportBasicChecks(demoConnection, optionalExporterConfigurer, optionalImporterConfigurer, null, new HashMap<>(), tableName, primaryKeyValue, numberNodes
+        );
     }
 
     /**
      * Makes a full test with a RowLink <br/>
      * Allows to configure the DbImporter/ DbExporter
      */
-    public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, int numberNodes,
-                                                                Consumer<DbExporter> optionalExporterConfigurer,
-                                                                Consumer<DbImporter> optionalImporterConfigurer,
-                                                                Consumer<Record> optionalRecordChanger,
-                                                                Map<RowLink, Object> remapping,
-                                                                String tableName, Object primaryKeyValue) throws Exception {
+    public static BasicChecksResult testExportImportBasicChecks(Connection connection, Consumer<DbExporter> optionalExporterConfigurer, Consumer<DbImporter> optionalImporterConfigurer, Consumer<Record> optionalRecordChanger, Map<RowLink, Object> remapping, String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
+        Map<String, Integer> before = JdbcHelpers.getNumberElementsInEachTable(connection);
+
+
         DbExporter dbExporter = new DbExporter();
         if (optionalExporterConfigurer != null) {
             optionalExporterConfigurer.accept(dbExporter);
         }
-        Record asRecord = dbExporter.contentAsTree(demoConnection, tableName, primaryKeyValue);
+        Record asRecord = dbExporter.contentAsTree(connection, tableName, primaryKeyValue);
         String asString = asRecord.asJson();
 
         System.out.println("export as json2:" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode()));
@@ -168,7 +161,7 @@ public class TestHelpers {
         if (optionalImporterConfigurer != null) {
             optionalImporterConfigurer.accept(dbImporter);
         }
-        Record asRecordAgain = dbImporter.jsonToRecord(demoConnection, tableName, asString);
+        Record asRecordAgain = dbImporter.jsonToRecord(connection, tableName, asString);
         String asStringAgain = asRecordAgain.asJson();
 
         assertEquals(numberNodes, asRecord.getAllNodes().size());
@@ -182,14 +175,23 @@ public class TestHelpers {
         }
 
         // todo: bug: asRecord is missing columnMetadata/ other values
-        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, asRecordAgain, remapping);
+        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(connection, asRecordAgain, remapping);
+
+        Map<String, Integer> after = JdbcHelpers.getNumberElementsInEachTable(connection);
+        assertNumberInserts(before, after, numberNodes);
 
         return new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap);
     }
 
+    private static void assertNumberInserts(Map<String, Integer> before, Map<String, Integer> after, int numberNodes) {
+        int numberRowsBefore = before.values().stream().reduce((l, r) -> l+r).get();
+        int numberRowsAfter = after.values().stream().reduce((l, r) -> l+r).get();
+        assertEquals(numberNodes, numberRowsAfter -numberRowsBefore);
+    }
+
     @NotNull
     private static String canonicalize(String asString) {
-        return asString.toUpperCase()
+        return asString.toLowerCase()
                 // remove precision differences
                 .replace(".000,", ",")
                 .replace(".0,", ",");
@@ -217,4 +219,14 @@ public class TestHelpers {
         ch.qos.logback.classic.Logger rootLogger = lc.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
         rootLogger.setLevel(Level.INFO);
     }
+
+    // todo make more generic, move globally
+    public static void setLoggerLevel(EnumSet<DbImporter.Loggers> loggers, ch.qos.logback.classic.Level newLevel) {
+        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
+        for (DbImporter.Loggers logger : loggers) {
+            ch.qos.logback.classic.Logger rootLogger = lc.getLogger(DbImporter.class + "." + logger.name());
+            rootLogger.setLevel(newLevel);
+        }
+    }
+
 }

@@ -1,5 +1,6 @@
 package org.oser.tools.jdbc;
 
+import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -7,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +26,7 @@ public class DbExporterBasicTests {
 
     @Test
     void datatypesTest() throws Exception {
-        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"), 1, "datatypes", 1);
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"), "datatypes", 1, 1);
         assertEquals(6, basicChecksResult.getAsRecordAgain().content.size());
         assertEquals(6, basicChecksResult.getAsRecord().content.size());
     }
@@ -33,7 +35,7 @@ public class DbExporterBasicTests {
     void blog() throws Exception {
         Connection demo = TestHelpers.getConnection("demo");
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
-                3, "blogpost", 2);
+                "blogpost", 2, 3);
 
         // now duplicate this blog post entry to user_table/1 (it is now linked to user_table/2)
 
@@ -50,7 +52,6 @@ public class DbExporterBasicTests {
         Connection demo = TestHelpers.getConnection("demo");
         AtomicReference<DbImporter> importer = new AtomicReference<>(new DbImporter());
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
-                4, // now we have 1 node more than in #blog(), the preferences
                 dbExporter -> {
                     try {
                         List<Fk> fks = Fk.getFksOfTable(demo, "user_table", dbExporter.getFkCache());
@@ -60,8 +61,7 @@ public class DbExporterBasicTests {
                     } catch (SQLException throwables) {
                         throwables.printStackTrace();
                     }
-                },
-                dbImporter -> {
+                }, dbImporter -> {
                     try {
                         List<Fk> fksUserTable = Fk.getFksOfTable(demo, "user_table", dbImporter.getFkCache());
                         // add artificial FK
@@ -77,15 +77,15 @@ public class DbExporterBasicTests {
                     } catch (SQLException throwables) {
                         throwables.printStackTrace();
                     }
-                },
-                "blogpost", 2);
+                }, "blogpost", 2, 4 // now we have 1 node more than in #blog(), the preferences
+        );
     }
 
 
     @Test
     void testBookTable() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                2, "book", 1);
+                "book", 1, 2);
     }
 
     @Test // Bug https://github.com/poser55/linked-db-rows/issues/1
@@ -103,11 +103,11 @@ public class DbExporterBasicTests {
 
     @Test
     void testGraph() throws Exception {
+        TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.DEBUG);
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                10, "nodes", 1);
+                "nodes", 1, 10);
+        TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.INFO);
     }
-
-
 
 
     @Test
@@ -123,7 +123,7 @@ public class DbExporterBasicTests {
 
         System.out.println("book2:" + book2.asJson());
 
-        ObjectMapper mapper = JdbcHelpers.getObjectMapper();
+        ObjectMapper mapper = Record.getObjectMapper();
 
         // todo: known issue .jsonToRecord converts json keys to upper case
         assertEquals(mapper.readTree(book.asJson().toLowerCase()), mapper.readTree(book2.asJson().toLowerCase()));
@@ -176,20 +176,20 @@ public class DbExporterBasicTests {
     @Test
     void testWorkingOnNonExistingTable() {
         Assertions.assertThrows(IllegalArgumentException.class, ()-> TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                0, "notExisting", 1));
+                "notExisting", 1, 0));
     }
 
     @Test
     void testWorkingOnNonExistingPrimaryKey() {
         Assertions.assertThrows(IllegalArgumentException.class, ()->TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                0, "nodes", 99999999L));
+                "nodes", 99999999L, 0));
     }
 
     @Test
     // https://github.com/poser55/linked-db-rows/issues/2
     void testNullHandlingVarcharVsText() throws Exception {
         Connection demoConnection = TestHelpers.getConnection("demo");
-        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demoConnection, 1, "datatypes", 100);
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demoConnection, "datatypes", 100, 1);
 
         Long o = (Long) basicChecksResult.getRowLinkObjectMap().values().stream().findFirst().get();
 

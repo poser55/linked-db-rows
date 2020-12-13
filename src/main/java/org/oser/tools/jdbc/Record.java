@@ -1,8 +1,11 @@
 package org.oser.tools.jdbc;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -24,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -53,7 +57,15 @@ public class Record {
         rowLink = new RowLink(tableName, pks);
     }
 
-    ObjectMapper mapper = JdbcHelpers.getObjectMapper();
+    ObjectMapper mapper = getObjectMapper();
+
+    public static ObjectMapper getObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+        mapper.configure(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true);
+        mapper.setNodeFactory(JsonNodeFactory.withExactBigDecimals(true));
+        return mapper;
+    }
 
     /** JsonNode representation  */
     public JsonNode asJsonNode() {
@@ -75,7 +87,7 @@ public class Record {
 
     public FieldAndValue findElementWithName(String columnName) {
         for (FieldAndValue d : content) {
-            if (d.name.toUpperCase().equals(columnName.toUpperCase())) {
+            if (d.name.toLowerCase().equals(columnName.toLowerCase())) {
                 return d;
             }
         }
@@ -85,7 +97,7 @@ public class Record {
     public Integer findElementPositionWithName(String columnName) {
         int position = 1;
         for (FieldAndValue d : content) {
-            if (d.name.toUpperCase().equals(columnName.toUpperCase())) {
+            if (d.name.toLowerCase().equals(columnName.toLowerCase())) {
                 return position;
             }
             position++;
@@ -149,15 +161,15 @@ public class Record {
         return toVisit.stream().flatMap(e -> e.visitRecords(visitor).stream()).collect(toSet());
     }
 
-    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor) throws Exception {
-        visitRecordsInInsertionOrder(connection, visitor, Caffeine.newBuilder().maximumSize(10_000).build());
+    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles) throws Exception {
+        visitRecordsInInsertionOrder(connection, visitor, exceptionWithCycles, Caffeine.newBuilder().maximumSize(10_000).build());
     }
 
     /** visit all Records in insertion order */
-    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, Cache<String, List<Fk>> cache) throws Exception {
-        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName, cache);
+    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws Exception {
+        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName, exceptionWithCycles, cache);
 
-        Map<String, List<Record>> tableToRecords = new HashMap<>();
+        Map<String, List<Record>> tableToRecords = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         visitRecords(r -> {
             if (!tableToRecords.containsKey(r.rowLink.tableName)) {
                 tableToRecords.put(r.rowLink.tableName, new ArrayList<>());
@@ -199,7 +211,7 @@ public class Record {
         public String name;
         public Object value;
         public JdbcHelpers.ColumnMetadata metadata;
-        public Map<String, List<Record>> subRow = new HashMap<>();
+        public Map<String, List<Record>> subRow = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
         public FieldAndValue(String name, JdbcHelpers.ColumnMetadata metadata, Object value) {
             this.name = name.toLowerCase();
@@ -208,7 +220,7 @@ public class Record {
             this.value = convertTypeForValue(metadata, value);
         }
 
-        private ObjectMapper mapper = JdbcHelpers.getObjectMapper();
+        private ObjectMapper mapper = getObjectMapper();
 
         private Object convertTypeForValue(JdbcHelpers.ColumnMetadata metadata, Object value) {
             if ("null".equals(value)) {
@@ -415,9 +427,9 @@ public class Record {
      *   Updates this record and all other records (assumes that it works on the root record)
      */
     public void canonicalizeIds(Connection connection, Cache<String, List<Fk>> fkCache) throws Exception {
-        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName);
+        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName, true);
 
-        Map<String, List<Record>> tableToRecords = new HashMap<>();
+        Map<String, List<Record>> tableToRecords = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         visitRecords(r -> {
             if (!tableToRecords.containsKey(r.rowLink.tableName)) {
                 tableToRecords.put(r.rowLink.tableName, new ArrayList<>());
@@ -436,7 +448,7 @@ public class Record {
 
             List<Fk> fksOfTable = getFksOfTable(connection, records.get(0).rowLink.tableName, fkCache);
 
-            Map<String, List<Fk>> fksByColumnName = fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toUpperCase()));
+            Map<String, List<Fk>> fksByColumnName = fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toLowerCase()));
             List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
 
             // we only need to get the free PKs
