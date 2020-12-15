@@ -11,6 +11,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import static picocli.CommandLine.*;
 import java.util.concurrent.Callable;
+
+/** experiment with jbang
+ *  todo: complete with more flags */
 @Command(name = "QuickExport", mixinStandardHelpOptions = true, version = "QuickExport 0.1",
         description = "exporting a table as json", showDefaultValues = true)
 public class QuickExport implements Callable<Integer> {

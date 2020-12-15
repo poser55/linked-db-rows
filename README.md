@@ -74,7 +74,7 @@ user preferences. There is no FK between the `user_table` and the `preferences` 
 CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is inverted (inverted = true). (2) one needs to get the existing FKs and can then add the new FK. 
 #### Sakila database example
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
-#### Export script
+#### Export script (experimental)
 *jbang QuickExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo
 *Requires installing https://www.jbang.dev/
 *Help about options:  jbang QuickExport.java -h
@@ -94,5 +94,4 @@ Further Ideas:
     - Fix hints marked as todo
     - Support for different schemas
 * Fix bugs:
-    - Upper/ lower case names in JSON
     - Escaping of table and field names

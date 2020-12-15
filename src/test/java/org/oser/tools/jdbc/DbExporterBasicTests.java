@@ -16,6 +16,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class DbExporterBasicTests {
 
@@ -175,13 +177,13 @@ public class DbExporterBasicTests {
 
     @Test
     void testWorkingOnNonExistingTable() {
-        Assertions.assertThrows(IllegalArgumentException.class, ()-> TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
+        assertThrows(IllegalArgumentException.class, ()-> TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 "notExisting", 1, 0));
     }
 
     @Test
     void testWorkingOnNonExistingPrimaryKey() {
-        Assertions.assertThrows(IllegalArgumentException.class, ()->TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
+        assertThrows(IllegalArgumentException.class, ()->TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 "nodes", 99999999L, 0));
     }
 
@@ -196,7 +198,7 @@ public class DbExporterBasicTests {
         DbExporter dbExporter = new DbExporter();
         Record asRecord = dbExporter.contentAsTree(demoConnection, "datatypes", o);
 
-        assertEquals(asRecord.findElementWithName("text_type").value, null);
+        assertNull(asRecord.findElementWithName("text_type").value);
     }
 
 }
