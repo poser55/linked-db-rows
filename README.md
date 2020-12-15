@@ -8,7 +8,7 @@ Usage (2 minute version):
 * Export a row and all the rows that are linked to it as JSON, starting from the row of the `book` 
 table with the primary key of 1.
  ```Java
-String jsonString = new DbExporter().contentAsTree(dbConnection, "book", "1").asJson();
+JsonNode json = new DbExporter().contentAsTree(dbConnection, "book", "1").asJsonNode();
 ```
 
 Example export:
@@ -29,7 +29,7 @@ Example export:
 * Import an exported JSON string again into a database (maybe another one):
 ```Java
   DbImporter dbImporter = new DbImporter();
-  dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book", jsonString));
+  dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book", json));
 ```
 
 Limitations:
@@ -75,16 +75,16 @@ CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is
 #### Sakila database example
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 #### Export script (experimental)
-*jbang QuickExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo
-*Requires installing https://www.jbang.dev/
-*Help about options:  jbang QuickExport.java -h
+ * `jbang QuickExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
+ * Requires installing https://www.jbang.dev/
+ * Help about options:  `jbang QuickExport.java -h`
 
 How to run the tests:
 ---------------------
 It expects a local postgresql database with the name "demo" that is initialized with the *.sql files.
-It also expects a "sakila" database that contains the Salika database tables and content: https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila
+It also expects a "sakila" database that contains the Sakila database tables and content: https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila
 
-Incomplete test support for other databases is available via the ACTIVE_DB environment variable (default postgres). 
+Incomplete test support for other databases is available via the `ACTIVE_DB` environment variable (default postgres). 
 
 Further Ideas:
 --------------

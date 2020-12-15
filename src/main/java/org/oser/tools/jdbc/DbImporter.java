@@ -134,16 +134,17 @@ public class DbImporter {
 
     ////// code partially from csvToDb
 
+    /** Convert jsonString to record */
     public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
         ObjectMapper mapper = Record.getObjectMapper();
 
         JsonNode json = mapper.readTree(jsonString);
 
-        return innerJsonToRecord(connection, rootTable, json);
+        return jsonToRecord(connection, rootTable, json);
     }
 
-
-    Record innerJsonToRecord(Connection connection, String rootTable, JsonNode json) throws SQLException {
+    /** Convert JsonNode to Record */
+    public Record jsonToRecord(Connection connection, String rootTable, JsonNode json) throws SQLException {
         Record record = new Record(rootTable, null);
 
         DatabaseMetaData metadata = connection.getMetaData();
@@ -199,11 +200,11 @@ public class DbImporter {
                         Iterator<JsonNode> elements = subJsonNode.elements();
 
                         while (elements.hasNext()) {
-                            Record subrecord = this.innerJsonToRecord(connection, subTableName, elements.next());
+                            Record subrecord = this.jsonToRecord(connection, subTableName, elements.next());
                             records.add(subrecord);
                         }
                     } else if (subJsonNode.isObject()) {
-                        records.add(this.innerJsonToRecord(connection, subTableName, subJsonNode));
+                        records.add(this.jsonToRecord(connection, subTableName, subJsonNode));
                     }
                 }
 
