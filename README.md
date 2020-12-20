@@ -76,6 +76,7 @@ CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 #### Export script (experimental)
  * `jbang QuickExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
+ * `jbang QuickExport.java -p 3 --stopTablesExcluded="user_table"`
  * Requires installing https://www.jbang.dev/
  * Help about options:  `jbang QuickExport.java -h`
 
