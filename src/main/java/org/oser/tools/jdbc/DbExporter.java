@@ -128,7 +128,7 @@ public class DbExporter {
                         }
                     }
                 } else {
-                    throw new IllegalArgumentException("Entry not found "+tableName+" "+ Arrays.toString(pkValues));
+                    throw new IllegalArgumentException("Entry not found "+tableName+" "+ Arrays.toString(pkValues) + " "+pkSelectionStatement);
                 }
             }
         }
