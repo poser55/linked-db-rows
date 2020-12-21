@@ -7,8 +7,8 @@ import lombok.Getter;
 import lombok.ToString;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.OracleContainer;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,12 +33,28 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class TestHelpers {
     static ObjectMapper mapper = Record.getObjectMapper();
 
+
+    public static OracleContainer oracleContainer = new OracleContainer("oracleinanutshell/oracle-xe-11g");
+
+    static {
+        if (System.getenv("ACTIVE_DB").equals("oracle")){
+            oracleContainer.start();
+        }
+    }
+
+
     static List<DbBaseConfig> DB_CONFIG_LIST =
             List.of(
                     new DbBaseConfig("postgres", "org.postgresql.Driver",
-                            "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
+                            ()-> "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
                     new DbBaseConfig("h2", "org.h2.Driver",
-                            "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false")));
+                            ()-> "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false")),
+
+                    //org.flywaydb.core.internal.license.FlywayEditionUpgradeRequiredException: Flyway Enterprise Edition
+                    // or Oracle upgrade required: Oracle 11.2 is no longer supported by Flyway Community Edition, but
+                    // still supported by Flyway Enterprise Edition.
+                    new DbBaseConfig("oracle", "oracle.jdbc.driver.OracleDriver",
+                            ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true, Map.of("sakila","false")));
 
         // add here also container dbs
 
@@ -71,7 +88,7 @@ public class TestHelpers {
         Class.forName(baseConfig.driverName);
 
         DriverDataSource ds = new DriverDataSource(TestHelpers.class.getClassLoader(),
-                baseConfig.driverName, baseConfig.urlPrefix + dbName, baseConfig.getDefaultUser(), baseConfig.defaultPassword);
+                baseConfig.driverName, baseConfig.getUrlPrefix() + /*todo: rm for oracle */ dbName, baseConfig.getDefaultUser(), baseConfig.defaultPassword);
 
         Connection con = ds.getConnection();
         con.setAutoCommit(true);
@@ -103,7 +120,7 @@ public class TestHelpers {
     @Getter
     @ToString
     static class DbBaseConfig {
-        public DbBaseConfig(String shortname, String driverName, String urlPrefix, String defaultUser, String defaultPassword, boolean initDb, Map<String, String> sysProperties) {
+        public DbBaseConfig(String shortname, String driverName, Supplier<String> urlPrefix, String defaultUser, String defaultPassword, boolean initDb, Map<String, String> sysProperties) {
             this.shortname = shortname;
             this.driverName = driverName;
             this.urlPrefix = urlPrefix;
@@ -118,11 +135,15 @@ public class TestHelpers {
         /**
          * prefix without db name
          */
-        String urlPrefix;
+        Supplier<String> urlPrefix;
         String defaultUser;
         String defaultPassword;
         private boolean initDb;
         private Map<String, String> sysProperties;
+
+        public String getUrlPrefix(){
+            return urlPrefix.get();
+        }
     }
 
 
@@ -189,7 +210,6 @@ public class TestHelpers {
         assertEquals(numberNodes, numberRowsAfter -numberRowsBefore);
     }
 
-    @NotNull
     private static String canonicalize(String asString) {
         return asString.toLowerCase()
                 // remove precision differences
