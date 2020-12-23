@@ -3,6 +3,7 @@ package org.oser.tools.jdbc.spi.pkgenerator;
 import org.oser.tools.jdbc.PkGenerator;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -44,7 +45,8 @@ public class SequencePkGenerator implements PkGenerator {
             throw new IllegalArgumentException("Wrong sequence name format (\\w- characters only):" + sequenceName);
         }
 
-        String nextSequenceValue = "SELECT nextval('"+sequenceName+"');";
+        DatabaseMetaData dm = connection.getMetaData();
+        String nextSequenceValue = dm.getDatabaseProductName().toLowerCase().equals("oracle") ? "select "+sequenceName+".nextval from DUAL" : "SELECT nextval('"+sequenceName+"')";
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(nextSequenceValue)) { // NOSONAR
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {

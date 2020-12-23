@@ -59,7 +59,7 @@ class JdbcHelpersTest {
     }
 
     @Test
-    void getNumberElementsInEachTable() throws SQLException, ClassNotFoundException {
+    void getNumberElementsInEachTable() throws SQLException, ClassNotFoundException, IOException {
         Connection demo1 = TestHelpers.getConnection("demo");
         List<String> allTableNames = JdbcHelpers.getAllTableNames(demo1);
         Map<String, Integer> counts = JdbcHelpers.getNumberElementsInEachTable(demo1);

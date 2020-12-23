@@ -1,4 +1,4 @@
---CREATE schema public;
+-- CREATE schema public;
 
 CREATE TABLE author (
     id integer NOT NULL,
@@ -23,18 +23,52 @@ insert into book (id, author_id, title) values (1, 2, 'Brave new world');
 CREATE TABLE datatypes (
     id           integer     NOT NULL,
     varchar_type varchar(50),
-    text_type    text,
+
+    ${oracle_exclude_start}
+        text_type    text,
+    ${oracle_exclude_end}
+    ${oracle_include_start}
+        text_type    varchar(50),
+    ${oracle_include_end}
+
+
+${oracle_exclude_start}
     boolean_type boolean,
+${oracle_exclude_end}
+${oracle_include_start}
+    boolean_type char(1),
+${oracle_include_end}
+
     timestamp_type timestamp,
     date_type date,
 
     CONSTRAINT datatypes_pkey PRIMARY KEY (id)
 );
 
-insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (1, 'varchar', 'my text', true, '2019-01-01T12:19:11',
+${oracle_include_start}
+ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD';
+ALTER SESSION SET NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD"T"HH:MI:SS';
+
+${oracle_include_end}
+
+insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (1, 'varchar', 'my text',
+                                                                                                     ${oracle_exclude_start}
+                                                                                                        true,
+                                                                                                     ${oracle_exclude_end}
+                                                                                                     ${oracle_include_start}
+                                                                                                         'Y',
+                                                                                                     ${oracle_include_end}
+                                                                                                     '2019-01-01T12:19:11',
                                                                                                      '2020-02-03');
 
-insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (100, null, null, true, '2019-01-01T12:19:11',
+insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (100, null, null,
+                                                                                                     ${oracle_exclude_start}
+                                                                                                        true,
+                                                                                                     ${oracle_exclude_end}
+                                                                                                     ${oracle_include_start}
+                                                                                                         'Y',
+                                                                                                     ${oracle_include_end}
+                                                                                                     '2019-01-01T12:19:11',
                                                                                                      '2020-02-03');
 -- just for tests
 create sequence datatypes_id_seq start with 1050 increment by 50;

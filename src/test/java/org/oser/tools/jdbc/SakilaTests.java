@@ -103,7 +103,7 @@ public class SakilaTests {
     }
 
     @Test
-    void testGetInsertionOrder() throws SQLException, ClassNotFoundException {
+    void testGetInsertionOrder() throws SQLException, ClassNotFoundException, IOException {
         List<String> insertionOrder = JdbcHelpers.determineOrder(TestHelpers.getConnection("sakila"), "actor", false);
         assertNotNull(insertionOrder);
         System.out.println(insertionOrder);

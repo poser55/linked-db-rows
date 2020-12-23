@@ -10,6 +10,7 @@ import org.flywaydb.core.internal.jdbc.DriverDataSource;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.OracleContainer;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -55,7 +56,8 @@ public class TestHelpers {
                     // or Oracle upgrade required: Oracle 11.2 is no longer supported by Flyway Community Edition, but
                     // still supported by Flyway Enterprise Edition.
                     new DbBaseConfig("oracle", "oracle.jdbc.driver.OracleDriver",
-                            ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true, Map.of("sakila","false")));
+                            ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true,
+                            Map.of("sakila","false")).disableAppendDbName());
 
         // add here also container dbs
 
@@ -73,7 +75,7 @@ public class TestHelpers {
     static Set<String> firstTimeForEachDb = new HashSet<>();
 
     /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
-    public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException {
+    public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException, IOException {
         DbBaseConfig baseConfig = Objects.requireNonNullElse(DB_CONFIGS.get(activeDB), DB_CONFIG_LIST.get(0));
 
         boolean initDbNow = false;
@@ -89,7 +91,7 @@ public class TestHelpers {
         Class.forName(baseConfig.driverName);
 
         DriverDataSource ds = new DriverDataSource(TestHelpers.class.getClassLoader(),
-                baseConfig.driverName, baseConfig.getUrlPrefix() + /*todo: rm for oracle */ dbName, baseConfig.getDefaultUser(), baseConfig.defaultPassword);
+                baseConfig.driverName, baseConfig.getUrlPrefix(dbName), baseConfig.getDefaultUser(), baseConfig.defaultPassword);
 
         Connection con = ds.getConnection();
         con.setAutoCommit(true);
@@ -99,18 +101,25 @@ public class TestHelpers {
             Map<String, String> placeholdersMap = new HashMap<>();
             placeholdersMap.put(baseConfig.shortname+"_include_start", "");
             placeholdersMap.put(baseConfig.shortname+"_include_end", "");
+            placeholdersMap.put(baseConfig.shortname+"_exclude_start", "/*");
+            placeholdersMap.put(baseConfig.shortname+"_exclude_end", "*/");
+
             for (DbBaseConfig config : DB_CONFIG_LIST) {
                 if (!config.getShortname().equals(baseConfig.shortname)) {
-                    placeholdersMap.put(baseConfig.shortname+"_exclude_start", "/*");
-                    placeholdersMap.put(baseConfig.shortname+"_exclude_end", "*/");
+                    placeholdersMap.put(config.getShortname()+"_exclude_start", "");
+                    placeholdersMap.put(config.getShortname()+"_exclude_end", "");
+                    placeholdersMap.put(config.getShortname()+"_include_start", "/*");
+                    placeholdersMap.put(config.getShortname()+"_include_end", "*/");
                 }
             }
+            ExecuteDbScriptFiles.executeDbScriptFiles( ".\\src\\test\\resources\\db\\migration\\", con, placeholdersMap);
 
-            Flyway flyway = Flyway.configure().placeholders(placeholdersMap).dataSource(ds).load();
-            flyway.migrate();
+            //initWithFlyway(baseConfig, ds, placeholdersMap);
 
             baseConfig.getSysProperties().forEach(System::setProperty);
         }
+
+
 
         // db console at  http://localhost:8082/
        // Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082", "-webAdminPassword", "admin").start();
@@ -118,9 +127,16 @@ public class TestHelpers {
         return con;
     }
 
+    public static void initWithFlyway(DbBaseConfig baseConfig, DriverDataSource ds, Map<String, String> placeholdersMap) {
+        Flyway flyway = Flyway.configure().placeholders(placeholdersMap).dataSource(ds).load();
+        flyway.migrate();
+    }
+
     @Getter
     @ToString
     static class DbBaseConfig {
+        private boolean appendDbName = true;
+
         public DbBaseConfig(String shortname, String driverName, Supplier<String> urlPrefix, String defaultUser, String defaultPassword, boolean initDb, Map<String, String> sysProperties) {
             this.shortname = shortname;
             this.driverName = driverName;
@@ -142,8 +158,13 @@ public class TestHelpers {
         private boolean initDb;
         private Map<String, String> sysProperties;
 
-        public String getUrlPrefix(){
-            return urlPrefix.get();
+        public String getUrlPrefix(String dbName){
+            return urlPrefix.get() +  (appendDbName ? dbName : "");
+        }
+
+        public DbBaseConfig disableAppendDbName() {
+            appendDbName = false;
+            return this;
         }
     }
 

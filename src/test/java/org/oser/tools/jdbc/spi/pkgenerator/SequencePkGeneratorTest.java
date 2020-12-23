@@ -3,6 +3,7 @@ package org.oser.tools.jdbc.spi.pkgenerator;
 import org.junit.jupiter.api.Test;
 import org.oser.tools.jdbc.TestHelpers;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -14,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SequencePkGeneratorTest {
 
     @Test
-    void basicTest() throws SQLException, ClassNotFoundException {
+    void basicTest() throws SQLException, ClassNotFoundException, IOException {
         Connection connection = TestHelpers.getConnection("demo");
         Object nextValue = new SequencePkGenerator().generatePk(connection, "datatypes" , "", "");
         assertTrue(nextValue instanceof Number);

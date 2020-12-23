@@ -142,7 +142,7 @@ public final class JdbcHelpers {
 
             String questionsMarks = metadataInCurrentTableAndInsert.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
                     .map(JdbcHelpers::questionMarkOrTypeCasting).collect(Collectors.joining(", "));
-            result = "insert into " + tableName + " (" + fieldList + ") values (" + questionsMarks + ");";
+            result = "insert into " + tableName + " (" + fieldList + ") values (" + questionsMarks + ")";
         } else {
             fieldList += " = ? ";
 
@@ -164,12 +164,12 @@ public final class JdbcHelpers {
     public static void assertTableExists(Connection connection, String tableName) throws SQLException {
         DatabaseMetaData dbm = connection.getMetaData();
 
-        ResultSet tables = dbm.getTables(null, null, adaptCaseForDb(tableName, dbm.getDatabaseProductName()), null);
-        if (tables.next()) {
-            return; // Table exists
-        }
-        else {
-            throw new IllegalArgumentException("Table " + tableName + " does not exist");
+        try (ResultSet tables = dbm.getTables(null, null, adaptCaseForDb(tableName, dbm.getDatabaseProductName()), null)) {
+            if (tables.next()) {
+                return; // Table exists
+            } else {
+                throw new IllegalArgumentException("Table " + tableName + " does not exist");
+            }
         }
     }
 
@@ -197,20 +197,20 @@ public final class JdbcHelpers {
     public static SortedMap<String, ColumnMetadata> getColumnMetadata(DatabaseMetaData metadata, String tableName) throws SQLException {
         SortedMap<String, ColumnMetadata> result = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
-        ResultSet rs = metadata.getColumns(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()), null);
+        try (ResultSet rs = metadata.getColumns(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()), null)) {
 
-        while (rs.next()) {
-            String column_name = rs.getString("COLUMN_NAME").toLowerCase();
-            result.put(column_name,
-                    new ColumnMetadata(column_name,
-                            rs.getString("TYPE_NAME"),
-                            rs.getInt("DATA_TYPE"),
-                            rs.getInt("SOURCE_DATA_TYPE"),
-                            rs.getString("COLUMN_SIZE"),
-                            rs.getString("COLUMN_DEF"),
-                            rs.getInt("ORDINAL_POSITION")));
+            while (rs.next()) {
+                String column_name = rs.getString("COLUMN_NAME").toLowerCase();
+                result.put(column_name,
+                        new ColumnMetadata(column_name,
+                                rs.getString("TYPE_NAME"),
+                                rs.getInt("DATA_TYPE"),
+                                rs.getInt("SOURCE_DATA_TYPE"),
+                                rs.getString("COLUMN_SIZE"),
+                                rs.getString("COLUMN_DEF"),
+                                rs.getInt("ORDINAL_POSITION")));
 
-            // todo rm again
+                // todo rm again
 //            ResultSetMetaData rsMetaData = rs.getMetaData();
 //            for (int i = 1; i<= rsMetaData.getColumnCount() ; i++){
 //                System.out.println(rsMetaData.getColumnName(i)+" "+rs.getObject(i));
@@ -219,10 +219,11 @@ public final class JdbcHelpers {
 //                }
 //            }
 //            System.out.println();
+            }
+
+
+            return result;
         }
-
-
-        return result;
     }
 
     /** @see #getPrimaryKeys(DatabaseMetaData, String) with optional caching */
@@ -239,11 +240,12 @@ public final class JdbcHelpers {
     public static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName) throws SQLException {
         List<String> result = new ArrayList<>();
 
-        ResultSet rs = metadata.getPrimaryKeys(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()));
-        while (rs.next()) {
-            result.add(rs.getString("COLUMN_NAME"));
+        try (ResultSet rs = metadata.getPrimaryKeys(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()))) {
+            while (rs.next()) {
+                result.add(rs.getString("COLUMN_NAME"));
+            }
+            return result;
         }
-        return result;
     }
 
 
@@ -406,10 +408,11 @@ public final class JdbcHelpers {
 
         for (String tableName : getAllTableNames(connection)) {
             Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("select count(*) from \""+tableName+"\"");
+            try (ResultSet resultSet = statement.executeQuery("select count(*) from \"" + tableName + "\"")) {
 
-            while (resultSet.next()) {
-                result.put(tableName, resultSet.getInt(1));
+                while (resultSet.next()) {
+                    result.put(tableName, resultSet.getInt(1));
+                }
             }
         }
 
@@ -420,9 +423,10 @@ public final class JdbcHelpers {
         List<String> tableNames = new ArrayList<>();
 
         DatabaseMetaData md = connection.getMetaData();
-        ResultSet rs = md.getTables(null, null, "%", new String[]{"TABLE"});
-        while (rs.next()) {
-            tableNames.add(rs.getString("TABLE_NAME"));
+        try (ResultSet rs = md.getTables(connection.getCatalog(), connection.getSchema(), "%", new String[]{"TABLE"})) {
+            while (rs.next()) {
+                tableNames.add(rs.getString("TABLE_NAME"));
+            }
         }
         return tableNames;
     }

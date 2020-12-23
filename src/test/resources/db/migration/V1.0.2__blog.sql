@@ -2,14 +2,14 @@ create table user_table (
     id integer not null,
     username varchar(128) not null,
     email varchar(128) not null,
-    profile text null,
+    profile varchar(1000) null,
     primary key (id)
 );
 create table blogpost (
     id integer not null,
     title varchar(128) not null,
-    content text not null,
-    tags text null,
+    content varchar(500) not null,
+    tags varchar(128) null,
     status int not null,
     create_time int null,
     update_time int null,
@@ -17,11 +17,11 @@ create table blogpost (
     primary key (id),
     constraint FK_post_user
         foreign key (user_id)
-            references user_table (id) on delete cascade on update restrict
+            references user_table (id) -- on delete cascade on update restrict
 );
-create table comment (
+create table ccomment (
    id integer not null,
-   content text not null,
+   content varchar(500) not null,
    status int not null,
    create_time int null,
    author varchar(128) not null,
@@ -31,12 +31,12 @@ create table comment (
    primary key (id),
    constraint FK_comment_post
        foreign key (post_id)
-           references blogpost (id) on delete cascade on update restrict
+           references blogpost (id) -- on delete cascade on update restrict
 );
 create table tag_table (
      id integer not null,
      name varchar(128) not null,
-     frequency int null default 1,
+     frequency integer default 1,
      primary key (id)
 );
 
@@ -44,7 +44,7 @@ create table tag_table (
 create table preferences (
     id integer not null,
     locale varchar(2),
-    user_id int not null,
+    user_id integer not null,
     primary key (id)
 );
 
@@ -111,7 +111,7 @@ values (
            2,
            'test'
        );
-insert into comment (
+insert into ccomment (
     id,
     content,
     status,
