@@ -326,8 +326,10 @@ public class Record {
                     if (value instanceof Timestamp) {
                         // oracle seem to return timestamp for "DATE"
                         return value != null ? ("\"" + DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(((Timestamp) value).toLocalDateTime()) + "\"") : null;
+                    } else if (value instanceof String) {
+                        return (String) value;
                     } else {
-                        return value != null ? ("\"" + ((Date) value).toLocalDate() + "\"") : null;
+                            return value != null ? ("\"" + ((Date) value).toLocalDate() + "\"") : null;
                     }
                 case "VARCHAR":
                 case "_TEXT":

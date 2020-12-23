@@ -112,7 +112,7 @@ public class TestHelpers {
                     placeholdersMap.put(config.getShortname()+"_include_end", "*/");
                 }
             }
-            ExecuteDbScriptFiles.executeDbScriptFiles( ".\\src\\test\\resources\\db\\migration\\", con, placeholdersMap);
+            ExecuteDbScriptFiles.executeDbScriptFiles( "./src/test/resources/db/migration/", con, placeholdersMap);
 
             //initWithFlyway(baseConfig, ds, placeholdersMap);
 
