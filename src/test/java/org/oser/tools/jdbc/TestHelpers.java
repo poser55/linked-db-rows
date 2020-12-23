@@ -37,7 +37,8 @@ public class TestHelpers {
     public static OracleContainer oracleContainer = new OracleContainer("oracleinanutshell/oracle-xe-11g");
 
     static {
-        if (System.getenv("ACTIVE_DB").equals("oracle")){
+        String active_db = Objects.toString(System.getenv("ACTIVE_DB"), "postgres");
+        if (active_db.equals("oracle")){
             oracleContainer.start();
         }
     }

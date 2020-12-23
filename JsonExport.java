@@ -18,9 +18,9 @@ import java.util.List;
 import java.util.concurrent.Callable;
 
 /** experiment with jbang */
-@Command(name = "QuickExport", mixinStandardHelpOptions = true, version = "QuickExport 0.1",
-        description = "Exports a table and its linked tables as json (at the moment only with postgres)", showDefaultValues = true)
-public class QuickExport implements Callable<Integer> {
+@Command(name = "JsonExport", mixinStandardHelpOptions = true, version = "JsonExport 0.2",
+        description = "Exports a table and its linked tables as JSON (at the moment only with postgres)", showDefaultValues = true)
+public class JsonExport implements Callable<Integer> {
 
 	@Option(names = {"-u","--url"}, description = "jdbc connection-url")
     private String url = "jdbc:postgresql://localhost/demo";
