@@ -36,7 +36,7 @@ Example export:
 
 Limitations:
 ------------
-* Only tested on Postgresql for now, starts to work with h2
+* Most tested on Postgresql for now, starts to work with h2 and oracle
 * Test coverage needs improving
 * It solves a problem I have - quite hacky in many ways
 * Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and ignoreFkCycles)
@@ -105,3 +105,6 @@ Further Ideas:
     - Support for different schemas
 * Fix bugs:
     - Escaping of table and field names
+* Extension ideas
+    - Do more unification of Datatype handling. E.g. oracle treats DATE differently than Postgres (so at the moment
+    we need to adapt it in the JSON/ Record). Refer e.g. to DbExporterBasicTests#datatypesTest(). 

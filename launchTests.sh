@@ -4,7 +4,7 @@
 # exit if an error occurs
 set -e
 
-for databaseName in h2 postgres; do
+for databaseName in h2 postgres oracle; do
   echo -e "\n\n\n Running tests for ${databaseName}\n"
   ACTIVE_DB=${databaseName} mvn clean install
 done

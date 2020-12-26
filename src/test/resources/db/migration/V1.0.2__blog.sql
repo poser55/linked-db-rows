@@ -40,15 +40,13 @@ create table tag_table (
      primary key (id)
 );
 
--- table that lacks a FK to user (we add it during exporting)
+-- table that lacks a FK to user (we virtually add it during exporting)
 create table preferences (
     id integer not null,
     locale varchar(2),
     user_id integer not null,
     primary key (id)
 );
-
-
 
 
 insert into user_table (

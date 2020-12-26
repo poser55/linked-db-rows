@@ -76,7 +76,7 @@ public class TestHelpers {
 
     /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException, IOException {
-        DbBaseConfig baseConfig = Objects.requireNonNullElse(DB_CONFIGS.get(activeDB), DB_CONFIG_LIST.get(0));
+        DbBaseConfig baseConfig = getDbBaseConfig();
 
         boolean initDbNow = false;
 
@@ -125,6 +125,10 @@ public class TestHelpers {
        // Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082", "-webAdminPassword", "admin").start();
 
         return con;
+    }
+
+    public static DbBaseConfig getDbBaseConfig() {
+        return Objects.requireNonNullElse(DB_CONFIGS.get(activeDB), DB_CONFIG_LIST.get(0));
     }
 
     public static void initWithFlyway(DbBaseConfig baseConfig, DriverDataSource ds, Map<String, String> placeholdersMap) {

@@ -2,7 +2,6 @@ package org.oser.tools.jdbc;
 
 import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +27,22 @@ public class DbExporterBasicTests {
 
     @Test
     void datatypesTest() throws Exception {
-        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"), "datatypes", 1, 1);
+        TestHelpers.DbBaseConfig databaseConfig = TestHelpers.getDbBaseConfig();
+
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
+                        dbExporter -> {},
+                        dbImporter -> {},
+                        record -> {
+                            if (databaseConfig.getShortname().equals("oracle")) {
+                                // for oracle a "DATE" type has also a time, we remove it here again
+                                String dateWithTime = (String) record.findElementWithName("date_type").value;
+                                int tPosition = dateWithTime.indexOf("T");
+                                record.findElementWithName("date_type").value = dateWithTime.substring(0, tPosition);
+                            }
+                        },
+                        new HashMap<>(),
+                        "datatypes", 1, 1);
+
         assertEquals(6, basicChecksResult.getAsRecordAgain().content.size());
         assertEquals(6, basicChecksResult.getAsRecord().content.size());
     }
@@ -190,8 +204,22 @@ public class DbExporterBasicTests {
     @Test
     // https://github.com/poser55/linked-db-rows/issues/2
     void testNullHandlingVarcharVsText() throws Exception {
+        TestHelpers.DbBaseConfig databaseConfig = TestHelpers.getDbBaseConfig();
+
         Connection demoConnection = TestHelpers.getConnection("demo");
-        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demoConnection, "datatypes", 100, 1);
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demoConnection,
+                dbExporter -> {},
+                dbImporter -> {},
+                record -> {
+                    if (databaseConfig.getShortname().equals("oracle")) {
+                        // for oracle a "DATE" type has also a time, we remove it here again
+                        String dateWithTime = (String) record.findElementWithName("date_type").value;
+                        int tPosition = dateWithTime.indexOf("T");
+                        record.findElementWithName("date_type").value = dateWithTime.substring(0, tPosition);
+                    }
+                },
+                new HashMap<>(),
+                "datatypes", 100, 1);
 
         Long o = (Long) basicChecksResult.getRowLinkObjectMap().values().stream().findFirst().get();
 
