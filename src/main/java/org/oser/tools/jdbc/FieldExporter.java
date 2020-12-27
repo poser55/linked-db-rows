@@ -12,7 +12,5 @@ public interface FieldExporter {
 	Record.FieldAndValue exportField(String name, JdbcHelpers.ColumnMetadata metadata, Object value, ResultSet rs)  throws SQLException;
 
 	/** Ignores a field in the export */
-	FieldExporter NOP_FIELDEXPORTER = (name, metadata, value, rs) -> {
-		return null;
-	};
+	FieldExporter NOP_FIELDEXPORTER = (name, metadata, value, rs) -> null;
 }

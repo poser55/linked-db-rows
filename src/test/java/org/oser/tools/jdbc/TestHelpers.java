@@ -10,6 +10,7 @@ import lombok.ToString;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.MSSQLServerContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.OracleContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -41,6 +42,8 @@ public class TestHelpers {
 
     public static OracleContainer oracleContainer = new OracleContainer("oracleinanutshell/oracle-xe-11g");
     public static MySQLContainer mysql = new MySQLContainer( DockerImageName.parse("mysql:5.7.22"));
+    public static MSSQLServerContainer mssqlserver = new MSSQLServerContainer()
+            .acceptLicense();
 
     static {
         String active_db = Objects.toString(System.getenv("ACTIVE_DB"), "postgres");
@@ -49,6 +52,9 @@ public class TestHelpers {
         }
         if (active_db.equals("mysql")){
             mysql.start();
+        }
+        if (active_db.equals("sqlserver")){
+            mssqlserver.start();
         }
     }
 
@@ -65,6 +71,9 @@ public class TestHelpers {
                             Map.of("sakila","false")).disableAppendDbName(),
                     new DbConfig("mysql", mysql.getDriverClassName(),
                             ()-> mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword(), true,
+                            Map.of("sakila","false", "sequences", "false")).disableAppendDbName(),
+                    new DbConfig("sqlserver", mssqlserver.getDriverClassName(),
+                            ()-> mssqlserver.getJdbcUrl(), mssqlserver.getUsername(), mssqlserver.getPassword(), true,
                             Map.of("sakila","false", "sequences", "false")).disableAppendDbName());
 
 

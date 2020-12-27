@@ -72,7 +72,8 @@ public class ExecuteDbScriptFiles {
     }
 
     public static String removeSqlComments(String sql) {
-        return Arrays.stream(sql.split("\n")).map(line -> ((line.indexOf("--") != -1) ? line.substring(0, line.indexOf("--")) : line)).collect(joining("\n"));
+        return Arrays.stream(sql.split("\n")).
+                map(line -> (line.contains("--") ? line.substring(0, line.indexOf("--")) : line)).collect(joining("\n"));
     }
 
 

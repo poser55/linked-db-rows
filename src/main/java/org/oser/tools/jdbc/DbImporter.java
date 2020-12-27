@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -59,7 +58,7 @@ public class DbImporter {
     private final Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
-    /** with cycles in the FKs we would throw an exceptions - we can try inserting what we can anyway */
+    /** with cycles in the FKs we would throw an exception - we can try inserting what we can anyway */
     private boolean ignoreFkCycles = false;
 
     public DbImporter() {
@@ -73,25 +72,6 @@ public class DbImporter {
         return StreamSupport
                 .stream(iterable.spliterator(), false).filter(e -> !e.getValue().isValueNode())
                 .collect(Collectors.toList());
-    }
-
-
-    /** Does the row of the table tableName and primary key pkName and the record record exist? */
-    // todo: remove dependency on record, mv to JdbHelpers
-    @Deprecated
-    public static boolean doesPkTableExist(Connection connection, String tableName, String pkName, Record record) throws SQLException {
-        String selectPk = "SELECT " + pkName + " from " + tableName + " where  " + pkName + " = ?";
-
-        boolean isInsert;
-        try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            Record.FieldAndValue elementWithName = record.findElementWithName(pkName);
-            JdbcHelpers.innerSetStatementField(pkSelectionStatement, elementWithName.metadata.type, 1, elementWithName.value.toString(), null);
-
-            try (ResultSet rs = pkSelectionStatement.executeQuery()) {
-                isInsert = !rs.next();
-            }
-        }
-        return isInsert;
     }
 
 

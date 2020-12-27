@@ -33,13 +33,24 @@ CREATE TABLE datatypes (
 
 
 ${oracle_exclude_start}
+${sqlserver_exclude_start}
     boolean_type boolean,
+${sqlserver_exclude_end}
 ${oracle_exclude_end}
+
 ${oracle_include_start}
     boolean_type char(1),
 ${oracle_include_end}
+${sqlserver_include_start}
+    boolean_type char(1),
+${sqlserver_include_end}
 
+${sqlserver_exclude_start}
     timestamp_type timestamp,
+${sqlserver_exclude_end}
+${sqlserver_include_start}
+    timestamp_type datetime,
+${sqlserver_include_end}
     date_type date,
 
     CONSTRAINT datatypes_pkey PRIMARY KEY (id)
@@ -53,21 +64,31 @@ ${oracle_include_end}
 
 insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (1, 'varchar', 'my text',
                                                                                                      ${oracle_exclude_start}
+                                                                                                     ${sqlserver_exclude_start}
                                                                                                         true,
+                                                                                                     ${sqlserver_exclude_end}
                                                                                                      ${oracle_exclude_end}
                                                                                                      ${oracle_include_start}
                                                                                                          'Y',
                                                                                                      ${oracle_include_end}
+                                                                                                     ${sqlserver_include_start}
+                                                                                                         'Y',
+                                                                                                     ${sqlserver_include_end}
                                                                                                      '2019-01-01T12:19:11',
                                                                                                      '2020-02-03');
 
 insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (100, null, null,
                                                                                                      ${oracle_exclude_start}
+                                                                                                     ${sqlserver_exclude_start}
                                                                                                         true,
+                                                                                                     ${sqlserver_exclude_end}
                                                                                                      ${oracle_exclude_end}
                                                                                                      ${oracle_include_start}
                                                                                                          'Y',
                                                                                                      ${oracle_include_end}
+                                                                                                     ${sqlserver_include_start}
+                                                                                                         'Y',
+                                                                                                     ${sqlserver_include_end}
                                                                                                      '2019-01-01T12:19:11',
                                                                                                      '2020-02-03');
 -- just for tests

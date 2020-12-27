@@ -36,8 +36,8 @@ Example export:
 
 Limitations:
 ------------
-* Most tested on Postgresql for now, starts to work with h2 and oracle
-* Test coverage needs improving
+* Most tested on Postgresql for now, starts to work with h2, sqlserver and oracle
+* Test coverage can be improved
 * It solves a problem I have - quite hacky in many ways
 * Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and ignoreFkCycles)
 * Arrays (as e.g. Postgresql supports them) and other advanced constructs are currently not supported
@@ -84,27 +84,31 @@ CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 
 #### Export script (experimental)
- * `jbang JsonExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
- * `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"`
+ * Exports a db row and all linked rows as JSON (at the moment only supports postgresql)
  * Requires installing https://www.jbang.dev/
+ * Examples:
+ *  `jbang JsonExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
+ *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"`
  * Help about options:  `jbang JsonExport.java -h`
 
 How to run the tests:
 ---------------------
 It expects a local postgresql database with the name "demo" that is initialized with the *.sql files.
 It also expects a "sakila" database that contains the Sakila database tables and content: https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila
+Test support for alternative databases is available via the `ACTIVE_DB` environment variable (default: postgres). 
 
-Incomplete test support for other databases is available via the `ACTIVE_DB` environment variable (default: postgres). 
+The script `./launchTests.sh` launches tests for all the db systems where the tests run through (db systems other than Postgresql
+are launched automatically).  
 
 Further Ideas:
 --------------
 * Clean ups
-    - Combine the metadata code lines in readOneRecord and similar methods
     - Reduce the limitations
     - Fix hints marked as todo
     - Support for different schemas
+    - Handle uppercase letters of table names in mysql queries correctly for importing
 * Fix bugs:
     - Escaping of table and field names
 * Extension ideas
-    - Do more unification of Datatype handling. E.g. oracle treats DATE differently than Postgres (so at the moment
+    - Do more unification of Datatype handling. E.g. oracle treats DATE different from Postgres (so at the moment
     we need to adapt it in the JSON/ Record). Refer e.g. to DbExporterBasicTests#datatypesTest(). 

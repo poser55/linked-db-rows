@@ -176,14 +176,16 @@ public final class JdbcHelpers {
     }
 
     static String adaptCaseForDb(String originalName, String dbProductName) {
-        if (dbProductName.equals("PostgreSQL")) {
-            return originalName.toLowerCase();
-        } else if (dbProductName.equals("H2")) {
-            return originalName.toUpperCase();
-        } else if (dbProductName.equals("MySQL")) {
-            return originalName;
+        switch (dbProductName) {
+            case "PostgreSQL":
+                return originalName.toLowerCase();
+            case "H2":
+                return originalName.toUpperCase();
+            case "MySQL":
+                return originalName;
+            default:
+                return originalName.toUpperCase();
         }
-        return originalName.toUpperCase();
     }
 
     public static SortedMap<String, ColumnMetadata> getColumnMetadata(DatabaseMetaData metadata, String tableName, Cache<String, SortedMap<String, ColumnMetadata>> cache) throws SQLException {
