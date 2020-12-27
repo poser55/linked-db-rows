@@ -52,11 +52,13 @@ public class Fk {
 
         String adaptedTableName = adaptCaseForDb(table, dm.getDatabaseProductName());
 
-        ResultSet rs = dm.getExportedKeys(null, null, adaptedTableName);
-        addFks(fks, rs, false);
+        try (ResultSet rs = dm.getExportedKeys(null, null, adaptedTableName)) {
+            addFks(fks, rs, false);
+        }
 
-        rs = dm.getImportedKeys(null, null, adaptedTableName);
-        addFks(fks, rs, true);
+        try (ResultSet rs = dm.getImportedKeys(null, null, adaptedTableName)) {
+            addFks(fks, rs, true);
+        }
 
         fks.sort(Comparator.comparing(Fk::getFktable).thenComparing(Fk::getFkcolumn));
 
@@ -65,8 +67,8 @@ public class Fk {
 
     private static void addFks(List<Fk> fks, ResultSet rs, boolean inverted) throws SQLException {
         while (rs.next()) {
-            Fk fk = new Fk(rs.getString("pktable_name"), rs.getString("pkcolumn_name"),
-                    rs.getString("fktable_name"), rs.getString("fkcolumn_name"), inverted);
+            Fk fk = new Fk(getStringFromResultSet(rs,"pktable_name"), getStringFromResultSet(rs,"pkcolumn_name"),
+                    getStringFromResultSet(rs,"fktable_name"), getStringFromResultSet(rs,"fkcolumn_name"), inverted);
 
 //            ResultSetMetaData rsMetaData = rs.getMetaData();
 //            for (int i = 1; i<= rsMetaData.getColumnCount() ; i++){
@@ -76,6 +78,18 @@ public class Fk {
 
             fks.add(fk);
         }
+    }
+
+    private static String getStringFromResultSet(ResultSet rs, String columnName) throws SQLException {
+        return removeOptionalQuotes(rs.getString(columnName));
+    }
+
+    // to remove " that mysql puts
+    static String removeOptionalQuotes(String string) {
+        if (string != null && string.startsWith("\"") && string.endsWith("\"")){
+            string = string.substring(1, string.length() - 1);
+        }
+        return string;
     }
 
     @Override
@@ -109,5 +123,37 @@ public class Fk {
         result = 31 * result + (pktable != null ? pktable.hashCode() : 0);
         result = 31 * result + (fkcolumn != null ? fkcolumn.hashCode() : 0);
         return result;
+    }
+
+    /**
+     * mysql does not return the indirekt FKs with {@link DatabaseMetaData#getExportedKeys(String, String, String)}
+     *  (it only shows the direct links via {@link DatabaseMetaData#getImportedKeys(String, String, String)})
+     *  - so we fake it here and add these indirect keys to the cache
+     * (goes through all database tables for this)
+     */
+    public static void initFkCacheForMysql(Cache<String, List<Fk>> fkCache, Connection connection) throws SQLException {
+        if (!connection.getMetaData().getDatabaseProductName().equals("MySQL")) {
+            return;
+        }
+
+        List<String> allTableNames = JdbcHelpers.getAllTableNames(connection);
+        for (String tableName : allTableNames) {
+            List<Fk> fksOfTable = Fk.getFksOfTable(connection, tableName, fkCache);
+            for (Fk fk : fksOfTable) {
+                List<Fk> current = fkCache.getIfPresent(fk.pktable);
+                current = (current == null) ? new CopyOnWriteArrayList<>() : current;
+                current.add(new Fk(fk.pktable, fk.pkcolumn, fk.fktable, fk.fkcolumn, false));
+                fkCache.put(fk.pktable, current);
+            }
+        }
+    }
+
+    /** Like  {@link #initFkCacheForMysql(Cache, Connection)} but logs exceptions to stdout */
+    public static void initFkCacheForMysql_LogException(Connection demo, Cache<String, List<Fk>> fkCache) {
+        try {
+            Fk.initFkCacheForMysql(fkCache, demo);
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
     }
 }

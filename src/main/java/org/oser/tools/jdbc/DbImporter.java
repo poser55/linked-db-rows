@@ -187,7 +187,15 @@ public class DbImporter {
 
             Record.FieldAndValue elementWithName = record.findElementWithName((fk.inverted ? fk.fkcolumn : fk.pkcolumn));
             if (elementWithName != null) {
-                String subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
+                String databaseProductName = metadata.getDatabaseProductName();
+
+                String subTableName;
+                if (databaseProductName.equals("MySQL")) {
+                    subTableName = fk.inverted ? fk.pktable : fk.fktable;
+                } else {
+                    subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
+                }
+
                 JsonNode subJsonNode = json.get(elementWithName.name.toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
                 ArrayList<Record> records = new ArrayList<>();
 

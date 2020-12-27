@@ -71,5 +71,12 @@ insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type
                                                                                                      '2019-01-01T12:19:11',
                                                                                                      '2020-02-03');
 -- just for tests
+${mysql_exclude_start}
 create sequence datatypes_id_seq start with 1050 increment by 50;
 create sequence strange_id_seq start with 1050 increment by 50;
+${mysql_exclude_end}
+
+${mysql_include_start}
+-- is unfortunately not globally active (so needs to be set on each connection again)
+SET SQL_MODE=ANSI_QUOTES;
+${mysql_include_end}

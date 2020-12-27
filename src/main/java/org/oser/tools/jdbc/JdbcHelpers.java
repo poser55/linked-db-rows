@@ -153,7 +153,9 @@ public final class JdbcHelpers {
     }
 
     private static String questionMarkOrTypeCasting(ColumnMetadata e) {
-        if (e != null && e.columnDef != null && e.columnDef.endsWith(e.type)){
+        if (e != null && e.columnDef != null && e.columnDef.endsWith(e.type) &&
+                // mysql puts CURRENT_TIMESTAMP as the columnDef of Timestamp, this leads to an automatically set fields
+                !e.columnDef.equals("CURRENT_TIMESTAMP")){
             // to handle inserts e.g. for enums correctly
             return e.columnDef.replace("'G'", "?");
         }
@@ -175,9 +177,11 @@ public final class JdbcHelpers {
 
     static String adaptCaseForDb(String originalName, String dbProductName) {
         if (dbProductName.equals("PostgreSQL")) {
-            return originalName;
+            return originalName.toLowerCase();
         } else if (dbProductName.equals("H2")) {
             return originalName.toUpperCase();
+        } else if (dbProductName.equals("MySQL")) {
+            return originalName;
         }
         return originalName.toUpperCase();
     }

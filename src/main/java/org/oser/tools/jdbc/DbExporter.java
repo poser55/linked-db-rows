@@ -14,7 +14,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -242,8 +241,16 @@ public class DbExporter {
 
             Record.FieldAndValue elementWithName = data.findElementWithName(fk.inverted ? fk.fkcolumn : fk.pkcolumn);
             if ((elementWithName != null) && (elementWithName.value != null)) {
-                String subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
-                String subFkName = (fk.inverted ? fk.pkcolumn : fk.fkcolumn).toLowerCase();
+                String databaseProductName = context.metaData.getDatabaseProductName();
+
+                String subTableName;
+                if (databaseProductName.equals("MySQL")) {
+                    subTableName = fk.inverted ? fk.pktable : fk.fktable;
+                } else {
+                    subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
+                }
+
+                String subFkName =    (fk.inverted ? fk.pkcolumn : fk.fkcolumn).toLowerCase();
 
                 List<Record> subRow = this.readLinkedRecords(connection, subTableName,
                         subFkName, new Object[] {elementWithName.value }, context); // todo: fix can there be multiple fields in a fk?

@@ -49,13 +49,13 @@ class JdbcHelpersTest {
     @Test
     void doesPkTableExist() throws SQLException, IOException, ClassNotFoundException {
         Connection demo = TestHelpers.getConnection("demo");
-        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = JdbcHelpers.getColumnMetadata(demo.getMetaData(), "edge");
-        assertTrue(JdbcHelpers.doesPkTableExist(demo, "edge", Arrays.asList("begin_id", "end_id"), Arrays.asList(1, 2), columnMetadata));
-        assertFalse(JdbcHelpers.doesPkTableExist(demo, "edge", Arrays.asList("begin_id", "end_id"), Arrays.asList(1, 9), columnMetadata));
+        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = JdbcHelpers.getColumnMetadata(demo.getMetaData(), "Edge");
+        assertTrue(JdbcHelpers.doesPkTableExist(demo, "Edge", Arrays.asList("begin_id", "end_id"), Arrays.asList(1, 2), columnMetadata));
+        assertFalse(JdbcHelpers.doesPkTableExist(demo, "Edge", Arrays.asList("begin_id", "end_id"), Arrays.asList(1, 9), columnMetadata));
 
-        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata2 = JdbcHelpers.getColumnMetadata(demo.getMetaData(), "nodes");
-        assertTrue(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(5), columnMetadata2));
-        assertFalse(JdbcHelpers.doesPkTableExist(demo, "nodes", Arrays.asList("node_id"), Arrays.asList(99999999L), columnMetadata2));
+        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata2 = JdbcHelpers.getColumnMetadata(demo.getMetaData(), "Nodes");
+        assertTrue(JdbcHelpers.doesPkTableExist(demo, "Nodes", Arrays.asList("node_id"), Arrays.asList(5), columnMetadata2));
+        assertFalse(JdbcHelpers.doesPkTableExist(demo, "Nodes", Arrays.asList("node_id"), Arrays.asList(99999999L), columnMetadata2));
     }
 
     @Test

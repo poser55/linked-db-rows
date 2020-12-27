@@ -27,7 +27,7 @@ public class DbExporterBasicTests {
 
     @Test
     void datatypesTest() throws Exception {
-        TestHelpers.DbBaseConfig databaseConfig = TestHelpers.getDbBaseConfig();
+        TestHelpers.DbConfig databaseConfig = TestHelpers.getDbConfig();
 
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                         dbExporter -> {},
@@ -51,6 +51,12 @@ public class DbExporterBasicTests {
     void blog() throws Exception {
         Connection demo = TestHelpers.getConnection("demo");
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
+                dbExporter -> {
+                    Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
+                },
+                dbImporter -> {
+                    Fk.initFkCacheForMysql_LogException(demo, dbImporter.getFkCache());
+                },
                 "blogpost", 2, 3);
 
         // now duplicate this blog post entry to user_table/1 (it is now linked to user_table/2)
@@ -70,6 +76,7 @@ public class DbExporterBasicTests {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
                 dbExporter -> {
                     try {
+                        Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
                         List<Fk> fks = Fk.getFksOfTable(demo, "user_table", dbExporter.getFkCache());
                         // add artificial FK
                         fks.add(new Fk("user_table", "id", "preferences", "user_id", false));
@@ -79,6 +86,7 @@ public class DbExporterBasicTests {
                     }
                 }, dbImporter -> {
                     try {
+                        Fk.initFkCacheForMysql_LogException(demo, dbImporter.getFkCache());
                         List<Fk> fksUserTable = Fk.getFksOfTable(demo, "user_table", dbImporter.getFkCache());
                         // add artificial FK
                         fksUserTable.add(new Fk("user_table", "id", "preferences", "user_id", false));
@@ -120,8 +128,15 @@ public class DbExporterBasicTests {
     @Test
     void testGraph() throws Exception {
         TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.DEBUG);
-        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                "nodes", 1, 10);
+        Connection demo = TestHelpers.getConnection("demo");
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
+                dbExporter -> {
+                    Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
+                },
+                dbImporter -> {
+                    Fk.initFkCacheForMysql_LogException(demo, dbImporter.getFkCache());
+                },
+                "Nodes", 1, 10);
         TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.INFO);
     }
 
@@ -204,7 +219,7 @@ public class DbExporterBasicTests {
     @Test
     // https://github.com/poser55/linked-db-rows/issues/2
     void testNullHandlingVarcharVsText() throws Exception {
-        TestHelpers.DbBaseConfig databaseConfig = TestHelpers.getDbBaseConfig();
+        TestHelpers.DbConfig databaseConfig = TestHelpers.getDbConfig();
 
         Connection demoConnection = TestHelpers.getConnection("demo");
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demoConnection,

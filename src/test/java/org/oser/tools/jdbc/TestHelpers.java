@@ -3,12 +3,16 @@ package org.oser.tools.jdbc;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
 import lombok.ToString;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.OracleContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -36,47 +40,64 @@ public class TestHelpers {
 
 
     public static OracleContainer oracleContainer = new OracleContainer("oracleinanutshell/oracle-xe-11g");
+    public static MySQLContainer mysql = new MySQLContainer( DockerImageName.parse("mysql:5.7.22"));
 
     static {
         String active_db = Objects.toString(System.getenv("ACTIVE_DB"), "postgres");
         if (active_db.equals("oracle")){
             oracleContainer.start();
         }
+        if (active_db.equals("mysql")){
+            mysql.start();
+        }
     }
 
 
-    static List<DbBaseConfig> DB_CONFIG_LIST =
+    static List<DbConfig> DB_CONFIG_LIST =
             List.of(
-                    new DbBaseConfig("postgres", "org.postgresql.Driver",
+                    new DbConfig("postgres", "org.postgresql.Driver",
                             ()-> "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
-                    new DbBaseConfig("h2", "org.h2.Driver",
+                    new DbConfig("h2", "org.h2.Driver",
                             ()-> "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false")),
 
-                    //org.flywaydb.core.internal.license.FlywayEditionUpgradeRequiredException: Flyway Enterprise Edition
-                    // or Oracle upgrade required: Oracle 11.2 is no longer supported by Flyway Community Edition, but
-                    // still supported by Flyway Enterprise Edition.
-                    new DbBaseConfig("oracle", "oracle.jdbc.driver.OracleDriver",
+                    new DbConfig("oracle", "oracle.jdbc.driver.OracleDriver",
                             ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true,
-                            Map.of("sakila","false")).disableAppendDbName());
+                            Map.of("sakila","false")).disableAppendDbName(),
+                    new DbConfig("mysql", mysql.getDriverClassName(),
+                            ()-> mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword(), true,
+                            Map.of("sakila","false", "sequences", "false")).disableAppendDbName());
 
-        // add here also container dbs
 
 //    DriverDataSource ds = new DriverDataSource(TestContainerTest.class.getClassLoader(),
 //            "", "jdbc:tc:postgresql:12.3:///" + dbName + "?TC_DAEMON=true", "postgres", "admin");
 
 
-
-
-    static Map<String, DbBaseConfig> DB_CONFIGS =
-            DB_CONFIG_LIST.stream().collect(Collectors.toMap(DbBaseConfig::getShortname, Function.identity()));
+    static Map<String, DbConfig> DB_CONFIGS =
+            DB_CONFIG_LIST.stream().collect(Collectors.toMap(DbConfig::getShortname, Function.identity()));
 
     static String activeDB = Objects.toString(System.getenv("ACTIVE_DB"), "postgres");
 
     static Set<String> firstTimeForEachDb = new HashSet<>();
 
-    /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
+    private static final Cache<String, Connection> connectionCache = Caffeine.newBuilder()
+            .maximumSize(10).build();
+
+    /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) $
+     *    uses a cache (to allow re-configuring db connection in the sql script) */
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException, IOException {
-        DbBaseConfig baseConfig = getDbBaseConfig();
+        Connection connection = connectionCache.getIfPresent(dbName);
+
+        if (connection == null) {
+            connection = internalGetConnection(dbName);
+            connectionCache.put(dbName, connection);
+        }
+
+        return connection;
+    }
+
+        /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
+    static Connection internalGetConnection(String dbName) throws SQLException, ClassNotFoundException, IOException {
+        DbConfig baseConfig = getDbConfig();
 
         boolean initDbNow = false;
 
@@ -104,7 +125,7 @@ public class TestHelpers {
             placeholdersMap.put(baseConfig.shortname+"_exclude_start", "/*");
             placeholdersMap.put(baseConfig.shortname+"_exclude_end", "*/");
 
-            for (DbBaseConfig config : DB_CONFIG_LIST) {
+            for (DbConfig config : DB_CONFIG_LIST) {
                 if (!config.getShortname().equals(baseConfig.shortname)) {
                     placeholdersMap.put(config.getShortname()+"_exclude_start", "");
                     placeholdersMap.put(config.getShortname()+"_exclude_end", "");
@@ -127,21 +148,21 @@ public class TestHelpers {
         return con;
     }
 
-    public static DbBaseConfig getDbBaseConfig() {
+    public static DbConfig getDbConfig() {
         return Objects.requireNonNullElse(DB_CONFIGS.get(activeDB), DB_CONFIG_LIST.get(0));
     }
 
-    public static void initWithFlyway(DbBaseConfig baseConfig, DriverDataSource ds, Map<String, String> placeholdersMap) {
+    public static void initWithFlyway(DbConfig baseConfig, DriverDataSource ds, Map<String, String> placeholdersMap) {
         Flyway flyway = Flyway.configure().placeholders(placeholdersMap).dataSource(ds).load();
         flyway.migrate();
     }
 
     @Getter
     @ToString
-    static class DbBaseConfig {
+    static class DbConfig {
         private boolean appendDbName = true;
 
-        public DbBaseConfig(String shortname, String driverName, Supplier<String> urlPrefix, String defaultUser, String defaultPassword, boolean initDb, Map<String, String> sysProperties) {
+        public DbConfig(String shortname, String driverName, Supplier<String> urlPrefix, String defaultUser, String defaultPassword, boolean initDb, Map<String, String> sysProperties) {
             this.shortname = shortname;
             this.driverName = driverName;
             this.urlPrefix = urlPrefix;
@@ -166,7 +187,7 @@ public class TestHelpers {
             return urlPrefix.get() +  (appendDbName ? dbName : "");
         }
 
-        public DbBaseConfig disableAppendDbName() {
+        public DbConfig disableAppendDbName() {
             appendDbName = false;
             return this;
         }
@@ -187,9 +208,11 @@ public class TestHelpers {
 
     /**
      * Makes a full test with a RowLink <br/>
-     * Allows to configure the DbImporter/ DbExporter
+     * Allows to configure the DbImporter/ DbExporter/ Record/ Remappings
      */
-    public static BasicChecksResult testExportImportBasicChecks(Connection connection, Consumer<DbExporter> optionalExporterConfigurer, Consumer<DbImporter> optionalImporterConfigurer, Consumer<Record> optionalRecordChanger, Map<RowLink, Object> remapping, String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
+    public static BasicChecksResult testExportImportBasicChecks(Connection connection, Consumer<DbExporter> optionalExporterConfigurer,
+                                                                Consumer<DbImporter> optionalImporterConfigurer, Consumer<Record> optionalRecordChanger,
+                                                                Map<RowLink, Object> remapping, String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
         Map<String, Integer> before = JdbcHelpers.getNumberElementsInEachTable(connection);
 
 
