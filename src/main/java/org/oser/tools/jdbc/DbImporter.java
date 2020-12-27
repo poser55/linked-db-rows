@@ -35,7 +35,7 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
  * License: Apache 2.0
  */
 public class DbImporter {
-    public static enum Loggers {
+    public enum Loggers {
         I_META, I_UPDATES, I_EXISTENCE_CHECK
     }
 
@@ -110,7 +110,7 @@ public class DbImporter {
     private static String getInnerValueToInsert(String valueToInsert) {
         String testForEscaping = valueToInsert.trim();
         if (testForEscaping.length() > 1 && ((testForEscaping.startsWith("\"") && testForEscaping.endsWith("\"")) ||
-                ((testForEscaping.startsWith("'") && testForEscaping.endsWith("'"))))) {
+                (testForEscaping.startsWith("'") && testForEscaping.endsWith("'")))) {
             valueToInsert = testForEscaping.substring(1, testForEscaping.length() - 1);
         } else if (testForEscaping.equals("null")) {
             valueToInsert = null;
@@ -361,7 +361,7 @@ public class DbImporter {
      * */
     public static List<Object> remapPrimaryKeyValues(Record record, Map<RowLink, Object> newKeys, List<String> primaryKeys, Map<String, List<Fk>> fksByColumnName, List<Boolean> isFreePk) {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
-        int i = 0;
+
         for (String primaryKey : primaryKeys) {
             Record.FieldAndValue elementWithName = record.findElementWithName(primaryKey);
 
@@ -377,7 +377,6 @@ public class DbImporter {
             isFreePk.add(potentialValueToInsert[0] == null);
 
             pkValues.add(potentialValueToInsert[0] != null ? potentialValueToInsert[0]: elementWithName.value);
-            i++;
         }
         return pkValues;
     }

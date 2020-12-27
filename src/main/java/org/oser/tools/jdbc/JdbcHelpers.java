@@ -98,7 +98,7 @@ public final class JdbcHelpers {
         Map<String, Set<String>> dependencyGraph = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
         while (!tablesToTreat.isEmpty()) {
-            String next = tablesToTreat.stream().findFirst().get();
+            String next = tablesToTreat.iterator().next();
             tablesToTreat.remove(next);
 
             List<Fk> fks = getFksOfTable(connection, next, cache);

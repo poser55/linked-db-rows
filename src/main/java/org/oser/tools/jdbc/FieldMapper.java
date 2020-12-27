@@ -10,5 +10,6 @@ import java.sql.SQLException;
 public interface FieldMapper {
 	void mapField(JdbcHelpers.ColumnMetadata metadata, PreparedStatement statement, int insertIndex, String value) throws SQLException;
 
+	/** Ignores a field when importing */
 	FieldMapper NOP_FIELDMAPPER = (metadata, statement, insertIndex, value) -> statement.setArray(insertIndex, null);
 }

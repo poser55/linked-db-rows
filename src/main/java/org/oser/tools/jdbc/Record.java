@@ -85,6 +85,8 @@ public class Record {
                 " }";
     }
 
+    /** @return the element with the name if it is contained in this record (not considering sub-records), is case insensitive
+     *   returns null if not found */
     public FieldAndValue findElementWithName(String columnName) {
         for (FieldAndValue d : content) {
             if (d.name.toLowerCase().equals(columnName.toLowerCase())) {
@@ -127,15 +129,7 @@ public class Record {
         }
     }
 
-    /** @return the element with the name if it is contained in this record (not considering sub-records) */
-    public FieldAndValue elementByName(String name) {
-        for (FieldAndValue element : content) {
-            if (element.name.equals(name)) {
-                return element;
-            }
-        }
-        return null;
-    }
+
 
     /** @return all nodes=RowLinks that are contained in the record */
     public Set<RowLink> getAllNodes(){
@@ -220,7 +214,7 @@ public class Record {
             this.value = convertTypeForValue(metadata, value);
         }
 
-        private ObjectMapper mapper = getObjectMapper();
+        private final ObjectMapper mapper = getObjectMapper();
 
         private Object convertTypeForValue(JdbcHelpers.ColumnMetadata metadata, Object value) {
             if ("null".equals(value)) {
@@ -296,6 +290,10 @@ public class Record {
             }
         }
 
+        private static String getSubtableKeyName(String name, String key) {
+            return name + JSON_SUBTABLE_SUFFIX + key + JSON_SUBTABLE_SUFFIX;
+        }
+
 
         @Override
         public String toString() {
@@ -325,9 +323,9 @@ public class Record {
                 case "DATE":
                     if (value instanceof Timestamp) {
                         // oracle seem to return timestamp for "DATE"
-                        return value != null ? ("\"" + DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(((Timestamp) value).toLocalDateTime()) + "\"") : null;
+                        return  ("\"" + DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(((Timestamp) value).toLocalDateTime()) + "\"");
                     } else if (value instanceof String) {
-                        return "\"" +  (String) value + "\"";
+                        return "\"" +  value + "\"";
                     } else {
                             return value != null ? ("\"" + ((Date) value).toLocalDate() + "\"") : null;
                     }
@@ -420,9 +418,6 @@ public class Record {
         }
     }
 
-    private static String getSubtableKeyName(String name, String key) {
-        return name + JSON_SUBTABLE_SUFFIX + key + JSON_SUBTABLE_SUFFIX;
-    }
 
     /**
      *  todo: THIS DOES NOT YET WORK!
@@ -451,7 +446,7 @@ public class Record {
 
             DatabaseMetaData metaData = connection.getMetaData();
             List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName);
-            List<List<Object>> primaryKeyValues = records.stream().map(record -> primaryKeys.stream().map(pkName -> record.findElementWithName(pkName).value).collect(toList())).collect(toList());
+            List<List<Object>> primaryKeyValues = records.stream().map(record -> primaryKeys.stream().map(localPkName -> record.findElementWithName(localPkName).value).collect(toList())).collect(toList());
 
             List<Fk> fksOfTable = getFksOfTable(connection, records.get(0).rowLink.tableName, fkCache);
 
@@ -485,7 +480,7 @@ public class Record {
         return newKeys;
     }
 
-    private void createAndAddKey(int i, Object currentValue, Boolean isAFreePkValue, List<Object> newKeys) {
+    private void createAndAddKey(int i, Object currentValue, boolean isAFreePkValue, List<Object> newKeys) {
         Object newValue = isAFreePkValue ? getKeyForIndex(i, currentValue)  : currentValue;
         newKeys.add(newValue);
     }

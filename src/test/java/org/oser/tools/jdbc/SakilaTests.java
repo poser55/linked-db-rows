@@ -85,8 +85,6 @@ public class SakilaTests {
     @Test
     @Disabled // would need to handle the inventory table correctly (which is part of the Fk cycle) to work correctly
     void testStopTableIncluded() throws Exception {
-        final FieldMapper nopFieldMapper = (metadata, statement, insertIndex, value) -> statement.setArray(insertIndex, null);
-
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("sakila"),
                 dbExporter -> {
                     dbExporter.getStopTablesIncluded().add("inventory");
@@ -94,7 +92,7 @@ public class SakilaTests {
                     // not exporting release_year (custom types work on in basic way, the mapping to json is suboptimal)
                     dbExporter.getFieldExporters().put("release_year", FieldExporter.NOP_FIELDEXPORTER);
                 }, dbImporter -> {
-                    dbImporter.getFieldMappers().put("special_features", nopFieldMapper);
+                    dbImporter.getFieldMappers().put("special_features", FieldMapper.NOP_FIELDMAPPER);
                     dbImporter.setIgnoreFkCycles(true);
                 }, "actor", 199, 12671
         );

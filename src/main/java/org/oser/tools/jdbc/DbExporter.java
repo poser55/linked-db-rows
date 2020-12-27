@@ -136,19 +136,19 @@ public class DbExporter {
         return data;
     }
 
-    private Set<Integer> STRING_TYPES = Set.of(12, 2004, 2005);
+    private static final Set<Integer> STRING_TYPES = Set.of(12, 2004, 2005);
 
     private Record.FieldAndValue retrieveFieldAndValue(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, int i, String columnName, ExportContext context) throws SQLException {
-        FieldExporter fieldExporter = getFieldExporter(tableName, columnName);
-        Record.FieldAndValue d = null;
+        FieldExporter localFieldExporter = getFieldExporter(tableName, columnName);
 
         // this is a bit hacky for now (as we do not yet have full type support and h2 behaves strangely)
         boolean useGetString = context.getDbProductName().equals("H2") &&
                 STRING_TYPES.contains(columns.get(columnName.toLowerCase()).getDataType());
         Object valueAsObject = useGetString ? rs.getString(i) : rs.getObject(i);
 
-        if (fieldExporter != null) {
-            d = fieldExporter.exportField(columnName, columns.get(columnName.toLowerCase()), valueAsObject, rs);
+        Record.FieldAndValue d;
+        if (localFieldExporter != null) {
+            d = localFieldExporter.exportField(columnName, columns.get(columnName.toLowerCase()), valueAsObject, rs);
         } else {
             d = new Record.FieldAndValue(columnName, columns.get(columnName.toLowerCase()), valueAsObject);
         }
@@ -157,7 +157,6 @@ public class DbExporter {
 
 
     // todo: for now we just support such select statement with 1 fkName
-
     private String selectStatementByPks(String tableName, String fkName, List<String> primaryKeys, boolean orderResult) {
         return  "SELECT * from " + tableName + " where  " + fkName + " = ?" +
                 (orderResult ? (" order by "+primaryKeys.get(0)+" asc " ) : "");
@@ -197,7 +196,6 @@ public class DbExporter {
             return listOfRows; // for tables without a pk
         }
 
-        String pkName = primaryKeys.get(0);
         String selectPk = selectStatementByPks(tableName, fkName, primaryKeys, orderResults);
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
