@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -126,6 +127,7 @@ public class DbExporterBasicTests {
     }
 
     @Test
+    @DisabledIfSystemProperty(named = "mixedCaseTableNames", matches = "false")
     void testGraph() throws Exception {
         TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.DEBUG);
         Connection demo = TestHelpers.getConnection("demo");

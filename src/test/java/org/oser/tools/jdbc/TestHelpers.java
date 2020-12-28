@@ -42,6 +42,10 @@ public class TestHelpers {
 
     public static OracleContainer oracleContainer = new OracleContainer("oracleinanutshell/oracle-xe-11g");
     public static MySQLContainer mysql = new MySQLContainer( DockerImageName.parse("mysql:5.7.22"));
+        // the following should make mysql - on linux - not case sensitive for table names, but the container cannot be started
+        // (whether a mysql db is case sensitive or not is usually dependent on the operating system it runs on!)
+        //.withConfigurationOverride("mysqlconfig/mysql.cnf");
+
     public static MSSQLServerContainer mssqlserver = new MSSQLServerContainer()
             .acceptLicense();
 
@@ -71,7 +75,7 @@ public class TestHelpers {
                             Map.of("sakila","false")).disableAppendDbName(),
                     new DbConfig("mysql", mysql.getDriverClassName(),
                             ()-> mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword(), true,
-                            Map.of("sakila","false", "sequences", "false")).disableAppendDbName(),
+                            Map.of("sakila","false", "sequences", "false","mixedCaseTableNames", "false")).disableAppendDbName(),
                     new DbConfig("sqlserver", mssqlserver.getDriverClassName(),
                             ()-> mssqlserver.getJdbcUrl(), mssqlserver.getUsername(), mssqlserver.getPassword(), true,
                             Map.of("sakila","false", "sequences", "false")).disableAppendDbName());
