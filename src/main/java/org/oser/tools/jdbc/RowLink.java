@@ -40,6 +40,11 @@ public class RowLink {
         setPks(Stream.of(split).skip(1).map(this::parseOneKey).map(RowLink::normalizePk).toArray(Object[]::new));
     }
 
+    public RowLink(RowLink other){
+        tableName = other.getTableName();
+        pks = other.getPks().clone();
+    }
+
     private Object parseOneKey(String rest) {
         long optionalLongValue = 0;
         try {

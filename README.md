@@ -34,6 +34,16 @@ Example export:
   dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book", json));
 ```
 
+Additional features:
+---------------------
+* By default, when inserting it can *remap* the primary keys of inserted rows in order to not clash with existing primary keys. 
+(So if in the JSON there is a book with PK 7 (book/7) and in the db also, it looks for another PK to insert the entry, and then it remaps all other links to the book/7.)
+* Determine the order in which tables can be inserted (taking care of their dependencies).
+* Various other helpers for JDBC, refer to JdbHelpers for more details.
+* Optional canonicalization of primary keys in exported data (to more easily compare data without having different primary keys)
+* Some options on how to export/ re-import linked db rows (see below).
+
+
 Limitations:
 ------------
 * Most tested on Postgresql for now, starts to work with h2, sqlserver and oracle
@@ -45,14 +55,6 @@ Limitations:
 License:
 ---------
 * Apache version 2.0
-
-Additional features:
----------------------
-* By default, when inserting it can *remap* the primary keys of inserted rows in order to not clash with existing primary keys. 
-(So if in the JSON there is a book with PK 7 (book/7) and in the db also, it looks for another PK to insert the entry, and then it remaps all other links to the book/7.)
-* Determine the order in which tables can be inserted (taking care of their dependencies).
-* Various other helpers for JDBC, refer to JdbHelpers for more details.
-* Some options on how to export/ re-import linked db rows (see below).
 
 Usage (longer version):
 -----------------------

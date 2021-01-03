@@ -80,6 +80,8 @@ public class SakilaTests {
         );
 
         System.out.println("classified:"+Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
+
+        System.out.println("\n canonicalized:"+basicChecksResult.getAsRecord().asJsonNode());
     }
 
     @Test

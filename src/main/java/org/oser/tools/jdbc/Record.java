@@ -10,18 +10,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
-import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +32,6 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
-import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
 /**
  * Contains full data of 1 record= 1 row of a database table. A RowLink identifies the root of such a record.
@@ -43,7 +39,6 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
  * Organizes data as a <em>tree</em>.
  */
 @Getter
-@ToString
 public class Record {
     RowLink rowLink;
     List<FieldAndValue> content = new ArrayList<>();
@@ -233,8 +228,10 @@ public class Record {
                     }
                     return bool != null ? bool : value;
                 case "SERIAL":
+                case "INT":
                 case "INT2":
                 case "INT4":
+                case "INTEGER":
                 case "INT8":
                     Long l = null;
                     if (value instanceof String) {
@@ -246,6 +243,7 @@ public class Record {
                     }
                     return l != null ? l : value;
                 case "NUMERIC":
+                case "NUMBER":
                 case "DECIMAL":
                     BigDecimal d = null;
                     if (value instanceof String) {
@@ -309,11 +307,14 @@ public class Record {
             switch (metadata.type.toUpperCase()) {
                 case "BOOLEAN":
                 case "BOOL":
+                case "INT":
                 case "INT2":
                 case "INT4":
+                case "INTEGER":
                 case "INT8":
                 case "FLOAT8":
                 case "FLOAT4":
+                case "NUMBER":
                 case "NUMERIC":
                 case "SERIAL":
                 case "DECIMAL":
@@ -418,84 +419,8 @@ public class Record {
         }
     }
 
-
-    /**
-     *  todo: THIS DOES NOT YET WORK!
-     *  emerging: remap the keys so that they are canonical (2 same exports with the same data lead to the same json structure)
-     *   the id oder is determined based on the original order (so assuming integer primary keys this should be stable for equality)
-     *
-     *   needs the connection to determine the insertionOrder traversal
-     *
-     *   Updates this record and all other records (assumes that it works on the root record)
-     */
-    public void canonicalizeIds(Connection connection, Cache<String, List<Fk>> fkCache) throws Exception {
-        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName, true);
-
-        Map<String, List<Record>> tableToRecords = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        visitRecords(r -> {
-            if (!tableToRecords.containsKey(r.rowLink.tableName)) {
-                tableToRecords.put(r.rowLink.tableName, new ArrayList<>());
-            }
-            tableToRecords.get(r.rowLink.tableName).add(r);
-        });
-
-        Map<RowLink, Object> newKeys = new HashMap<>();
-
-        for (String tableName : insertionOrder) {
-            List<Record> records = tableToRecords.get(tableName);
-
-            DatabaseMetaData metaData = connection.getMetaData();
-            List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName);
-            List<List<Object>> primaryKeyValues = records.stream().map(record -> primaryKeys.stream().map(localPkName -> record.findElementWithName(localPkName).value).collect(toList())).collect(toList());
-
-            List<Fk> fksOfTable = getFksOfTable(connection, records.get(0).rowLink.tableName, fkCache);
-
-            Map<String, List<Fk>> fksByColumnName = fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toLowerCase()));
-            List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
-
-            // we only need to get the free PKs
-            DbImporter.remapPrimaryKeyValues(records.get(0), newKeys, primaryKeys, fksByColumnName, isFreePk);
-
-            for (int i = 0; i < records.size(); i++) {
-                // todo: does this work for FKs to the same table? Probably yes?
-                remapKeysAndUpdateNewKeys(records.get(i), i, primaryKeys, primaryKeyValues.get(i), isFreePk, newKeys);
-            }
-        }
+    @Override
+    public String toString() {
+        return this.asJsonNode().toString();
     }
-
-    /**
-     * 1. determine new keys for the entries of the record
-     * 2. remap fields to with foreign keys that were remapped before */
-    private void remapKeysAndUpdateNewKeys(Record r, int i, List<String> primaryKeys, List<Object> primaryKeyValues, List<Boolean> isFreePk, Map<RowLink, Object> newKeys) {
-        // 1. determine new keys for the entries of the record
-        List<Object> newKeysForThisRecord = determineNewCanonicalPrimaryKeys(i, primaryKeyValues, isFreePk);
-
-
-
-    }
-
-    private List<Object> determineNewCanonicalPrimaryKeys(int i, List<Object> primaryKeyValues, List<Boolean> isFreePk) {
-        List<Object> newKeys = new ArrayList <>();
-        primaryKeyValues.forEach(currentValue -> createAndAddKey(i, currentValue, isFreePk.get(i), newKeys));
-        return newKeys;
-    }
-
-    private void createAndAddKey(int i, Object currentValue, boolean isAFreePkValue, List<Object> newKeys) {
-        Object newValue = isAFreePkValue ? getKeyForIndex(i, currentValue)  : currentValue;
-        newKeys.add(newValue);
-    }
-
-    // todo: only works for Long and String
-    private Object getKeyForIndex(int i, Object currentValue) {
-        if (currentValue instanceof Number) {
-            return (long) i;
-        }
-        // todo treat uuid/ string pks correctly
-        return getCharForNumber(i);
-    }
-
-    private String getCharForNumber(int i) {
-        return i > 0 && i < 27 ? String.valueOf((char)(i + 64)) : null;
-    }
-
 }

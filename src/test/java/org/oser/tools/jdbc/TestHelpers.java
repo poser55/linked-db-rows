@@ -263,6 +263,8 @@ public class TestHelpers {
         Map<String, Integer> after = JdbcHelpers.getNumberElementsInEachTable(connection);
         assertNumberInserts(before, after, numberNodes);
 
+        RecordCanonicalizer.canonicalizeIds(connection, asRecord, dbExporter.getFkCache(), pkCache);
+
         return new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap);
     }
 
@@ -311,4 +313,6 @@ public class TestHelpers {
         }
     }
 
+    private static final Cache<String, List<String>> pkCache = Caffeine.newBuilder()
+            .maximumSize(1000).build();
 }

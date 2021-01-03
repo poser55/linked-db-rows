@@ -274,8 +274,11 @@ public final class JdbcHelpers {
                 }
                 break;
             case "SERIAL":
+            case "INT":
             case "INT2":
             case "INT4":
+            case "INTEGER":
+            case "NUMBER":
             case "INT8":
             case "FLOAT4":
             case "FLOAT8":

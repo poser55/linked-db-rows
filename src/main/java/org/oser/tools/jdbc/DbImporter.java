@@ -339,7 +339,11 @@ public class DbImporter {
      * @return the primary key values that are remapped if needed (if e.g. another inserted row has a pk that was remapped before)
      *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
      * */
-    public static List<Object> remapPrimaryKeyValues(Record record, Map<RowLink, Object> newKeys, List<String> primaryKeys, Map<String, List<Fk>> fksByColumnName, List<Boolean> isFreePk) {
+    public static List<Object> remapPrimaryKeyValues(Record record,
+                                                     Map<RowLink, Object> newKeys,
+                                                     List<String> primaryKeys,
+                                                     Map<String, List<Fk>> fksByColumnName,
+                                                     List<Boolean> isFreePk) {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
 
         for (String primaryKey : primaryKeys) {
