@@ -132,6 +132,7 @@ public final class JdbcHelpers {
 
     /**
      * generate insert or update statement to insert columnNames into tableName
+     * // todo: this only works for updating with 1 primary key fields
      */
     public static String getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert, Map<String, ColumnMetadata> columnMetadata) {
         String result;

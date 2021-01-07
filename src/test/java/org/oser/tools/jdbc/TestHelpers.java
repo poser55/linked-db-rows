@@ -78,6 +78,9 @@ public class TestHelpers {
                             Map.of("sakila","false", "sequences", "false","mixedCaseTableNames", "false")).disableAppendDbName(),
                     new DbConfig("sqlserver", mssqlserver.getDriverClassName(),
                             ()-> mssqlserver.getJdbcUrl(), mssqlserver.getUsername(), mssqlserver.getPassword(), true,
+                            Map.of("sakila","false", "sequences", "false")).disableAppendDbName(),
+                    new DbConfig("hsqldb", "org.hsqldb.jdbcDriver",
+                            ()-> "jdbc:hsqldb:res:demo", "SA", "", true,
                             Map.of("sakila","false", "sequences", "false")).disableAppendDbName());
 
 
@@ -108,10 +111,15 @@ public class TestHelpers {
         return connection;
     }
 
-        /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
+    /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
     static Connection internalGetConnection(String dbName) throws SQLException, ClassNotFoundException, IOException {
         DbConfig baseConfig = getDbConfig();
 
+        return internalGetConnection(dbName, baseConfig);
+    }
+
+        /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
+    static Connection internalGetConnection(String dbName, DbConfig baseConfig) throws SQLException, ClassNotFoundException, IOException {
         boolean initDbNow = false;
 
         if (!firstTimeForEachDb.contains(dbName)) {
@@ -122,9 +130,9 @@ public class TestHelpers {
             firstTimeForEachDb.add(dbName);
         }
 
-        Class.forName(baseConfig.driverName);
+        Class.forName(baseConfig.driverName, true, Thread.currentThread().getContextClassLoader());
 
-        DriverDataSource ds = new DriverDataSource(TestHelpers.class.getClassLoader(),
+        DriverDataSource ds = new DriverDataSource(Thread.currentThread().getContextClassLoader(),
                 baseConfig.driverName, baseConfig.getUrlPrefix(dbName), baseConfig.getDefaultUser(), baseConfig.defaultPassword);
 
         Connection con = ds.getConnection();
@@ -216,7 +224,7 @@ public class TestHelpers {
 
     public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, Consumer<DbExporter> optionalExporterConfigurer, Consumer<DbImporter> optionalImporterConfigurer, String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
         return testExportImportBasicChecks(demoConnection, optionalExporterConfigurer, optionalImporterConfigurer, null, new HashMap<>(), tableName, primaryKeyValue, numberNodes
-        );
+        ,true);
     }
 
     /**
@@ -225,7 +233,8 @@ public class TestHelpers {
      */
     public static BasicChecksResult testExportImportBasicChecks(Connection connection, Consumer<DbExporter> optionalExporterConfigurer,
                                                                 Consumer<DbImporter> optionalImporterConfigurer, Consumer<Record> optionalRecordChanger,
-                                                                Map<RowLink, Object> remapping, String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
+                                                                Map<RowLink, Object> remapping, String tableName, Object primaryKeyValue,
+                                                                int numberNodes, boolean checkUpdates) throws Exception {
         Map<String, Integer> before = JdbcHelpers.getNumberElementsInEachTable(connection);
 
 
@@ -261,11 +270,24 @@ public class TestHelpers {
         Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(connection, asRecordAgain, remapping);
 
         Map<String, Integer> after = JdbcHelpers.getNumberElementsInEachTable(connection);
-        assertNumberInserts(before, after, numberNodes);
 
-        RecordCanonicalizer.canonicalizeIds(connection, asRecord, dbExporter.getFkCache(), pkCache);
+        if (checkUpdates) {
+            // when updating, the number of inserted db entries does not increase, so we do not check it here
+            assertNumberInserts(before, after, numberNodes);
 
-        return new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap);
+            remapping = new HashMap<>();
+
+            // try updating as well
+            dbImporter.setForceInsert(false);
+            Map<RowLink, Object> rowLinkObjectMap2 = dbImporter.insertRecords(connection, asRecordAgain, remapping);
+
+            // there should be no remappings with forceInsert
+            assertEquals(0, rowLinkObjectMap2.size());
+        }
+
+        Map<RowLink, List<Object>> rowLinkListMap = RecordCanonicalizer.canonicalizeIds(connection, asRecord, dbExporter.getFkCache(), pkCache);
+
+        return new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap, rowLinkListMap);
     }
 
     private static void assertNumberInserts(Map<String, Integer> before, Map<String, Integer> after, int numberNodes) {
@@ -282,19 +304,27 @@ public class TestHelpers {
     }
 
     @Getter
+    /** Holds test results */
     public static class BasicChecksResult {
         private final Record asRecord;
         private final String asString;
         private final Record asRecordAgain;
         private final String asStringAgain;
         private final Map<RowLink, Object> rowLinkObjectMap;
+        private Map<RowLink, List<Object>> rowLinkListMap;
 
-        public BasicChecksResult(Record asRecord, String asString, Record asRecordAgain, String asStringAgain, Map<RowLink, Object> rowLinkObjectMap) {
+        public BasicChecksResult(Record asRecord,
+                                 String asString,
+                                 Record asRecordAgain,
+                                 String asStringAgain,
+                                 Map<RowLink, Object> rowLinkObjectMap,
+                                 Map<RowLink, List<Object>> rowLinkListMap) {
             this.asRecord = asRecord;
             this.asString = asString;
             this.asRecordAgain = asRecordAgain;
             this.asStringAgain = asStringAgain;
             this.rowLinkObjectMap = rowLinkObjectMap;
+            this.rowLinkListMap = rowLinkListMap;
         }
     }
 

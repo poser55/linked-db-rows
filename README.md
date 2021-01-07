@@ -46,10 +46,11 @@ Additional features:
 
 Limitations:
 ------------
-* Most tested on Postgresql for now, starts to work with h2, sqlserver and oracle
+* Most tested on postgres for now, starts to work with h2, sqlserver and oracle
 * Test coverage can be improved
 * It solves a problem I have - quite hacky in many ways
 * Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and ignoreFkCycles)
+* forceInsert = false has limitations with multiple primary keys and fieldMappers 
 * Arrays (as e.g. Postgresql supports them) and other advanced constructs are currently not supported
 
 License:
@@ -68,7 +69,8 @@ There are accessors on DbImporter and DbExporter that allow setting various opti
     * defaultPkGenerator:  how to generate primary keys for new rows (default: NextValuePkGenerator)
     * overriddenPkGenerators: pk generator overrides for special tables
     * fieldMappers: if you want to treat inserting certain fields in a special way (matching by field name for now). This allows e.g. to NOT treat certain fields.
-    * forceInsert: in case an update would be possible: create a new row and remap other entries.
+    * forceInsert: in case an update would be possible: create a new row and remap other entries. Default: true 
+      If forceInsert is false we update the existing entries (if entries exist for the given primary key).  
     * ignoreFkCycles: by default if in your DDL there are cycles between your table relationships, it refuses to re-import them. Setting this flag to true, ignores cycles (and imports non-cycles anyways).
           
 #### Remapping entries to add them somewhere else

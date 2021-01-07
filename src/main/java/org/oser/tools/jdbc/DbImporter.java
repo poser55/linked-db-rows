@@ -256,7 +256,7 @@ public class DbImporter {
         List<Object> pkValues = remapPrimaryKeyValues(record, newKeys, primaryKeys, fksByColumnName, isFreePk);
 
         boolean entryExists = JdbcHelpers.doesPkTableExist(connection, record.getRowLink().getTableName(), primaryKeys, pkValues, record.getColumnMetadata());
-        boolean isInsert = forceInsert || entryExists;
+        boolean isInsert = forceInsert || !entryExists;
 
         Object candidatePk;
         if (isInsert && entryExists) {
@@ -282,6 +282,11 @@ public class DbImporter {
         Set<String> columnsDbNames = record.content.stream().map(e -> e.name).collect(Collectors.toSet());
         fieldNames.removeIf(e -> !columnsDbNames.contains(e));
         // todo log if there is a delta between the 2 sets, ok for those who map subrows !
+
+        // special case: if the entry needs updating and there are no other fields to set, we are done
+        if (!isInsert && (fieldNames.size() == primaryKeys.size())) {
+            return;
+        }
 
         Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = record.getColumnMetadata();
         String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.rowLink.tableName, fieldNames, record.pkName, isInsert, columnMetadata);
@@ -312,6 +317,16 @@ public class DbImporter {
                 if (statementPosition == null) {
                     LOGGER.warn("unexpected element position for field {}", currentFieldName);
                     continue;
+                }
+
+                // adapt order of fields in update statements
+                if (!isInsert) {
+                    if (fieldIsPk){ // todo: fix for multiple pks!
+                        statementPosition = fieldNames.size();
+                    } else {
+                        int pkPosition = record.findElementPositionWithName(primaryKeys.get(0));
+                        statementPosition = (statementPosition > pkPosition) ? statementPosition - 1 : statementPosition;
+                    }
                 }
 
                 valueToInsert[0] = removeQuotes(valueToInsert[0]);
@@ -375,6 +390,8 @@ public class DbImporter {
         return generatorToUse.generatePk(connection, tableName, type, pkName);
     }
 
+    /** If true, always insert records (via remapping if necessary). If false, try updating if entries exist.
+     * Default: true */
     public void setForceInsert(boolean forceInsert) {
         this.forceInsert = forceInsert;
     }

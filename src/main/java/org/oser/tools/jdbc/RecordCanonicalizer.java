@@ -210,5 +210,4 @@ public class RecordCanonicalizer {
 
         return result;
     }
-
 }

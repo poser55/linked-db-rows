@@ -300,6 +300,10 @@ public class DbExporter {
         return fkCache;
     }
 
+    public Cache<String, List<String>> getPkCache() {
+        return pkCache;
+    }
+
     public Map<String, FieldExporter> getFieldExporters() {
         return fieldExporter;
     }

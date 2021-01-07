@@ -42,7 +42,7 @@ public class DbExporterBasicTests {
                             }
                         },
                         new HashMap<>(),
-                        "datatypes", 1, 1);
+                        "datatypes", 1, 1, true);
 
         assertEquals(6, basicChecksResult.getAsRecordAgain().content.size());
         assertEquals(6, basicChecksResult.getAsRecord().content.size());
@@ -111,6 +111,35 @@ public class DbExporterBasicTests {
     void testBookTable() throws Exception {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                 "book", 1, 2);
+    }
+
+    @Test
+    // update instead of insert
+    void testBookTable_update() throws Exception {
+        AtomicReference<Long> pages = new AtomicReference<>(0L);
+        AtomicReference<DbExporter> exporter = new AtomicReference<>();
+        Map<RowLink, Object> remapping = new HashMap<>();
+        Connection demoConnection = TestHelpers.getConnection("demo");
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(
+                demoConnection,
+                dbExporter -> {
+                    exporter.set(dbExporter);
+                },
+                dbImporter -> {
+                    dbImporter.setForceInsert(false);
+                },
+                record -> {
+                    Object number_pages = record.findElementWithName("number_pages").value;
+                    number_pages =  (number_pages != null) ? (1 + ((Long)number_pages)) : 1;
+                    pages.set((Long)number_pages);
+                    record.findElementWithName("number_pages").value = number_pages;
+                },
+                remapping,
+                "book", 1, 2, false);
+
+        Record book = exporter.get().contentAsTree(demoConnection, "book", 1);
+        System.out.println(book);
+        assertEquals(pages.get() +"", ""+book.findElementWithName("number_pages").value);
     }
 
     @Test // Bug https://github.com/poser55/linked-db-rows/issues/1
@@ -236,7 +265,7 @@ public class DbExporterBasicTests {
                     }
                 },
                 new HashMap<>(),
-                "datatypes", 100, 1);
+                "datatypes", 100, 1, true);
 
         Long o = (Long) basicChecksResult.getRowLinkObjectMap().values().stream().findFirst().get();
 

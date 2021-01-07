@@ -91,6 +91,7 @@ public class Record {
         return null;
     }
 
+    /** is 1-based */
     public Integer findElementPositionWithName(String columnName) {
         int position = 1;
         for (FieldAndValue d : content) {

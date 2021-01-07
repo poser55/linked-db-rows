@@ -43,14 +43,17 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"--stopTablesIncluded"}, description = "Stop tables included, comma-separated")
     private List<String> stopTablesIncluded;
 
+    @Option(names = {"--canon"}, description = "Should we canonicalize the primary keys of the output? (default: false)")
+    private boolean doCanonicalize = false;
+
 
     public static void main(String... args) throws SQLException, ClassNotFoundException {
-		int exitCode = new CommandLine(new QuickExport()).execute(args);
+		int exitCode = new CommandLine(new JsonExport()).execute(args);
         System.exit(exitCode);
     }
 
 	@Override
-	public Integer call() throws SQLException, ClassNotFoundException, JsonProcessingException {
+	public Integer call() throws SQLException, ClassNotFoundException, JsonProcessingException, Exception {
         out.println("Exporting table "+tableName);
 		DbExporter dbExporter = new DbExporter();
 		if (stopTablesExcluded != null){
@@ -64,6 +67,10 @@ public class JsonExport implements Callable<Integer> {
 
         Connection demoConnection = getConnection(url, username, password);
         Record asRecord = dbExporter.contentAsTree(demoConnection, tableName, pkValue);
+
+        if (doCanonicalize) {
+            RecordCanonicalizer.canonicalizeIds(demoConnection, asRecord, dbExporter.getFkCache(), dbExporter.getPkCache());
+        }
 
         ObjectMapper mapper = Record.getObjectMapper();
         String asString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode());
