@@ -34,6 +34,16 @@ Example export:
   dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book", json));
 ```
 
+Rationale for the tool
+--------------
+* Initialize the database
+* Testing (with canonicalization of primary keys)
+* For general data import/ export
+* To replay a prod database setup in development 
+* To compare 2 database situations
+* Maybe as simpler high-level database access abstraction?
+
+
 Additional features:
 ---------------------
 * By default, when inserting it can *remap* the primary keys of inserted rows in order to not clash with existing primary keys. 

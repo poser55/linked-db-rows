@@ -80,7 +80,7 @@ public class TestHelpers {
                             ()-> mssqlserver.getJdbcUrl(), mssqlserver.getUsername(), mssqlserver.getPassword(), true,
                             Map.of("sakila","false", "sequences", "false")).disableAppendDbName(),
                     new DbConfig("hsqldb", "org.hsqldb.jdbcDriver",
-                            ()-> "jdbc:hsqldb:res:demo", "SA", "", true,
+                            ()-> "jdbc:hsqldb:mem:demo", "SA", "", true,
                             Map.of("sakila","false", "sequences", "false")).disableAppendDbName());
 
 

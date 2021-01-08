@@ -25,11 +25,17 @@ CREATE TABLE datatypes (
     varchar_type varchar(50),
 
     ${oracle_exclude_start}
+    ${hsqldb_exclude_start}
         text_type    text,
     ${oracle_exclude_end}
+    ${hsqldb_exclude_end}
     ${oracle_include_start}
         text_type    varchar(50),
     ${oracle_include_end}
+    ${hsqldb_include_start}
+        text_type    varchar(50),
+    ${hsqldb_include_end}
+
 
 
 ${oracle_exclude_start}
@@ -74,7 +80,12 @@ insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type
                                                                                                      ${sqlserver_include_start}
                                                                                                          'Y',
                                                                                                      ${sqlserver_include_end}
+                                                                                                     ${hsqldb_exclude_start}
                                                                                                      '2019-01-01T12:19:11',
+                                                                                                     ${hsqldb_exclude_end}
+                                                                                                     ${hsqldb_include_start}
+                                                                                                         '2019-01-01 12:19:11',
+                                                                                                     ${hsqldb_include_end}
                                                                                                      '2020-02-03');
 
 insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type, date_type) values (100, null, null,
@@ -89,7 +100,12 @@ insert into datatypes (id, varchar_type, text_type, boolean_type, timestamp_type
                                                                                                      ${sqlserver_include_start}
                                                                                                          'Y',
                                                                                                      ${sqlserver_include_end}
-                                                                                                     '2019-01-01T12:19:11',
+                                                                                                         ${hsqldb_exclude_start}
+                                                                                                         '2019-01-01T12:19:11',
+                                                                                                     ${hsqldb_exclude_end}
+                                                                                                         ${hsqldb_include_start}
+                                                                                                         '2019-01-01 12:19:11',
+                                                                                                     ${hsqldb_include_end}
                                                                                                      '2020-02-03');
 -- just for tests
 ${mysql_exclude_start}
