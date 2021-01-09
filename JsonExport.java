@@ -1,7 +1,6 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //DEPS org.oser.tools.jdbc:linked-db-rows:0.2-SNAPSHOT
 //DEPS info.picocli:picocli:4.5.0
-//DEPS org.postgresql:postgresql:42.2.6
 import static java.lang.System.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -9,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import picocli.CommandLine.Command;
 import picocli.CommandLine;
 import org.oser.tools.jdbc.*;
+import org.oser.tools.jdbc.cli.DynJarLoader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -19,7 +19,7 @@ import java.util.concurrent.Callable;
 
 /** experiment with jbang */
 @Command(name = "JsonExport", mixinStandardHelpOptions = true, version = "JsonExport 0.2",
-        description = "Exports a table and its linked tables as JSON (at the moment only with postgres)", showDefaultValues = true)
+        description = "Exports a table and its linked tables as JSON", showDefaultValues = true)
 public class JsonExport implements Callable<Integer> {
 
 	@Option(names = {"-u","--url"}, description = "jdbc connection-url")
@@ -46,6 +46,9 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"--canon"}, description = "Should we canonicalize the primary keys of the output? (default: false)")
     private boolean doCanonicalize = false;
 
+    @Option(names = {"-db"}, description = "What jdbc driver to use? (default:postgres) ")
+    private String  databaseShortName = "postgres";
+
 
     public static void main(String... args) throws SQLException, ClassNotFoundException {
 		int exitCode = new CommandLine(new JsonExport()).execute(args);
@@ -65,11 +68,15 @@ public class JsonExport implements Callable<Integer> {
             dbExporter.getStopTablesIncluded().addAll(stopTablesIncluded);
         }
 
-        Connection demoConnection = getConnection(url, username, password);
-        Record asRecord = dbExporter.contentAsTree(demoConnection, tableName, pkValue);
+        Connection connection = DynJarLoader.getConnection(databaseShortName, url, username, password, this.getClass().getClassLoader());
+        if (connection == null) {
+            out.println("Could not get jdbc connection for:"+databaseShortName);
+            return -1;
+        }
+        Record asRecord = dbExporter.contentAsTree(connection, tableName, pkValue);
 
         if (doCanonicalize) {
-            RecordCanonicalizer.canonicalizeIds(demoConnection, asRecord, dbExporter.getFkCache(), dbExporter.getPkCache());
+            RecordCanonicalizer.canonicalizeIds(connection, asRecord, dbExporter.getFkCache(), dbExporter.getPkCache());
         }
 
         ObjectMapper mapper = Record.getObjectMapper();

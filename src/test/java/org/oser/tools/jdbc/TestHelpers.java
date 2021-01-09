@@ -69,7 +69,6 @@ public class TestHelpers {
                             ()-> "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
                     new DbConfig("h2", "org.h2.Driver",
                             ()-> "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false")),
-
                     new DbConfig("oracle", "oracle.jdbc.driver.OracleDriver",
                             ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true,
                             Map.of("sakila","false")).disableAppendDbName(),
@@ -115,14 +114,14 @@ public class TestHelpers {
     static Connection internalGetConnection(String dbName) throws SQLException, ClassNotFoundException, IOException {
         DbConfig baseConfig = getDbConfig();
 
-        return internalGetConnection(dbName, baseConfig);
+        return internalGetConnection(dbName, baseConfig, true);
     }
 
         /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
-    static Connection internalGetConnection(String dbName, DbConfig baseConfig) throws SQLException, ClassNotFoundException, IOException {
+    static Connection internalGetConnection(String dbName, DbConfig baseConfig, boolean useCache) throws SQLException, ClassNotFoundException, IOException {
         boolean initDbNow = false;
 
-        if (!firstTimeForEachDb.contains(dbName)) {
+        if (!firstTimeForEachDb.contains(dbName) || !useCache) {
             System.out.println("activeDb:"+baseConfig);
             if (baseConfig.isInitDb()) {
                 initDbNow = true;

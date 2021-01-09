@@ -60,7 +60,7 @@ Limitations:
 * Test coverage can be improved
 * It solves a problem I have - quite hacky in many ways
 * Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and ignoreFkCycles)
-* forceInsert = false has limitations with multiple primary keys and fieldMappers 
+* forceInsert = false is experimental: it has limitations with 1:n mappings (keeps already existing 1:n entries), with multiple primary keys and fieldMappers 
 * Arrays (as e.g. Postgresql supports them) and other advanced constructs are currently not supported
 
 License:
@@ -98,11 +98,12 @@ CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 
 #### Export script (experimental)
- * Exports a db row and all linked rows as JSON (at the moment only supports postgresql)
- * Requires installing https://www.jbang.dev/
+ * Exports a db row and all linked rows as JSON (you can chose a supported db via a short name, it downloads the needed jdbc driver)
+ * Requires installing of https://www.jbang.dev/
  * Examples:
  *  `jbang JsonExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
  *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"`
+ *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table" --url "jdbc:h2:mem:demo" -db h2 -l sa -pw " "`   
  * Help about options:  `jbang JsonExport.java -h`
 
 How to run the tests:
