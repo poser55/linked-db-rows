@@ -390,7 +390,10 @@ public class DbImporter {
         return generatorToUse.generatePk(connection, tableName, type, pkName);
     }
 
-    /** If true, always insert records (via remapping if necessary). If false, try updating if entries exist.
+    /** If true, always insert new records if the PKs already exist (via remapping if necessary).
+     *  If false, try updating if entries exist.
+     * Setting this to false is experimental: it has limitations with 1:n mappings (keeps already existing 1:n entries,
+     * so there might be more than what is in the JSON (after the update)), with multiple primary keys and fieldMappers <br/>
      * Default: true */
     public void setForceInsert(boolean forceInsert) {
         this.forceInsert = forceInsert;

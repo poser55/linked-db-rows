@@ -50,17 +50,16 @@ Additional features:
 (So if in the JSON there is a book with PK 7 (book/7) and in the db also, it looks for another PK to insert the entry, and then it remaps all other links to the book/7.)
 * Determine the order in which tables can be inserted (taking care of their dependencies).
 * Various other helpers for JDBC, refer to JdbHelpers for more details.
-* Optional canonicalization of primary keys in exported data (to more easily compare data without having different primary keys)
+* Optional canonicalization of primary keys in exported data (to more easily compare data)
 * Some options on how to export/ re-import linked db rows (see below).
 
 
 Limitations:
 ------------
-* Most tested on postgres for now, starts to work with h2, sqlserver and oracle
+* Most tested on postgres for now, starts to work with h2, sqlserver and oracle (mysql with limitations)
 * Test coverage can be improved
 * It solves a problem I have - quite hacky in many ways
 * Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and ignoreFkCycles)
-* forceInsert = false is experimental: it has limitations with 1:n mappings (keeps already existing 1:n entries), with multiple primary keys and fieldMappers 
 * Arrays (as e.g. Postgresql supports them) and other advanced constructs are currently not supported
 
 License:
@@ -69,7 +68,7 @@ License:
 
 Usage (longer version):
 -----------------------
-#### Configure how to export and import
+#### Options to export and import
 There are accessors on DbImporter and DbExporter that allow setting various options:
 1. DbExporter
     * stopTablesExcluded: tables that we do NOT want in the exported tree - the export stops before those.
@@ -97,14 +96,18 @@ CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is
 #### Sakila database example
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 
-#### Export script (experimental)
+#### Scripts to export/ import via command line
  * Exports a db row and all linked rows as JSON (you can chose a supported db via a short name, it downloads the needed jdbc driver)
  * Requires installing of https://www.jbang.dev/
  * Examples:
  *  `jbang JsonExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
  *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"`
  *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table" --url "jdbc:h2:mem:demo" -db h2 -l sa -pw " "`   
+ *  `jbang.cmd ./JsonExport.java -p 3 --stopTablesExcluded="user_table"  -db postgres > out.json`
+ *  `jbang.cmd ./JsonImport.java -j out.json -db postgres`
+    
  * Help about options:  `jbang JsonExport.java -h`
+ *                      `jbang JsonImport.java -h`
 
 How to run the tests:
 ---------------------

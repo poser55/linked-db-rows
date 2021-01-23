@@ -17,9 +17,10 @@ import static picocli.CommandLine.*;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-/** experiment with jbang */
+/** Json export via script, needs https://www.jbang.dev/
+ *  call 'jbang JsonExport.java -h' for help */
 @Command(name = "JsonExport", mixinStandardHelpOptions = true, version = "JsonExport 0.2",
-        description = "Exports a table and its linked tables as JSON", showDefaultValues = true)
+        description = "Exports a table and its linked tables as JSON. Writes the JSON to stdout (other output to stderr), you can use > myFile.json to get it in a file.", showDefaultValues = true)
 public class JsonExport implements Callable<Integer> {
 
 	@Option(names = {"-u","--url"}, description = "jdbc connection-url")
@@ -57,20 +58,20 @@ public class JsonExport implements Callable<Integer> {
 
 	@Override
 	public Integer call() throws SQLException, ClassNotFoundException, JsonProcessingException, Exception {
-        out.println("Exporting table "+tableName);
+        err.println("Exporting table "+tableName);
 		DbExporter dbExporter = new DbExporter();
 		if (stopTablesExcluded != null){
-            out.println("stopTablesExcluded:"+stopTablesExcluded);
+            err.println("stopTablesExcluded:"+stopTablesExcluded);
 		    dbExporter.getStopTablesExcluded().addAll(stopTablesExcluded);
         }
         if (stopTablesIncluded != null){
-            out.println("stopTablesIncluded:"+stopTablesIncluded);
+            err.println("stopTablesIncluded:"+stopTablesIncluded);
             dbExporter.getStopTablesIncluded().addAll(stopTablesIncluded);
         }
 
         Connection connection = DynJarLoader.getConnection(databaseShortName, url, username, password, this.getClass().getClassLoader());
         if (connection == null) {
-            out.println("Could not get jdbc connection for:"+databaseShortName);
+            err.println("Could not get jdbc connection for:"+databaseShortName);
             return -1;
         }
         Record asRecord = dbExporter.contentAsTree(connection, tableName, pkValue);
@@ -81,16 +82,9 @@ public class JsonExport implements Callable<Integer> {
 
         ObjectMapper mapper = Record.getObjectMapper();
         String asString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode());
-		out.println("Data: \n"+asString);
+		err.println("Data: \n");
+		out.println(asString);
 		return 0;
 	}
-	
-	  public Connection getConnection(String url, String userName, String password) throws SQLException, ClassNotFoundException {
-        Class.forName("org.postgresql.Driver");
 
-        Connection con = DriverManager.getConnection(url, userName, password);
-
-        con.setAutoCommit(true);
-        return con;
-    }
 }
