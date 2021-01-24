@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Helper methods for testing. <\br>
- *  Allows choosing the db via the env variable <code>ACTIVE_DB</code> (default: postgres).
+ *  Allows choosing the db via the env variable <code>ACTIVE_DB</code> (default: h2).
  *  Add new databases in <code>DB_CONFIGS_LIST</code>*/
 public class TestHelpers {
     static ObjectMapper mapper = Record.getObjectMapper();
@@ -50,7 +50,7 @@ public class TestHelpers {
             .acceptLicense();
 
     static {
-        String active_db = Objects.toString(System.getenv("ACTIVE_DB"), "postgres");
+        String active_db = Objects.toString(System.getenv("ACTIVE_DB"), "h2");
         if (active_db.equals("oracle")){
             oracleContainer.start();
         }
@@ -65,10 +65,10 @@ public class TestHelpers {
 
     static List<DbConfig> DB_CONFIG_LIST =
             List.of(
-                    new DbConfig("postgres", "org.postgresql.Driver",
-                            ()-> "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
                     new DbConfig("h2", "org.h2.Driver",
                             ()-> "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false")),
+                    new DbConfig("postgres", "org.postgresql.Driver",
+                            ()-> "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
                     new DbConfig("oracle", "oracle.jdbc.driver.OracleDriver",
                             ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true,
                             Map.of("sakila","false")).disableAppendDbName(),
@@ -90,7 +90,7 @@ public class TestHelpers {
     static Map<String, DbConfig> DB_CONFIGS =
             DB_CONFIG_LIST.stream().collect(Collectors.toMap(DbConfig::getShortname, Function.identity()));
 
-    static String activeDB = Objects.toString(System.getenv("ACTIVE_DB"), "postgres");
+    static String activeDB = Objects.toString(System.getenv("ACTIVE_DB"), "h2");
 
     static Set<String> firstTimeForEachDb = new HashSet<>();
 

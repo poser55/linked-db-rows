@@ -111,7 +111,8 @@ The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sa
 
 How to run the tests:
 ---------------------
-It expects a local postgresql database with the name "demo" that is initialized with the *.sql files.
+The basic tests run (without configuration) for h2 (they run directly via `mvn clean install`).
+For the complete test set, it expects a local postgresql database with the name "demo" that is initialized with the *.sql files.
 It also expects a "sakila" database that contains the Sakila database tables and content: https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila
 Test support for alternative databases is available via the `ACTIVE_DB` environment variable (default: postgres). 
 
