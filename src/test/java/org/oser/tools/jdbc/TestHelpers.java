@@ -128,6 +128,11 @@ public class TestHelpers {
             }
             firstTimeForEachDb.add(dbName);
         }
+        if (runningOnOsX()) {
+            // strange issue: only in mvn on osx the init cache detection does not seem to work
+            //  also mvn debugging does not halt on my breakpoints (only in some JDK code?)
+            initDbNow = true;
+        }
 
         Class.forName(baseConfig.driverName, true, Thread.currentThread().getContextClassLoader());
 
@@ -166,6 +171,11 @@ public class TestHelpers {
        // Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082", "-webAdminPassword", "admin").start();
 
         return con;
+    }
+
+    private static boolean runningOnOsX() {
+        String osName = System.getProperty("os.name").toLowerCase();
+        return osName.startsWith("mac os x");
     }
 
     public static DbConfig getDbConfig() {
