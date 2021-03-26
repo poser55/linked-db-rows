@@ -33,7 +33,7 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
  * <p>
  * License: Apache 2.0
  */
-public class DbImporter {
+public class DbImporter implements FkCacheAccessor {
     public enum Loggers {
         I_META, I_UPDATES, I_EXISTENCE_CHECK
     }

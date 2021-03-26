@@ -29,7 +29,7 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
  *  Export db data to json.
  *
  * License: Apache 2.0 */
-public class DbExporter {
+public class DbExporter implements FkCacheAccessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
 
     // configuration settings:

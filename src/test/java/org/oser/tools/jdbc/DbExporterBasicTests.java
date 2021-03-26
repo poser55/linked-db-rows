@@ -78,25 +78,19 @@ public class DbExporterBasicTests {
                 dbExporter -> {
                     try {
                         Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
-                        List<Fk> fks = Fk.getFksOfTable(demo, "user_table", dbExporter.getFkCache());
-                        // add artificial FK
-                        fks.add(new Fk("user_table", "id", "preferences", "user_id", false));
-                        dbExporter.getFkCache().put("user_table", fks);
+
+                        Fk.addVirtualForeignKey(demo, dbExporter,
+                                "user_table", "id", "preferences", "user_id");
+
                     } catch (SQLException throwables) {
                         throwables.printStackTrace();
                     }
                 }, dbImporter -> {
                     try {
                         Fk.initFkCacheForMysql_LogException(demo, dbImporter.getFkCache());
-                        List<Fk> fksUserTable = Fk.getFksOfTable(demo, "user_table", dbImporter.getFkCache());
-                        // add artificial FK
-                        fksUserTable.add(new Fk("user_table", "id", "preferences", "user_id", false));
-                        dbImporter.getFkCache().put("user_table", fksUserTable);
 
-                        List<Fk> fksPreferences = Fk.getFksOfTable(demo, "preferences", dbImporter.getFkCache());
-                        // add artificial FK (reverted)
-                        fksPreferences.add(new Fk("user_table", "id", "preferences", "user_id", true));
-                        dbImporter.getFkCache().put("preferences", fksPreferences);
+                        Fk.addVirtualForeignKey(demo, dbImporter,
+                                "user_table", "id", "preferences", "user_id");
 
                         importer.set(dbImporter);
                     } catch (SQLException throwables) {

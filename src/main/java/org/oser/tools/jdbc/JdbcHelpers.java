@@ -204,7 +204,8 @@ public final class JdbcHelpers {
     public static SortedMap<String, ColumnMetadata> getColumnMetadata(DatabaseMetaData metadata, String tableName) throws SQLException {
         SortedMap<String, ColumnMetadata> result = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
-        try (ResultSet rs = metadata.getColumns(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()), null)) {
+        try (ResultSet rs = metadata.getColumns(null, metadata.getConnection().getSchema(),
+                adaptCaseForDb(tableName, metadata.getDatabaseProductName()), null)) {
 
             while (rs.next()) {
                 String column_name = rs.getString("COLUMN_NAME").toLowerCase();
@@ -247,7 +248,8 @@ public final class JdbcHelpers {
     public static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName) throws SQLException {
         List<String> result = new ArrayList<>();
 
-        try (ResultSet rs = metadata.getPrimaryKeys(null, null, adaptCaseForDb(tableName, metadata.getDatabaseProductName()))) {
+        try (ResultSet rs = metadata.getPrimaryKeys(null, metadata.getConnection().getSchema(),
+                adaptCaseForDb(tableName, metadata.getDatabaseProductName()))) {
             while (rs.next()) {
                 result.add(rs.getString("COLUMN_NAME"));
             }

@@ -52,11 +52,11 @@ public class Fk {
 
         String adaptedTableName = adaptCaseForDb(table, dm.getDatabaseProductName());
 
-        try (ResultSet rs = dm.getExportedKeys(null, null, adaptedTableName)) {
+        try (ResultSet rs = dm.getExportedKeys(null, connection.getSchema(), adaptedTableName)) {
             addFks(fks, rs, false);
         }
 
-        try (ResultSet rs = dm.getImportedKeys(null, null, adaptedTableName)) {
+        try (ResultSet rs = dm.getImportedKeys(null, connection.getSchema(), adaptedTableName)) {
             addFks(fks, rs, true);
         }
 
@@ -156,4 +156,25 @@ public class Fk {
             throwables.printStackTrace();
         }
     }
+
+    /** Add a virtualForeignKey to the ForeignKey cache
+     *   (needs to be done once for the DbImporter AND the DbExporter).
+     *   This requires 2 foreign keys, one of which is reverted*/
+    public static void addVirtualForeignKey(Connection dbConnection,
+                                            FkCacheAccessor importerOrExporter,
+                                            String tableOne,
+                                            String tableOneColumn,
+                                            String tableTwo,
+                                            String tableTwoColumn) throws SQLException {
+        List<Fk> fks = Fk.getFksOfTable(dbConnection, tableOne, importerOrExporter.getFkCache());
+        // add artificial FK
+        fks.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, false));
+        importerOrExporter.getFkCache().put(tableOne, fks);
+
+        List<Fk> fks2 = Fk.getFksOfTable(dbConnection, tableTwo, importerOrExporter.getFkCache());
+        // add artificial FK
+        fks2.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, true));
+        importerOrExporter.getFkCache().put(tableTwo, fks2);
+    }
+
 }
