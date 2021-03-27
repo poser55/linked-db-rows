@@ -79,8 +79,10 @@ public class DbExporterBasicTests {
                     try {
                         Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
 
-                        Fk.addVirtualForeignKey(demo, dbExporter,
-                                "user_table", "id", "preferences", "user_id");
+                        List<Fk> fks = Fk.getFksOfTable(demo, "user_table", dbExporter.getFkCache());
+                        // add artificial FK
+                        fks.add(new Fk("user_table", "id", "preferences", "user_id", false));
+                        dbExporter.getFkCache().put("user_table", fks);
 
                     } catch (SQLException throwables) {
                         throwables.printStackTrace();
