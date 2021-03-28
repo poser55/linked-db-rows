@@ -23,13 +23,13 @@ public class RecordCanonicalizer {
      *  Remap the keys so that they are canonical (so that 2 same exports with the same data lead to the same json structure,
      *  the primary keys are assumed to not hold any meaning (beyond linking))
      *   the id order is determined based on the original order (so assuming integer primary keys this
-     *   should be stable for equality) <br/>
+     *   should be stable for equality) <p>
      *
-     *   Needs the connection to determine the insertionOrder traversal and other metadata<br/>
+     *   Needs the connection to determine the insertionOrder traversal and other metadata<p>
      *
-     *   Updates this record and all other records (assumes that it works on the root record) <br/>
+     *   Updates this record and all other records (assumes that it works on the root record) <p>
      *
-     *   Can be used with cycles in FK DDL: but the canonicalization is not done for the part with cycles. <br/>
+     *   Can be used with cycles in FK DDL: but the canonicalization is not done for the part with cycles. <p>
      *
      * @return the remapped primary keys (here all the values can be remapped, not just the first free value as in DbImporter)
      */

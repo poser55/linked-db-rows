@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A table and a set of concrete primary keys  (uniquely identifies a db row)<br/>
+ * A table and a list of concrete primary keys  (uniquely identifies a row in a db)<p>
  *  What is the order of the pks?  As we get it from the database metadata.
  *    E.g. via {@link JdbcHelpers#getPrimaryKeys(DatabaseMetaData, String)}
  */

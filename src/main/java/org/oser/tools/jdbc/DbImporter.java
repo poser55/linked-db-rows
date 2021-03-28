@@ -30,8 +30,6 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
 /**
  * Import a JSON structure exported with {@link DbExporter} into the db again.
- * <p>
- * License: Apache 2.0
  */
 public class DbImporter implements FkCacheAccessor {
     public enum Loggers {
@@ -255,7 +253,7 @@ public class DbImporter implements FkCacheAccessor {
 
         List<Object> pkValues = remapPrimaryKeyValues(record, newKeys, primaryKeys, fksByColumnName, isFreePk);
 
-        boolean entryExists = JdbcHelpers.doesPkTableExist(connection, record.getRowLink().getTableName(), primaryKeys, pkValues, record.getColumnMetadata());
+        boolean entryExists = JdbcHelpers.doesRowWithPrimaryKeysExist(connection, record.getRowLink().getTableName(), primaryKeys, pkValues, record.getColumnMetadata());
         boolean isInsert = forceInsert || !entryExists;
 
         Object candidatePk;
@@ -354,11 +352,11 @@ public class DbImporter implements FkCacheAccessor {
      * @return the primary key values that are remapped if needed (if e.g. another inserted row has a pk that was remapped before)
      *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
      * */
-    public static List<Object> remapPrimaryKeyValues(Record record,
-                                                     Map<RowLink, Object> newKeys,
-                                                     List<String> primaryKeys,
-                                                     Map<String, List<Fk>> fksByColumnName,
-                                                     List<Boolean> isFreePk) {
+    static List<Object> remapPrimaryKeyValues(Record record,
+                                              Map<RowLink, Object> newKeys,
+                                              List<String> primaryKeys,
+                                              Map<String, List<Fk>> fksByColumnName,
+                                              List<Boolean> isFreePk) {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
 
         for (String primaryKey : primaryKeys) {
@@ -393,7 +391,7 @@ public class DbImporter implements FkCacheAccessor {
     /** If true, always insert new records if the PKs already exist (via remapping if necessary).
      *  If false, try updating if entries exist.
      * Setting this to false is experimental: it has limitations with 1:n mappings (keeps already existing 1:n entries,
-     * so there might be more than what is in the JSON (after the update)), with multiple primary keys and fieldMappers <br/>
+     * so there might be more than what is in the JSON (after the update)), with multiple primary keys and fieldMappers <p>
      * Default: true */
     public void setForceInsert(boolean forceInsert) {
         this.forceInsert = forceInsert;

@@ -237,7 +237,7 @@ public class TestHelpers {
     }
 
     /**
-     * Makes a full test with a RowLink <br/>
+     * Makes a full test with a table and its primary keys (export and import again, with many checks) <p>
      * Allows to configure the DbImporter/ DbExporter/ Record/ Remappings
      */
     public static BasicChecksResult testExportImportBasicChecks(Connection connection, Consumer<DbExporter> optionalExporterConfigurer,

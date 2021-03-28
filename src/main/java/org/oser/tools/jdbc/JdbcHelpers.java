@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
+/** Helper methods for core JDBC and JDBC metadata */
 public final class JdbcHelpers {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcHelpers.class);
 
@@ -328,7 +329,7 @@ public final class JdbcHelpers {
     }
 
     /**
-     * represents simplified JDBC metadata
+     * Represents simplified JDBC metadata about a column
      */
     public static class ColumnMetadata {
         String name;
@@ -382,8 +383,12 @@ public final class JdbcHelpers {
     }
 
     /** Does the row of the table tableName and primary key pkNames and the pkValues exist? */
-    public static boolean doesPkTableExist(Connection connection, String tableName, List<String> pkNames,
-                                           List<Object> pkValues, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata) throws SQLException {
+    public static boolean doesRowWithPrimaryKeysExist(Connection connection,
+                                                      String tableName,
+                                                      List<String> pkNames,
+                                                      List<Object> pkValues,
+                                                      Map<String,
+                                                              JdbcHelpers.ColumnMetadata> columnMetadata) throws SQLException {
         String selectStatement = selectStatementByPks(tableName, pkNames, columnMetadata);
 
         boolean exists = false;

@@ -14,7 +14,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.oser.tools.jdbc.JdbcHelpers.adaptCaseForDb;
 
-/** Represents one foreign key constraint */
+/** Represents one foreign key constraint in JDBC. In JDBC <em>one</em> db constraint between table 1 and table 2 has <em>two</em> representations: the link from
+ *   table 1 to table 2 and vice versa. One of the 2 constraints is <em>reverted</em>.  */
 @Getter
 public class Fk {
     public String pktable;
@@ -23,7 +24,8 @@ public class Fk {
     public String fktable;
     public String fkcolumn;
 
-    public boolean inverted; // excluded in equals!
+    /** excluded in equals! */
+    public boolean inverted;
 
 
     public Fk(String pktable, String pkcolumn, String fktable, String fkcolumn, boolean inverted) {

@@ -119,6 +119,11 @@ Test support for alternative databases is available via the `ACTIVE_DB` environm
 The script `./launchTests.sh` launches tests for all the db systems where the tests run through (db systems other than Postgresql
 are launched automatically).  
 
+#### Deploying
+ * Description: https://andresalmiray.com/publishing-to-maven-central-using-apache-maven/
+ * Test run: `mvn -Ppublication,local-deploy -Dlocal.repository.path=c:/tmp/repository deploy` 
+ 
+
 Further Ideas:
 --------------
 * Clean ups

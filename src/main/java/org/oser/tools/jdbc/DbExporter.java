@@ -26,9 +26,8 @@ import java.util.TreeMap;
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
 /**
- *  Export db data to json.
- *
- * License: Apache 2.0 */
+ *  Export db data to JSON.
+ */
 public class DbExporter implements FkCacheAccessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
 
@@ -69,7 +68,8 @@ public class DbExporter implements FkCacheAccessor {
     }
 
     /**
-     * stores context about the export (to avoid infinite loops)
+     * Stores context about the export (to avoid infinite loops)
+     *  (NB: Will likely be changed)
      */
     @Getter
     public static class ExportContext {
