@@ -32,7 +32,7 @@
 
     <groupId>org.oser.tools.jdbc</groupId>
     <artifactId>linked-db-rows</artifactId>
-    <version>0.4-SNAPSHOT</version>
+    <version>0.3-SNAPSHOT</version>
 
     <properties>
         <java.version>11</java.version>
@@ -42,7 +42,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <nexus.url>https://oss.sonatype.org</nexus.url>
+        <nexus.url>https://s01.oss.sonatype.org</nexus.url>
         <project.repository>https://github.com/poser55/linked-db-rows</project.repository>
         <repository.url>git@github.com:${project.repository}.git</repository.url>
     </properties>
