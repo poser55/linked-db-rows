@@ -32,7 +32,7 @@
 
     <groupId>org.oser.tools.jdbc</groupId>
     <artifactId>linked-db-rows</artifactId>
-    <version>0.3-SNAPSHOT</version>
+    <version>0.2-SNAPSHOT</version>
 
     <properties>
         <java.version>11</java.version>
