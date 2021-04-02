@@ -41,7 +41,7 @@ Rationale for the tool
 * For general data import/ export
 * To replay a prod database setup in development 
 * To compare 2 database situations
-* Maybe as simpler high-level database access abstraction?
+* Maybe as a simpler high-level database access abstraction?
 
 
 Additional features:
