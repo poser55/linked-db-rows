@@ -116,8 +116,8 @@ For the complete test set, it expects a local postgresql database with the name 
 It also expects a "sakila" database that contains the Sakila database tables and content: https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila
 Test support for alternative databases is available via the `ACTIVE_DB` environment variable (default: postgres). 
 
-The script `./launchTests.sh` launches tests for all the db systems where the tests run through (db systems other than Postgresql
-are launched automatically).  
+The script `./launchTests.sh` launches tests for all the db systems where the tests run (db systems other than Postgresql and h2
+are launched automatically via testcontainer).  
 
 
 Deploying
