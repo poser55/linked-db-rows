@@ -4,7 +4,7 @@
 
     <groupId>org.oser.tools.jdbc</groupId>
     <artifactId>linked-db-rows</artifactId>
-    <version>0.3-SNAPSHOT</version>
+    <version>0.4-SNAPSHOT</version>
 
     <name>linked-db-rows</name>
 
