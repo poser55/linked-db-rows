@@ -45,6 +45,7 @@
         <nexus.url>https://s01.oss.sonatype.org</nexus.url>
         <project.repository>https://github.com/poser55/linked-db-rows</project.repository>
         <repository.url>git@github.com:${project.repository}.git</repository.url>
+        <project.repository>poser55/linked-db-rows</project.repository>
     </properties>
 
     <dependencies>
@@ -80,7 +81,6 @@
             <scope>test</scope>
         </dependency>
 
-
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -113,6 +113,7 @@
             <groupId>com.microsoft.sqlserver</groupId>
             <artifactId>mssql-jdbc</artifactId>
             <version>8.4.1.jre11</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -149,7 +150,6 @@
             <version>6.5.2</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -169,6 +169,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -205,18 +206,6 @@
 
         </plugins>
     </build>
-
-    <!--    <repositories>-->
-    <!--        <repository>-->
-    <!--            <id>central</id>-->
-    <!--            <name>Central Repository</name>-->
-    <!--            <url>https://repo.maven.apache.org/maven2</url> &lt;!&ndash; the https you've been looking for &ndash;&gt;-->
-    <!--            <layout>default</layout>-->
-    <!--            <snapshots>-->
-    <!--                <enabled>true</enabled>-->
-    <!--            </snapshots>-->
-    <!--        </repository>-->
-    <!--    </repositories>-->
 
     <distributionManagement>
         <snapshotRepository>

@@ -1,9 +1,9 @@
-What it is:
+What it is
 ===========
 * Relational databases work with _rows of data_. These rows can be linked to other rows via _foreign keys_. All linked rows form a graph. 
 * _Linked db rows_ works on graphs of such database rows: It allows exporting such graphs to JSON and re-importing them again into databases.
 
-Usage (2 minute version):
+Usage (2 minute version)
 --------------------------
 * Export a row and all the rows that are linked to it as JSON, starting from the row of the `book` 
 table with the primary key of 1.  
@@ -34,6 +34,15 @@ Example export:
   dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book", json));
 ```
 
+Maven dependency:
+```XML
+<dependency>
+  <groupId>org.oser.tools.jdbc</groupId>
+  <artifactId>linked-db-rows</artifactId>
+  <version>0.3</version>
+</dependency>
+```
+
 Rationale for the tool
 --------------
 * Initialize the database
@@ -44,7 +53,7 @@ Rationale for the tool
 * Maybe as a simpler high-level database access abstraction?
 
 
-Additional features:
+Additional features
 ---------------------
 * By default, when inserting it can *remap* the primary keys of inserted rows in order to not clash with existing primary keys. 
 (So if in the JSON there is a book with PK 7 (book/7) and in the db also, it looks for another PK to insert the entry, and then it remaps all other links to the book/7.)
@@ -54,7 +63,7 @@ Additional features:
 * Some options on how to export/ re-import linked db rows (see below).
 
 
-Limitations:
+Limitations
 ------------
 * Most tested on postgres for now, starts to work with h2, sqlserver and oracle (mysql with limitations)
 * Test coverage can be improved
@@ -62,11 +71,11 @@ Limitations:
 * Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and ignoreFkCycles)
 * Arrays (as e.g. Postgresql supports them) and other advanced constructs are currently not supported
 
-License:
+License
 ---------
 * Apache version 2.0
 
-Usage (longer version):
+Usage (longer version)
 -----------------------
 #### Options to export and import
 There are accessors on DbImporter and DbExporter that allow setting various options:
@@ -97,19 +106,19 @@ CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 
 #### Scripts to export/ import via command line
- * Exports a db row and all linked rows as JSON (you can chose a supported db via a short name, it downloads the needed jdbc driver)
- * Requires installing of https://www.jbang.dev/
+ * Exports a db row and all linked rows as JSON (you can chose a supported db via a short name, it downloads the needed jdbc driver if needed)
+   It requires installing https://www.jbang.dev/
  * Examples:
- *  `jbang JsonExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
- *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"`
- *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table" --url "jdbc:h2:mem:demo" -db h2 -l sa -pw " "`   
- *  `jbang.cmd ./JsonExport.java -p 3 --stopTablesExcluded="user_table"  -db postgres > out.json`
- *  `jbang.cmd ./JsonImport.java -j out.json -db postgres`
+    *  `jbang JsonExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
+    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"`
+    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table" --url "jdbc:h2:mem:demo" -db h2 -l sa -pw " "`   
+    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"  -db postgres > out.json`
+    *  `jbang JsonImport.java -j out.json -db postgres`
     
  * Help about options:  `jbang JsonExport.java -h`
- *                      `jbang JsonImport.java -h`
+ 
 
-How to run the tests:
+How to run the tests
 ---------------------
 The basic tests run (without configuration) for h2 (they run directly via `mvn clean install`).
 For the complete test set, it expects a local postgresql database with the name "demo" that is initialized with the *.sql files.
@@ -123,10 +132,11 @@ Deploying
 --------------
  * Description: https://andresalmiray.com/publishing-to-maven-central-using-apache-maven/ and
    proandroiddev.com/publishing-a-maven-artifact-3-3-step-by-step-instructions-to-mavencentral-publishing-bd661081645d
- * Test run: `mvn -Ppublication,local-deploy -Dlocal.repository.path=c:/tmp/repository deploy` 
+ * Test run: `mvn -Ppublication,local-deploy -Dlocal.repository.path=c:/tmp/repository deploy`
+ * To release, add [release] as first part of the git commit message
  
 
-Further Ideas:
+Further Ideas
 --------------
 * Clean ups
     - Reduce the limitations
