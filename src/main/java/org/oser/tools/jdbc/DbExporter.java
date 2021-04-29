@@ -12,8 +12,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Formatter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -285,6 +288,66 @@ public class DbExporter implements FkCacheAccessor {
         }
         row.setPkValue(primaryKeyValues);
         return row;
+    }
+
+    /** Get SQL statements to delete all the content of a record (needs to be created before).
+     * They are in the order to be executed. */
+    public List<String> getDeleteStatements(Connection connection, Record exportedRecord) throws Exception {
+        List<String> result = new ArrayList<>();
+
+        CheckedFunction<Record, Void> collectDeletionStatement = (Record r) -> {
+            result.add(DbExporter.recordEntryToDeleteStatement(connection.getMetaData(), r, Caffeine.newBuilder().maximumSize(1000).build()));
+            return null;
+        };
+
+        exportedRecord.visitRecordsInInsertionOrder(connection, collectDeletionStatement, false);
+        Collections.reverse(result);
+        return result;
+    }
+
+    private static String recordEntryToDeleteStatement(DatabaseMetaData m, Record r, Cache<String, List<String>> pkCache) throws SQLException {
+        // todo ensure this is correct in record (so does not need to be gotten again)
+        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(m, r.getRowLink().getTableName(), pkCache);
+
+
+        String whereClause = "";
+        for (int i = 0; i < primaryKeys.size(); i++) {
+            JdbcHelpers.ColumnMetadata columnMetadata = r.getColumnMetadata().get(primaryKeys.get(i));
+            String optionalQuote = columnMetadata.needsQuoting() ? "'" : "";
+            String pk = optionalQuote + r.getRowLink().getPks()[i].toString() + optionalQuote;
+            whereClause += primaryKeys.get(i) + "=" + pk + " and ";
+        }
+        // remove last "and"
+        whereClause = whereClause.substring(0, whereClause.length() - 4);
+
+        return new Formatter().format("delete from %s where %s", r.getRowLink().getTableName(), whereClause).toString();
+    }
+
+    /** Delete the record with all linked rows
+     *  CAVEAT: really deletes data, check the data first!
+     *   @throws SQLException or an IllegalStateException if there is a problem during deletion
+     * @return the record that was deleted */
+    public Record deleteRecursively(Connection connection, String tableName, Object... pkValue) throws Exception {
+        Record record = contentAsTree(connection, tableName, pkValue);
+
+        List<String> deleteStatements = getDeleteStatements(connection, record);
+
+        doDeletionWithException(connection, deleteStatements);
+
+        return record;
+    }
+
+    private void doDeletionWithException(Connection connection, List<String> deleteStatements) throws SQLException {
+        List<Integer> results = new ArrayList<>();
+        try (Statement stmt = connection.createStatement()) {
+            for (String sqlString : deleteStatements) {
+                int e = stmt.executeUpdate(sqlString);
+                if (e != 1) {
+                    throw new IllegalStateException("Deletion not successful "+sqlString+" result: "+e);
+                }
+                results.add(e);
+            }
+        }
     }
 
 

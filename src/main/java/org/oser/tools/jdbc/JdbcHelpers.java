@@ -332,6 +332,8 @@ public final class JdbcHelpers {
      * Represents simplified JDBC metadata about a column
      */
     public static class ColumnMetadata {
+        private static final Set<Integer> QUOTING_DATATYPES = Set.of(Types.DATE, Types.TIMESTAMP, Types.TIME, Types.TIME_WITH_TIMEZONE, Types.TIMESTAMP_WITH_TIMEZONE,
+                Types.ARRAY, Types.BLOB, Types.CHAR, Types.CLOB, Types.DATALINK, Types.LONGNVARCHAR, Types.VARCHAR, Types.SQLXML, Types.NCHAR);
         String name;
         String type;
         /** {@link java.sql.Types} */
@@ -373,6 +375,10 @@ public final class JdbcHelpers {
 
         public int getDataType() {
             return dataType;
+        }
+
+        public boolean needsQuoting() {
+            return QUOTING_DATATYPES.contains(dataType);
         }
     }
 

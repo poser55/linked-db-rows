@@ -163,6 +163,16 @@ public class DbExporterBasicTests {
                 },
                 "Nodes", 1, 10);
         TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.INFO);
+
+        // test simple deletion
+        Object newPk = basicChecksResult.getRowLinkObjectMap().entrySet().stream().filter(r -> r.getKey().getTableName().equals("nodes")).findFirst().get().getValue();
+
+        DbExporter dbExporter = new DbExporter();
+        List<String> nodes = dbExporter.getDeleteStatements(demo, dbExporter.contentAsTree(demo, "nodes", newPk));
+        System.out.println(nodes);
+        dbExporter.deleteRecursively(demo, "Nodes", newPk);
+
+        assertThrows(IllegalArgumentException.class, () -> dbExporter.deleteRecursively(demo, "Nodes", newPk));
     }
 
 
