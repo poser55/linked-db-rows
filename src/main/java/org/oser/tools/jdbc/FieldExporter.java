@@ -8,9 +8,11 @@ import java.sql.SQLException;
  */
 @FunctionalInterface
 public interface FieldExporter {
-	/** @return can return null to indicate to skip the field */
-	Record.FieldAndValue exportField(String name, JdbcHelpers.ColumnMetadata metadata, Object value, ResultSet rs)  throws SQLException;
+	/**
+	 * @param tableName only match on tables with the given name (can be null to match on all tables)
+	 * @return can return null to indicate to skip the field */
+	Record.FieldAndValue exportField(String tableName, String fieldName, JdbcHelpers.ColumnMetadata metadata, Object value, ResultSet rs)  throws SQLException;
 
 	/** Ignores a field in the export */
-	FieldExporter NOP_FIELDEXPORTER = (name, metadata, value, rs) -> null;
+	FieldExporter NOP_FIELDEXPORTER = (tableName, name, metadata, value, rs) -> null;
 }

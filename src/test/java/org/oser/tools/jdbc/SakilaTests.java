@@ -44,7 +44,7 @@ public class SakilaTests {
 
         DbImporter dbImporter = new DbImporter();
         dbImporter.setIgnoreFkCycles(true);
-        dbImporter.getFieldMappers().put("special_features", FieldMapper.NOP_FIELDMAPPER);
+        dbImporter.registerFieldImporter(null, "special_features", FieldImporter.NOP_FIELDIMPORTER);
         Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
 
         dbImporter.insertRecords(sakilaConnection, asRecord);
@@ -73,10 +73,10 @@ public class SakilaTests {
                     dbExporter.getStopTablesExcluded().add("inventory");
 
                     // not exporting release_year (custom types work on in basic way, the mapping to json is suboptimal)
-                    dbExporter.getFieldExporters().put("release_year", FieldExporter.NOP_FIELDEXPORTER);
-                    dbExporter.getFieldExporters().put("rating", FieldExporter.NOP_FIELDEXPORTER);
+                    dbExporter.registerFieldExporter(null, "release_year", FieldExporter.NOP_FIELDEXPORTER);
+                    dbExporter.registerFieldExporter(null, "rating", FieldExporter.NOP_FIELDEXPORTER);
                 }, dbImporter -> {
-                    dbImporter.getFieldMappers().put("special_features", FieldMapper.NOP_FIELDMAPPER);
+                    dbImporter.registerFieldImporter("film","special_features", FieldImporter.NOP_FIELDIMPORTER);
                     dbImporter.setIgnoreFkCycles(true);
                 }, null, remapping, "actor", 199, 31, false
         );
@@ -94,9 +94,9 @@ public class SakilaTests {
                     dbExporter.getStopTablesIncluded().add("inventory");
 
                     // not exporting release_year (custom types work on in basic way, the mapping to json is suboptimal)
-                    dbExporter.getFieldExporters().put("release_year", FieldExporter.NOP_FIELDEXPORTER);
+                    dbExporter.registerFieldExporter(null, "release_year", FieldExporter.NOP_FIELDEXPORTER);
                 }, dbImporter -> {
-                    dbImporter.getFieldMappers().put("special_features", FieldMapper.NOP_FIELDMAPPER);
+                    dbImporter.registerFieldImporter(null, "special_features", FieldImporter.NOP_FIELDIMPORTER);
                     dbImporter.setIgnoreFkCycles(true);
                 }, "actor", 199, 12671
         );

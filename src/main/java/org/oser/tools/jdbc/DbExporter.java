@@ -47,8 +47,6 @@ public class DbExporter implements FkCacheAccessor {
     private final Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
-    private final Map<String, FieldExporter> fieldExporter = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-
     /** experimental feature to order results by first pk when exporting */
     private boolean orderResults = true;
 
@@ -151,7 +149,7 @@ public class DbExporter implements FkCacheAccessor {
 
         Record.FieldAndValue d;
         if (localFieldExporter != null) {
-            d = localFieldExporter.exportField(columnName, columns.get(columnName.toLowerCase()), valueAsObject, rs);
+            d = localFieldExporter.exportField(tableName, columnName, columns.get(columnName.toLowerCase()), valueAsObject, rs);
         } else {
             d = new Record.FieldAndValue(columnName, columns.get(columnName.toLowerCase()), valueAsObject);
         }
@@ -290,17 +288,19 @@ public class DbExporter implements FkCacheAccessor {
         return row;
     }
 
+    //region delete
+
     /** Get SQL statements to delete all the content of a record (needs to be created before).
-     * They are in the order to be executed. */
+     * They are in an order they can be executed. */
     public List<String> getDeleteStatements(Connection connection, Record exportedRecord) throws Exception {
         List<String> result = new ArrayList<>();
 
         CheckedFunction<Record, Void> collectDeletionStatement = (Record r) -> {
-            result.add(DbExporter.recordEntryToDeleteStatement(connection.getMetaData(), r, Caffeine.newBuilder().maximumSize(1000).build()));
+            result.add(DbExporter.recordEntryToDeleteStatement(connection.getMetaData(), r, pkCache));
             return null;
         };
 
-        exportedRecord.visitRecordsInInsertionOrder(connection, collectDeletionStatement, false);
+        exportedRecord.visitRecordsInInsertionOrder(connection, collectDeletionStatement, false, fkCache);
         Collections.reverse(result);
         return result;
     }
@@ -320,7 +320,9 @@ public class DbExporter implements FkCacheAccessor {
         // remove last "and"
         whereClause = whereClause.substring(0, whereClause.length() - 4);
 
-        return new Formatter().format("delete from %s where %s", r.getRowLink().getTableName(), whereClause).toString();
+        try (Formatter formatter = new Formatter()){
+            return formatter.format("delete from %s where %s", r.getRowLink().getTableName(), whereClause).toString();
+        }
     }
 
     /** Delete the record with all linked rows
@@ -337,19 +339,18 @@ public class DbExporter implements FkCacheAccessor {
         return record;
     }
 
-    private void doDeletionWithException(Connection connection, List<String> deleteStatements) throws SQLException {
-        List<Integer> results = new ArrayList<>();
+    public void doDeletionWithException(Connection connection, List<String> deleteStatements) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
             for (String sqlString : deleteStatements) {
-                int e = stmt.executeUpdate(sqlString);
-                if (e != 1) {
-                    throw new IllegalStateException("Deletion not successful "+sqlString+" result: "+e);
+                int count = stmt.executeUpdate(sqlString);
+                if (count != 1) {
+                    throw new IllegalStateException("Deletion not successful "+sqlString+" result: "+count);
                 }
-                results.add(e);
             }
         }
     }
 
+    //endregion delete
 
     public Set<String> getStopTablesExcluded() {
         return stopTablesExcluded;
@@ -367,12 +368,50 @@ public class DbExporter implements FkCacheAccessor {
         return pkCache;
     }
 
-    public Map<String, FieldExporter> getFieldExporters() {
-        return fieldExporter;
+    /**  fieldName : String -> <optionalTableName : String, FieldExporter> */
+    private final Map<String, Map<String, FieldExporter>> fieldExporters = new HashMap<>();
+
+    /** @param tableName the table for which the FieldExporter should be used, may be null, means all tables
+     *  @param fieldName the field for which the FieldExporter should be used */
+    public void registerFieldExporter(String tableName, String fieldName, FieldExporter newFieldExporter){
+        Objects.requireNonNull(fieldName, "Field must not be null");
+        Objects.requireNonNull(newFieldExporter, "FieldExporter must not be null");
+
+        fieldName = fieldName.toLowerCase();
+        tableName = (tableName != null) ? tableName.toLowerCase() : null;
+
+        if (!fieldExporters.containsKey(fieldName)){
+            fieldExporters.put(fieldName, new HashMap<>());
+        }
+        fieldExporters.get(fieldName).put(tableName, newFieldExporter);
     }
 
-    private FieldExporter getFieldExporter(String tableName, String fieldName) {
-        return getFieldExporters().get(fieldName);
+    /** Access to internal fieldExporters */
+    public Map<String, Map<String, FieldExporter>> getFieldExporters() {
+        return fieldExporters;
+    }
+
+
+    //@VisibleForTesting
+    /** Internal retrieval, @return null if none is found */
+    FieldExporter getFieldExporter(String tableName, String fieldName) {
+        fieldName = fieldName.toLowerCase();
+        tableName = tableName.toLowerCase();
+
+        // find best match
+        Map<String, FieldExporter> fieldMatch = fieldExporters.get(fieldName);
+        FieldExporter match = null;
+        if (fieldMatch != null) {
+            match = fieldMatch.get(tableName);
+
+            if (match != null) {
+                return match;
+            } else {
+                match = fieldMatch.get(null);
+                return match;
+            }
+        }
+        return null;
     }
 
     /** experimental feature to order results by first pk when exporting (default: true) */

@@ -279,4 +279,16 @@ public class DbExporterBasicTests {
         assertNull(asRecord.findElementWithName("text_type").value);
     }
 
+    @Test
+    void testFieldExporter() {
+        DbExporter dbExporter = new DbExporter();
+
+        FieldExporter tfExporter = (FieldExporter) (tableName, fieldName, metadata, value, rs) -> {     return null;  };
+        FieldExporter nullFfExporter = (FieldExporter) (tableName, fieldName, metadata, value, rs) -> {     return new Record.FieldAndValue("name", null, null);  };
+        dbExporter.registerFieldExporter("t", "f", tfExporter);
+        dbExporter.registerFieldExporter(null, "ff", nullFfExporter);
+        assertEquals(tfExporter, dbExporter.getFieldExporter("t", "f"));
+        assertEquals(nullFfExporter, dbExporter.getFieldExporter("anyTable", "ff"));
+        assertEquals(null, dbExporter.getFieldExporter("tt", "f"));
+    }
 }

@@ -45,7 +45,9 @@ public class DbImporter implements FkCacheAccessor {
     private boolean forceInsert = true;
     private final Map<String, PkGenerator> overriddenPkGenerators = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private PkGenerator defaultPkGenerator = new NextValuePkGenerator();
-    private final Map<String, FieldMapper> fieldMappers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
+    /**  fieldName : String -> <optionalTableName : String, FieldImporter> */
+    private final Map<String, Map<String, FieldImporter>> fieldImporters = new HashMap<>();
 
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
             .maximumSize(10_000).build();
@@ -231,7 +233,7 @@ public class DbImporter implements FkCacheAccessor {
 
         CheckedFunction<Record, Void> insertOneRecord = (Record r) -> {
             if (!rowLinksNotToInsert.contains(r.rowLink)) {
-                this.insertOneRecord(connection, r, newKeys, fieldMappers);
+                this.insertOneRecord(connection, r, newKeys);
             }
             return null; // strange that we need this hack
         };
@@ -240,7 +242,7 @@ public class DbImporter implements FkCacheAccessor {
         return newKeys;
     }
 
-    private void insertOneRecord(Connection connection, Record record, Map<RowLink, Object> newKeys, Map<String, FieldMapper> mappers) throws SQLException {
+    private void insertOneRecord(Connection connection, Record record, Map<RowLink, Object> newKeys) throws SQLException {
         DatabaseMetaData metadata = connection.getMetaData();
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metadata, record.getRowLink().getTableName(), pkCache);
 
@@ -329,11 +331,11 @@ public class DbImporter implements FkCacheAccessor {
 
                 valueToInsert[0] = removeQuotes(valueToInsert[0]);
 
-                if (mappers.containsKey(currentFieldName)) {
-                    mappers.get(currentFieldName).mapField(currentElement.metadata, statement, statementPosition, valueToInsert[0]);
+                FieldImporter fieldImporter = getFieldImporter(record.getRowLink().getTableName(), currentFieldName);
+                if (fieldImporter != null) {
+                    fieldImporter.importField(record.getRowLink().getTableName(), currentElement.metadata, statement, statementPosition, valueToInsert[0]);
                 } else {
                     JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, statementPosition, valueToInsert[0], currentElement.metadata);
-
                 }
             }
 
@@ -405,8 +407,47 @@ public class DbImporter implements FkCacheAccessor {
         defaultPkGenerator = generator;
     }
 
-    public Map<String, FieldMapper> getFieldMappers() {
-        return fieldMappers;
+    /** @param tableName the table for which the FieldImporter should be used, may be null, means all tables
+     *  @param fieldName the field for which the FieldImporter should be used */
+    public void registerFieldImporter(String tableName, String fieldName, FieldImporter newFieldImporter){
+        Objects.requireNonNull(fieldName, "Field must not be null");
+        Objects.requireNonNull(newFieldImporter, "FieldImporter must not be null");
+
+        fieldName = fieldName.toLowerCase();
+        tableName = (tableName != null) ? tableName.toLowerCase() : null;
+
+        if (!fieldImporters.containsKey(fieldName)){
+            fieldImporters.put(fieldName, new HashMap<>());
+        }
+        fieldImporters.get(fieldName).put(tableName, newFieldImporter);
+    }
+
+    /** Access to internal fieldImporters */
+    public Map<String, Map<String, FieldImporter>> getFieldImporters() {
+        return fieldImporters;
+    }
+
+
+    //@VisibleForTesting
+    /** Internal retrieval, @return null if none is found */
+    FieldImporter getFieldImporter(String tableName, String fieldName) {
+        fieldName = fieldName.toLowerCase();
+        tableName = tableName.toLowerCase();
+
+        // find best match
+        Map<String, FieldImporter> fieldMatch = fieldImporters.get(fieldName);
+        FieldImporter match = null;
+        if (fieldMatch != null) {
+            match = fieldMatch.get(tableName);
+
+            if (match != null) {
+                return match;
+            } else {
+                match = fieldMatch.get(null);
+                return match;
+            }
+        }
+        return null;
     }
 
     public Cache<String, List<Fk>> getFkCache() {
