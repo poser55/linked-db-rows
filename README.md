@@ -101,7 +101,20 @@ One can configure foreign keys that do not exist in the db, just for the exporti
 in the  org.oser.tools.jdbc.DbExporterBasicTests#blog_artificialFk test. We added a new table `preferences` that holds the
 user preferences. There is no FK between the `user_table` and the `preferences` table. The test demonstrates how to add a virtual FK externally.
 CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is inverted (inverted = true). (2) one needs to get the existing FKs and can then add the new FK.
- 
+
+#### Canonicalization of primary keys
+Two graphs may be equivalent given their contained data but just have different primary keys (if we assume that the primary keys
+do not hold business meaning, beyond mapping rows). This feature allows to convert a record to a canonical form (that is assumed 
+to be the same even if the primary keys vary).
+Id orders are determined based on the original order in the database (so assuming integer primary keys this
+should be stable for equality). We do not use any data in the records to determine the order. 
+Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
+
+#### Deleting a graph
+Refer to `DbExporter.getDeleteStatements()`. It does a db export first (using all the parameters of DbExporter). 
+You should check that the export to json is correct first!  
+CAVEAT: `DbExporter.deleteRecursively()` really DELETES data!
+
 #### Sakila database example
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 

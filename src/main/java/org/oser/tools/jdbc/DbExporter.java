@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
-import java.util.TreeMap;
 
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
@@ -170,7 +169,7 @@ public class DbExporter implements FkCacheAccessor {
 
     private void setPksStatementFields(PreparedStatement pkSelectionStatement, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata, Object[] values, String fkName) throws SQLException {
         JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(fkName.toLowerCase());
-        JdbcHelpers.innerSetStatementField(pkSelectionStatement, fieldMetadata.getType(), 1, Objects.toString(values[0]), fieldMetadata);
+        JdbcHelpers.innerSetStatementField(pkSelectionStatement, 1, fieldMetadata, Objects.toString(values[0]));
 
 //            int i = 0;
 //            for (String pkName : primaryKeys) {

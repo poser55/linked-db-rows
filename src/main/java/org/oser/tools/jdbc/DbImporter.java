@@ -335,7 +335,7 @@ public class DbImporter implements FkCacheAccessor {
                 if (fieldImporter != null) {
                     fieldImporter.importField(record.getRowLink().getTableName(), currentElement.metadata, statement, statementPosition, valueToInsert[0]);
                 } else {
-                    JdbcHelpers.innerSetStatementField(statement, currentElement.metadata.type, statementPosition, valueToInsert[0], currentElement.metadata);
+                    JdbcHelpers.innerSetStatementField(statement, statementPosition, currentElement.metadata, valueToInsert[0]);
                 }
             }
 

@@ -262,13 +262,10 @@ public final class JdbcHelpers {
     /**
      * Set a value on a jdbc Statement
      *
-     *   for cases where we have less info, columnMetadata can be null
      */
-    // todo: one could use the int type info form the metadata
-    // todo: clean up arguments (redundant)
-    public static void innerSetStatementField(PreparedStatement preparedStatement, String typeAsString, int statementIndex, String valueToInsert, ColumnMetadata columnMetadata) throws SQLException {
+    public static void innerSetStatementField(PreparedStatement preparedStatement, int statementIndex, ColumnMetadata columnMetadata, String valueToInsert) throws SQLException {
         boolean isEmpty = valueToInsert == null || (valueToInsert.trim().isEmpty() || valueToInsert.equals("null"));
-        switch (typeAsString.toUpperCase()) {
+        switch (columnMetadata.type.toUpperCase()) {
             case "BOOLEAN":
             case "BOOL":
                 if (isEmpty) {
@@ -305,7 +302,7 @@ public final class JdbcHelpers {
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
                 } else {
-                    if (typeAsString.toUpperCase().equals("TIMESTAMP")) {
+                    if (columnMetadata.type.toUpperCase().equals("TIMESTAMP")) {
                         LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
                         preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(localDateTime));
                     } else {
@@ -420,7 +417,7 @@ public final class JdbcHelpers {
             if (fieldMetadata == null) {
                 throw new IllegalArgumentException("Issue with metadata " + columnMetadata);
             }
-            JdbcHelpers.innerSetStatementField(pkSelectionStatement, fieldMetadata.getType(), i + 1, Objects.toString(values.get(i)), fieldMetadata);
+            JdbcHelpers.innerSetStatementField(pkSelectionStatement, i + 1, fieldMetadata, Objects.toString(values.get(i)));
             i++;
         }
     }
