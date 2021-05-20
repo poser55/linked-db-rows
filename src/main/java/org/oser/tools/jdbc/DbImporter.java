@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.oser.tools.jdbc.spi.pkgenerator.NextValuePkGenerator;
+import org.oser.tools.jdbc.spi.statements.JdbcStatementSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +58,11 @@ public class DbImporter implements FkCacheAccessor {
 
     private final Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
+
+    /** to overwrite how special JDBC types are set on a preparedStatement. Refer to
+     *  {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, String, Map)}
+     */
+    private final Map<String, JdbcStatementSetter> jdbcStatementSetterPlugins = new HashMap<>();
 
     /** with cycles in the FKs we would throw an exception - we can try inserting what we can anyway */
     private boolean ignoreFkCycles = false;
@@ -335,7 +341,7 @@ public class DbImporter implements FkCacheAccessor {
                 if (fieldImporter != null) {
                     fieldImporter.importField(record.getRowLink().getTableName(), currentElement.metadata, statement, statementPosition, valueToInsert[0]);
                 } else {
-                    JdbcHelpers.innerSetStatementField(statement, statementPosition, currentElement.metadata, valueToInsert[0]);
+                    JdbcHelpers.innerSetStatementField(statement, statementPosition, currentElement.metadata, valueToInsert[0], jdbcStatementSetterPlugins);
                 }
             }
 
@@ -453,6 +459,13 @@ public class DbImporter implements FkCacheAccessor {
     public Cache<String, List<Fk>> getFkCache() {
         return fkCache;
     }
+
+    /** Allows overriding how we set a value on a jdbc prepared statement.
+     * Refer to {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, String, Map)} */
+    public Map<String, JdbcStatementSetter> getJdbcStatementSetterPlugins() {
+        return jdbcStatementSetterPlugins;
+    }
+
 
     /** with cycles in the FKs we would throw an exceptions - we can try inserting what we can anyway (default: false) */
     public void setIgnoreFkCycles(boolean ignoreFkCycles) {

@@ -169,7 +169,7 @@ public class DbExporter implements FkCacheAccessor {
 
     private void setPksStatementFields(PreparedStatement pkSelectionStatement, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata, Object[] values, String fkName) throws SQLException {
         JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(fkName.toLowerCase());
-        JdbcHelpers.innerSetStatementField(pkSelectionStatement, 1, fieldMetadata, Objects.toString(values[0]));
+        JdbcHelpers.innerSetStatementField(pkSelectionStatement, 1, fieldMetadata, Objects.toString(values[0]), null);
 
 //            int i = 0;
 //            for (String pkName : primaryKeys) {

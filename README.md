@@ -86,10 +86,12 @@ There are accessors on DbImporter and DbExporter that allow setting various opti
 2. DbImporter
     * defaultPkGenerator:  how to generate primary keys for new rows (default: NextValuePkGenerator)
     * overriddenPkGenerators: pk generator overrides for special tables
-    * fieldMappers: if you want to treat inserting certain fields in a special way (matching by field name for now). This allows e.g. to NOT treat certain fields.
+    * fieldImporter: if you want to treat inserting certain fields in a special way (matching by field name for now). 
+      This allows also e.g. to NOT treat certain fields.
     * forceInsert: in case an update would be possible: create a new row and remap other entries. Default: true 
       If forceInsert is false we update the existing entries (if entries exist for the given primary key).  
     * ignoreFkCycles: by default if in your DDL there are cycles between your table relationships, it refuses to re-import them. Setting this flag to true, ignores cycles (and imports non-cycles anyways).
+    * JdbcStatementSetter: to override how certain JDBC types are written to a prepared statement
           
 #### Remapping entries to add them somewhere else
 One can add a tree of linked db rows in *another* part of the graph of rows. E.g. one can take a blog entry (with its comments) and 

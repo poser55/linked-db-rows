@@ -2,6 +2,7 @@ package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import org.oser.tools.jdbc.spi.statements.JdbcStatementSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -262,8 +263,22 @@ public final class JdbcHelpers {
     /**
      * Set a value on a jdbc Statement
      *
+     *  Allows overriding the handling of certain SQL types by registering a plugin in "setterPlugins". The name is supposed to be
+     *  the string type name of JDBC, all uppercase.
      */
-    public static void innerSetStatementField(PreparedStatement preparedStatement, int statementIndex, ColumnMetadata columnMetadata, String valueToInsert) throws SQLException {
+    public static void innerSetStatementField(PreparedStatement preparedStatement,
+                                              int statementIndex,
+                                              ColumnMetadata columnMetadata,
+                                              String valueToInsert,
+                                              Map<String, JdbcStatementSetter> setterPlugins) throws SQLException {
+        if ((setterPlugins != null) && (setterPlugins.containsKey(columnMetadata.getType().toUpperCase()))) {
+            boolean bypassNormalTreatment =
+                    setterPlugins.get(columnMetadata.getType().toUpperCase()).innerSetStatementField(preparedStatement, statementIndex, columnMetadata, valueToInsert);
+            if (bypassNormalTreatment) {
+                return;
+            }
+        }
+
         boolean isEmpty = valueToInsert == null || (valueToInsert.trim().isEmpty() || valueToInsert.equals("null"));
         switch (columnMetadata.type.toUpperCase()) {
             case "BOOLEAN":
@@ -297,6 +312,14 @@ public final class JdbcHelpers {
                     preparedStatement.setDouble(statementIndex, Double.parseDouble(valueToInsert.trim()));
                 }
                 break;
+            case "UUID":
+                if (valueToInsert == null) {
+                    preparedStatement.setObject(statementIndex, valueToInsert, Types.OTHER);
+                } else {
+                    preparedStatement.setNull(statementIndex, Types.OTHER);
+                }
+                break;
+
             case "DATE":
             case "TIMESTAMP":
                 if (isEmpty) {
@@ -417,7 +440,7 @@ public final class JdbcHelpers {
             if (fieldMetadata == null) {
                 throw new IllegalArgumentException("Issue with metadata " + columnMetadata);
             }
-            JdbcHelpers.innerSetStatementField(pkSelectionStatement, i + 1, fieldMetadata, Objects.toString(values.get(i)));
+            JdbcHelpers.innerSetStatementField(pkSelectionStatement, i + 1, fieldMetadata, Objects.toString(values.get(i)), null);
             i++;
         }
     }
