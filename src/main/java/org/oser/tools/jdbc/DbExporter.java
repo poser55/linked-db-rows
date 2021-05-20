@@ -61,6 +61,7 @@ public class DbExporter implements FkCacheAccessor {
         JdbcHelpers.assertTableExists(connection, tableName);
 
         Record data = readOneRecord(connection, tableName, pkValue, context);
+        log("first record read "+ data.getRowLink());
         addSubRowDataFromFks(connection, tableName, data, context);
 
         data.optionalMetadata.put(RecordMetadata.EXPORT_CONTEXT, context);
@@ -189,6 +190,8 @@ public class DbExporter implements FkCacheAccessor {
             return listOfRows;
         }
 
+        log("reading linked records for "+tableName+" "+ fkName +" "+Arrays.asList(fkValues));
+
         DatabaseMetaData metaData = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName, metadataCache);
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName, pkCache);
@@ -235,6 +238,8 @@ public class DbExporter implements FkCacheAccessor {
 
         data.optionalFks = fks;
 
+        log("reading subrows for "+ data.getRowLink());
+
         for (Fk fk : fks) {
             context.treatedFks.add(fk);
 
@@ -262,6 +267,10 @@ public class DbExporter implements FkCacheAccessor {
                 }
             }
         }
+    }
+
+    private void log(String s) {
+        System.out.println(s );
     }
 
 

@@ -1,6 +1,7 @@
 package org.oser.tools.jdbc;
 
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
+import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
@@ -16,6 +17,7 @@ class KeycloakTests {
     // docker.exe run --name keycloak -e DB_ADDR=host.docker.internal -e DB_VENDOR=POSTGRES -e DB_DATABASE=marcopolo-dev -e DB_USER=marcopolo-dev -e KEYCLOAK_USER=admin -e DB_PORT=5431 -e KEYCLOAK_PASSWORD=admin -p 8080:8080 jboss/keycloak
 
     @Test
+    @Ignore // needs keycloak setup
     void exportFullUserKeycloak() throws Exception {
         Class.forName("org.postgresql.Driver", true, Thread.currentThread().getContextClassLoader());
 
