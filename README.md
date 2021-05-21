@@ -86,8 +86,9 @@ There are accessors on DbImporter and DbExporter that allow setting various opti
 1. DbExporter
     * stopTablesExcluded: tables that we do NOT want in the exported tree - the export stops before those.
     * stopTablesIncluded: tables that we want in the exported tree, but from which no more FK following shall occur.
-    * fieldExporter: add custom handling to load certain db fields (e.g. to ignore them). 
-      Refer to `DbExporter#registerFieldExporter()`.
+    * fieldExporter and typeFieldExporters: add custom handling to load certain fields from the db (e.g. to ignore them).
+      You can match by field name and (optionally) table name (refer to `DbExporter#registerFieldExporter()`) or by 
+      JDBC type (refer to `DbExporter#getTypeFieldExporters()`).
 2. DbImporter
     * defaultPkGenerator:  how to generate primary keys for new rows (default: NextValuePkGenerator)
     * overriddenPkGenerators: pk generator overrides for special tables

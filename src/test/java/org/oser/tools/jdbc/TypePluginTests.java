@@ -3,11 +3,15 @@ package org.oser.tools.jdbc;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Clob;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.HashMap;
 
-class StatementSetterTests {
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class TypePluginTests {
 
     @BeforeAll
     public static void init() {
@@ -18,6 +22,7 @@ class StatementSetterTests {
     // remark: in the mean time we have added the UUID type in JdbcHelpers (this is no longer needed but this still works and tests the plugin mechanism)
     void datatypesTest() throws Exception {
         TestHelpers.DbConfig databaseConfig = TestHelpers.getDbConfig();
+        Connection connection = TestHelpers.getConnection("demo");
 
         FieldImporter uuidSetter = (tableToIgnore, columnMetadata, preparedStatement, statementIndex, valueToInsert) -> {
             try {
@@ -34,20 +39,41 @@ class StatementSetterTests {
             return true; // bypass normal treatment
         };
 
-        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                        dbExporter -> {},
+        FieldExporter clobExporter = (tableName, fieldName, metadata, resultSet) -> {
+            Clob clob = resultSet.getClob(fieldName);
+            return new Record.FieldAndValue(fieldName, metadata, clob.getSubString(1, (int) clob.length()));
+        };
+
+        FieldImporter clobImporter = (tableName, metadata, statement, insertIndex, value ) -> {
+            Clob clob = connection.createClob();
+            clob.setString(1, (String) value);
+            statement.setClob(insertIndex, clob);
+            return true;
+        };
+
+
+
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,
+                        dbExporter -> {
+                            dbExporter.getTypeFieldExporters().put("CLOB", clobExporter);
+                        },
                         dbImporter -> {
-                             dbImporter.getTypeFieldImporters().put("UUID", uuidSetter);
+                            dbImporter.getTypeFieldImporters().put("UUID", uuidSetter);
+                            dbImporter.getTypeFieldImporters().put("CLOB", clobImporter);
                         },
                         record -> {}
                         ,
                         new HashMap<>(),
                         "special_datatypes", 1, 1, true);
+        assertTrue(basicChecksResult.getAsRecord().asJsonNode().toString().contains("bla"));
 
-        TestHelpers.BasicChecksResult basicChecksResult2 = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                        dbExporter -> {},
+        TestHelpers.BasicChecksResult basicChecksResult2 = TestHelpers.testExportImportBasicChecks(connection,
+                        dbExporter -> {
+                            dbExporter.getTypeFieldExporters().put("CLOB", clobExporter);
+                        },
                         dbImporter -> {
                             dbImporter.getTypeFieldImporters().put("UUID", uuidSetter);
+                            dbImporter.getTypeFieldImporters().put("CLOB", clobImporter);
                         },
                         record -> {}
                         ,

@@ -46,6 +46,11 @@ public class DbExporter implements FkCacheAccessor {
     private final Cache<String, SortedMap<String, JdbcHelpers.ColumnMetadata>> metadataCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 
+    /** to overwrite how special JDBC types are retrieved on ResultSets. The keys must be the uppercased JDBC type name.
+     */
+    private final Map<String, FieldExporter> typeFieldExporters = new HashMap<>();
+
+
     /** experimental feature to order results by first pk when exporting */
     private boolean orderResults = true;
 
@@ -138,18 +143,26 @@ public class DbExporter implements FkCacheAccessor {
 
     private static final Set<Integer> STRING_TYPES = Set.of(12, 2004, 2005);
 
-    private Record.FieldAndValue retrieveFieldAndValue(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, int i, String columnName, ExportContext context) throws SQLException {
+    private Record.FieldAndValue retrieveFieldAndValue(String tableName,
+                                                       Map<String, JdbcHelpers.ColumnMetadata> columns,
+                                                       ResultSet rs, int i,
+                                                       String columnName,
+                                                       ExportContext context) throws SQLException {
         FieldExporter localFieldExporter = getFieldExporter(tableName, columnName);
 
-        // this is a bit hacky for now (as we do not yet have full type support and h2 behaves strangely)
-        boolean useGetString = context.getDbProductName().equals("H2") &&
-                STRING_TYPES.contains(columns.get(columnName.toLowerCase()).getDataType());
-        Object valueAsObject = useGetString ? rs.getString(i) : rs.getObject(i);
+        if (localFieldExporter == null) {
+            localFieldExporter = typeFieldExporters.get(columns.get(columnName).getType().toUpperCase());
+        }
 
         Record.FieldAndValue d;
         if (localFieldExporter != null) {
-            d = localFieldExporter.exportField(tableName, columnName, columns.get(columnName.toLowerCase()), valueAsObject, rs);
+            d = localFieldExporter.exportField(tableName, columnName, columns.get(columnName.toLowerCase()), rs);
         } else {
+            // this is a bit hacky as h2 behaves strangely if we do not get string types via ResultSet#getString
+            boolean useGetString = context.getDbProductName().equals("H2") &&
+                    STRING_TYPES.contains(columns.get(columnName.toLowerCase()).getDataType());
+            Object valueAsObject = useGetString ? rs.getString(i) : rs.getObject(i);
+
             d = new Record.FieldAndValue(columnName, columns.get(columnName.toLowerCase()), valueAsObject);
         }
         return d;
@@ -412,6 +425,15 @@ public class DbExporter implements FkCacheAccessor {
         }
         return null;
     }
+
+    /** Allows overriding how we get fields from a ResultSet. Use uppercase JDBC type names.
+     *  Refer to DbExporter#retrieveFieldAndValue()
+     *  Overridden field handling takes precedence.
+     *  */
+    public Map<String, FieldExporter> getTypeFieldExporters() {
+        return typeFieldExporters;
+    }
+
 
     /** experimental feature to order results by first pk when exporting (default: true) */
     public void setOrderResults(boolean orderResults) {

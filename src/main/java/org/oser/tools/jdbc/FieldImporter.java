@@ -6,6 +6,18 @@ import java.sql.SQLException;
 /**
  * In case your field or type needs special treatment when inserting into the db: define how to add it to the PreparedStatement.
  *  Can also do nothing (and therefore NOT import the field) or use the default treatment.
+ *
+ *   * <br/> <br/>
+ *  *   Example FieldImporter:
+ *  * <pre>{@code
+ *      FieldImporter clobImporter = (tableName, metadata, statement, insertIndex, value ) -> {
+ *             Clob clob = connection.createClob();
+ *             clob.setString(1, (String) value);
+ *             statement.setClob(insertIndex, clob);
+ *             return true;
+ *         };
+ *   }</pre>
+ *
  */
 @FunctionalInterface
 public interface FieldImporter {
@@ -23,7 +35,8 @@ public interface FieldImporter {
 		return true;
 	};
 
-	/** Ignores a field when importing */
+	/** Ignores a field when importing.
+	 *  CAVEAT: does e.g. not work for Clob in oracle! */
 	FieldImporter NOP_FIELDIMPORTER = (tableName, metadata, statement, insertIndex, value) -> {
 		statement.setArray(insertIndex, null);
 		return true;

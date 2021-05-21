@@ -283,8 +283,8 @@ public class DbExporterBasicTests {
     void testFieldExporter() {
         DbExporter dbExporter = new DbExporter();
 
-        FieldExporter tfExporter = (FieldExporter) (tableName, fieldName, metadata, value, rs) -> {     return null;  };
-        FieldExporter nullFfExporter = (FieldExporter) (tableName, fieldName, metadata, value, rs) -> {     return new Record.FieldAndValue("name", null, null);  };
+        FieldExporter tfExporter = (FieldExporter) (tableName, fieldName, metadata, rs) -> {     return null;  };
+        FieldExporter nullFfExporter = (FieldExporter) (tableName, fieldName, metadata, rs) -> {     return new Record.FieldAndValue("name", null, null);  };
         dbExporter.registerFieldExporter("t", "f", tfExporter);
         dbExporter.registerFieldExporter(null, "ff", nullFfExporter);
         assertEquals(tfExporter, dbExporter.getFieldExporter("t", "f"));
