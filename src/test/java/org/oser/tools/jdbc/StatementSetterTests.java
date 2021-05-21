@@ -2,7 +2,6 @@ package org.oser.tools.jdbc;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.oser.tools.jdbc.spi.statements.JdbcStatementSetter;
 
 import java.sql.SQLException;
 import java.sql.Types;
@@ -20,7 +19,7 @@ class StatementSetterTests {
     void datatypesTest() throws Exception {
         TestHelpers.DbConfig databaseConfig = TestHelpers.getDbConfig();
 
-        JdbcStatementSetter uuidSetter = (preparedStatement, statementIndex, columnMetadata, valueToInsert) -> {
+        FieldImporter uuidSetter = (tableToIgnore, columnMetadata, preparedStatement, statementIndex, valueToInsert) -> {
             try {
                 if (valueToInsert == null) {
                     preparedStatement.setObject(statementIndex, valueToInsert, Types.OTHER);
@@ -38,7 +37,7 @@ class StatementSetterTests {
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                         dbExporter -> {},
                         dbImporter -> {
-                             dbImporter.getJdbcStatementSetterPlugins().put("UUID", uuidSetter);
+                             dbImporter.getTypeFieldImporters().put("UUID", uuidSetter);
                         },
                         record -> {}
                         ,
@@ -48,7 +47,7 @@ class StatementSetterTests {
         TestHelpers.BasicChecksResult basicChecksResult2 = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
                         dbExporter -> {},
                         dbImporter -> {
-                            dbImporter.getJdbcStatementSetterPlugins().put("UUID", uuidSetter);
+                            dbImporter.getTypeFieldImporters().put("UUID", uuidSetter);
                         },
                         record -> {}
                         ,

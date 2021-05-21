@@ -2,7 +2,6 @@ package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.oser.tools.jdbc.spi.statements.JdbcStatementSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +10,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
@@ -270,10 +270,13 @@ public final class JdbcHelpers {
                                               int statementIndex,
                                               ColumnMetadata columnMetadata,
                                               String valueToInsert,
-                                              Map<String, JdbcStatementSetter> setterPlugins) throws SQLException {
+                                              Map<String, FieldImporter> setterPlugins) throws SQLException {
         if ((setterPlugins != null) && (setterPlugins.containsKey(columnMetadata.getType().toUpperCase()))) {
+            // in some cases metadata of preparedStatements may be null (e.g. for h2 and some insert statements)
+            ResultSetMetaData metaData = preparedStatement.getMetaData();
+            String tableName = metaData != null ? metaData.getTableName(statementIndex) : "";
             boolean bypassNormalTreatment =
-                    setterPlugins.get(columnMetadata.getType().toUpperCase()).innerSetStatementField(preparedStatement, statementIndex, columnMetadata, valueToInsert);
+                    setterPlugins.get(columnMetadata.getType().toUpperCase()).importField(tableName, columnMetadata,  preparedStatement, statementIndex, valueToInsert);
             if (bypassNormalTreatment) {
                 return;
             }

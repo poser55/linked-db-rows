@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.oser.tools.jdbc.spi.pkgenerator.NextValuePkGenerator;
-import org.oser.tools.jdbc.spi.statements.JdbcStatementSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +61,7 @@ public class DbImporter implements FkCacheAccessor {
     /** to overwrite how special JDBC types are set on a preparedStatement. Refer to
      *  {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, String, Map)}
      */
-    private final Map<String, JdbcStatementSetter> jdbcStatementSetterPlugins = new HashMap<>();
+    private final Map<String, FieldImporter> typeFieldImporters = new HashMap<>();
 
     /** with cycles in the FKs we would throw an exception - we can try inserting what we can anyway */
     private boolean ignoreFkCycles = false;
@@ -302,7 +301,7 @@ public class DbImporter implements FkCacheAccessor {
 
             for (String currentFieldName : fieldNames) {
                 Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
-                valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, Objects.toString(currentElement.value,null));
+                valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, Objects.toString(currentElement.value, null));
 
                 boolean fieldIsPk = primaryKeys.stream().map(String::toLowerCase).anyMatch(e -> currentFieldName.toLowerCase().equals(e));
 
@@ -319,7 +318,7 @@ public class DbImporter implements FkCacheAccessor {
                     });
                 }
 
-                Integer statementPosition =  record.findElementPositionWithName(currentFieldName);
+                Integer statementPosition = record.findElementPositionWithName(currentFieldName);
                 if (statementPosition == null) {
                     LOGGER.warn("unexpected element position for field {}", currentFieldName);
                     continue;
@@ -327,7 +326,7 @@ public class DbImporter implements FkCacheAccessor {
 
                 // adapt order of fields in update statements
                 if (!isInsert) {
-                    if (fieldIsPk){ // todo: fix for multiple pks!
+                    if (fieldIsPk) { // todo: fix for multiple pks!
                         statementPosition = fieldNames.size();
                     } else {
                         int pkPosition = record.findElementPositionWithName(primaryKeys.get(0));
@@ -338,10 +337,12 @@ public class DbImporter implements FkCacheAccessor {
                 valueToInsert[0] = removeQuotes(valueToInsert[0]);
 
                 FieldImporter fieldImporter = getFieldImporter(record.getRowLink().getTableName(), currentFieldName);
+                boolean bypassNormalInsertion = false;
                 if (fieldImporter != null) {
-                    fieldImporter.importField(record.getRowLink().getTableName(), currentElement.metadata, statement, statementPosition, valueToInsert[0]);
-                } else {
-                    JdbcHelpers.innerSetStatementField(statement, statementPosition, currentElement.metadata, valueToInsert[0], jdbcStatementSetterPlugins);
+                    bypassNormalInsertion = fieldImporter.importField(record.getRowLink().getTableName(), currentElement.metadata, statement, statementPosition, valueToInsert[0]);
+                }
+                if (!bypassNormalInsertion) {
+                    JdbcHelpers.innerSetStatementField(statement, statementPosition, currentElement.metadata, valueToInsert[0], typeFieldImporters);
                 }
             }
 
@@ -462,8 +463,8 @@ public class DbImporter implements FkCacheAccessor {
 
     /** Allows overriding how we set a value on a jdbc prepared statement.
      * Refer to {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, String, Map)} */
-    public Map<String, JdbcStatementSetter> getJdbcStatementSetterPlugins() {
-        return jdbcStatementSetterPlugins;
+    public Map<String, FieldImporter> getTypeFieldImporters() {
+        return typeFieldImporters;
     }
 
 

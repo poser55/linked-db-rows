@@ -159,9 +159,9 @@ public class Fk {
         }
     }
 
-    /** Add a virtualForeignKey to the ForeignKey cache
+    /** Add a virtualForeignKey to the foreign key cache "importerOrExporter".
      *   (needs to be done once for the DbImporter AND the DbExporter).
-     *   This requires 2 foreign keys, one of which is reverted*/
+     *   This requires 2 foreign keys, one of which is reverted */
     public static void addVirtualForeignKey(Connection dbConnection,
                                             FkCacheAccessor importerOrExporter,
                                             String tableOne,

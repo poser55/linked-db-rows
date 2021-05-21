@@ -43,7 +43,11 @@ Maven dependency:
 </dependency>
 ```
 
-Rationale for the tool
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.oser.tools.jdbc/linked-db-rows/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.oser.tools.jdbc/linked-db-rows)
+![CI](https://github.com/poser55/linked-db-rows/actions/workflows/maven.yml/badge.svg)
+
+
+What purpose does this have? 
 --------------
 * Initialize the database
 * Testing (with canonicalization of primary keys)
@@ -68,7 +72,7 @@ Limitations
 * Most tested on postgres for now, starts to work with h2, sqlserver and oracle (mysql with limitations)
 * Test coverage can be improved
 * It solves a problem I have - quite hacky in many ways
-* Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and ignoreFkCycles)
+* Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and `ignoreFkCycles`)
 * Arrays (as e.g. Postgresql supports them) and other advanced constructs are currently not supported
 
 License
@@ -82,27 +86,26 @@ There are accessors on DbImporter and DbExporter that allow setting various opti
 1. DbExporter
     * stopTablesExcluded: tables that we do NOT want in the exported tree - the export stops before those.
     * stopTablesIncluded: tables that we want in the exported tree, but from which no more FK following shall occur.
-    * fieldExporter: add custom handling to load certain db fields (e.g. ignore them)
+    * fieldExporter: add custom handling to load certain db fields (e.g. to ignore them). 
+      Refer to `DbExporter#registerFieldExporter()`.
 2. DbImporter
     * defaultPkGenerator:  how to generate primary keys for new rows (default: NextValuePkGenerator)
     * overriddenPkGenerators: pk generator overrides for special tables
-    * fieldImporter: if you want to treat inserting certain fields in a special way (matching by field name for now). 
-      This allows also e.g. to NOT treat certain fields.
+    * fieldImporter and typeFieldImporters: if you want to insert certain fields or types in a special way. You can
+      match by field and (optional) table name (refer to `DbImporter#registerFieldImporter()` ) or by 
+      JDBC type name (refer to `DbImporter#getTypeFieldImporters()`). 
+      This allows also e.g. to NOT treat certain fields or types (FieldImporter.NOP_FIELDIMPORTER). Take care to 
+      return true to stop the default treatment after the plugin is called! 
     * forceInsert: in case an update would be possible: create a new row and remap other entries. Default: true 
       If forceInsert is false we update the existing entries (if entries exist for the given primary key).  
     * ignoreFkCycles: by default if in your DDL there are cycles between your table relationships, it refuses to re-import them. Setting this flag to true, ignores cycles (and imports non-cycles anyways).
-    * JdbcStatementSetter: to override how certain JDBC types are written to a prepared statement
-          
-#### Remapping entries to add them somewhere else
-One can add a tree of linked db rows in *another* part of the graph of rows. E.g. one can take a blog entry (with its comments) and 
-duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTests#blog test: it takes a blog entry 
-(with the blogpost, its comments and with the link to its user) and adds it to *another* user.
-   
+    
 #### Add artificial (=virtual) foreign keys
 One can configure foreign keys that do not exist in the db, just for the exporting or importing. Refer to the examples
 in the  org.oser.tools.jdbc.DbExporterBasicTests#blog_artificialFk test. We added a new table `preferences` that holds the
 user preferences. There is no FK between the `user_table` and the `preferences` table. The test demonstrates how to add a virtual FK externally.
 CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is inverted (inverted = true). (2) one needs to get the existing FKs and can then add the new FK.
+Refer to `Fk#addVirtualForeignKey()`
 
 #### Canonicalization of primary keys
 Two graphs may be equivalent given their contained data but just have different primary keys (if we assume that the primary keys
@@ -114,8 +117,14 @@ Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
 
 #### Deleting a graph
 Refer to `DbExporter.getDeleteStatements()`. It does a db export first (using all the parameters of DbExporter). 
-You should check that the export to json is correct first!  
+You should check that the export to JSON is correct before proceeding!  
 CAVEAT: `DbExporter.deleteRecursively()` really DELETES data!
+
+#### Remapping entries to add them somewhere else
+One can add a tree of linked db rows in *another* part of the graph of rows. E.g. one can take a blog entry (with its comments) and
+duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTests#blog test: it takes a blog entry
+(with the blogpost, its comments and with the link to its user) and adds it to *another* user.
+
 
 #### Sakila database example
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
@@ -146,7 +155,7 @@ are launched automatically via testcontainer).
 Deploying
 --------------
  * Description: https://andresalmiray.com/publishing-to-maven-central-using-apache-maven/ and
-   proandroiddev.com/publishing-a-maven-artifact-3-3-step-by-step-instructions-to-mavencentral-publishing-bd661081645d
+   https://proandroiddev.com/publishing-a-maven-artifact-3-3-step-by-step-instructions-to-mavencentral-publishing-bd661081645d
  * Test run: `mvn -Ppublication,local-deploy -Dlocal.repository.path=c:/tmp/repository deploy`
  * To release, add [release] as first part of the git commit message
  

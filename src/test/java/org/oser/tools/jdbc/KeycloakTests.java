@@ -32,7 +32,7 @@ class KeycloakTests {
         Fk.addVirtualForeignKey(con, dbExporter, "user_role_mapping", "role_id", "keycloak_role", "id" );
         // step 2 (remove too much details)
         dbExporter.getStopTablesIncluded().add("keycloak_role");
-        // todo: adapt UUID
+        // todo: probably you need to adapt UUID to your environment
         Record exportedCase = dbExporter.contentAsTree(con, "user_entity", "ea0e2ebc-ff0b-4ce4-863f-be70222a7084");
 
         Set<RowLink> allNodes = exportedCase.getAllNodes();
