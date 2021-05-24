@@ -154,6 +154,7 @@ public class DbExporterBasicTests {
     void testGraph() throws Exception {
         TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.DEBUG);
         Connection demo = TestHelpers.getConnection("demo");
+        long start = System.currentTimeMillis();
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
                 dbExporter -> {
                     Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
@@ -162,6 +163,8 @@ public class DbExporterBasicTests {
                     Fk.initFkCacheForMysql_LogException(demo, dbImporter.getFkCache());
                 },
                 "Nodes", 1, 10);
+        System.out.println("timing: " + (System.currentTimeMillis() - start));
+
         TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.INFO);
 
         // test simple deletion

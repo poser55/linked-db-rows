@@ -17,7 +17,7 @@ import java.sql.SQLException;
  * <pre>{@code
  *     FieldExporter clobExporter = (tableName, fieldName, metadata, resultSet) -> {
  *             Clob clob = resultSet.getClob(fieldName);
- *             return new Record.FieldAndValue(fieldName, metadata, clob.getSubString(1, (int) clob.length()));
+ *             return new Record.FieldAndValue(fieldName, metadata, clob == null ? null : clob.getSubString(1, (int) clob.length()));
  *         };
  * }</pre>
  */

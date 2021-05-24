@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Date;
@@ -320,6 +321,15 @@ public final class JdbcHelpers {
                     preparedStatement.setObject(statementIndex, valueToInsert, Types.OTHER);
                 } else {
                     preparedStatement.setNull(statementIndex, Types.OTHER);
+                }
+                break;
+            case "CLOB":
+                if (valueToInsert == null) {
+                    preparedStatement.setObject(statementIndex, valueToInsert, Types.OTHER);
+                } else {
+                    Clob clob = preparedStatement.getConnection().createClob();
+                    clob.setString(1, valueToInsert);
+                    preparedStatement.setClob(statementIndex, clob);
                 }
                 break;
 

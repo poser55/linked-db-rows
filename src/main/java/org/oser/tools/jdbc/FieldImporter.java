@@ -11,9 +11,13 @@ import java.sql.SQLException;
  *  *   Example FieldImporter:
  *  * <pre>{@code
  *      FieldImporter clobImporter = (tableName, metadata, statement, insertIndex, value ) -> {
- *             Clob clob = connection.createClob();
- *             clob.setString(1, (String) value);
- *             statement.setClob(insertIndex, clob);
+ *      	   if (value == null) {
+ *      	        statement.setObject(insertIndex, value, Types.OTHER);
+ *      	   } else {
+ *             		Clob clob = statement.getConnection().createClob();
+ *             		clob.setString(1, (String) value);
+ *             		statement.setClob(insertIndex, clob);
+ *             }
  *             return true;
  *         };
  *   }</pre>

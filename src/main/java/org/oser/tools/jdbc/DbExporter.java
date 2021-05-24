@@ -6,6 +6,7 @@ import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -50,6 +51,13 @@ public class DbExporter implements FkCacheAccessor {
      */
     private final Map<String, FieldExporter> typeFieldExporters = new HashMap<>();
 
+    {
+        FieldExporter clobExporter = (tableName, fieldName, metadata, resultSet) -> {
+            Clob clob = resultSet.getClob(fieldName);
+            return new Record.FieldAndValue(fieldName, metadata, clob == null ? null : clob.getSubString(1, (int) clob.length()));
+        };
+        typeFieldExporters.put("CLOB", clobExporter);
+    }
 
     /** experimental feature to order results by first pk when exporting */
     private boolean orderResults = true;

@@ -19,7 +19,7 @@ class TypePluginTests {
     }
 
     @Test
-    // remark: in the mean time we have added the UUID type in JdbcHelpers (this is no longer needed but this still works and tests the plugin mechanism)
+    // remark: in the mean time we have added the UUID & CLOB types in JdbcHelpers (this is no longer needed but this still works and tests the plugin mechanism)
     void datatypesTest() throws Exception {
         TestHelpers.DbConfig databaseConfig = TestHelpers.getDbConfig();
         Connection connection = TestHelpers.getConnection("demo");
@@ -45,7 +45,7 @@ class TypePluginTests {
         };
 
         FieldImporter clobImporter = (tableName, metadata, statement, insertIndex, value ) -> {
-            Clob clob = connection.createClob();
+            Clob clob = statement.getConnection().createClob();
             clob.setString(1, (String) value);
             statement.setClob(insertIndex, clob);
             return true;
@@ -55,11 +55,11 @@ class TypePluginTests {
 
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,
                         dbExporter -> {
-                            dbExporter.getTypeFieldExporters().put("CLOB", clobExporter);
+               //             dbExporter.getTypeFieldExporters().put("CLOB", clobExporter);
                         },
                         dbImporter -> {
                             dbImporter.getTypeFieldImporters().put("UUID", uuidSetter);
-                            dbImporter.getTypeFieldImporters().put("CLOB", clobImporter);
+                 //           dbImporter.getTypeFieldImporters().put("CLOB", clobImporter);
                         },
                         record -> {}
                         ,
