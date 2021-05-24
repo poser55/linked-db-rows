@@ -23,9 +23,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.toList;
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
 /**
@@ -120,11 +124,13 @@ public class DbExporter implements FkCacheAccessor {
 
         data.setColumnMetadata(columns);
 
-        String pkName = primaryKeys.get(0);
-        String selectPk = selectStatementByPks(tableName, pkName, primaryKeys, false);
+        String selectPk = selectStatementByPks(tableName, primaryKeys, false);
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            setPksStatementFields(pkSelectionStatement, primaryKeys, columns, pkValues, pkName);
+            for (int i = 0; i < primaryKeys.size(); i++) {
+                JdbcHelpers.innerSetStatementField(pkSelectionStatement, i+1, columns.get(primaryKeys.get(i).toLowerCase()),
+                        Objects.toString(pkValues[i]), null);
+            }
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
@@ -177,32 +183,13 @@ public class DbExporter implements FkCacheAccessor {
     }
 
 
-    // todo: for now we just support such select statement with 1 fkName
-    private String selectStatementByPks(String tableName, String fkName, List<String> primaryKeys, boolean orderResult) {
-        return  "SELECT * from " + tableName + " where  " + fkName + " = ?" +
-                (orderResult ? (" order by "+primaryKeys.get(0)+" asc " ) : "");
-//        } else {
-//            LOGGER.error("!!! multiple fks not yet supported! {} {}", tableName, primaryKeys);
-//            String whereClause = primaryKeys.stream().collect(Collectors.joining(" = ?,", "", " = ?"));
-//            return "SELECT * from " + tableName + " where  " + whereClause;
-//        }
+    private String selectStatementByPks(String tableName, List<String> fkNames, boolean orderResult) {
+        String whereClause = fkNames.stream().collect(Collectors.joining(" = ? and ", "", " = ?"));
+        return  "SELECT * from " + tableName + " where  " + whereClause +
+                (orderResult ? (" order by "+fkNames.get(0)+" asc " ) : "");
     }
 
-    private void setPksStatementFields(PreparedStatement pkSelectionStatement, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata, Object[] values, String fkName) throws SQLException {
-        JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(fkName.toLowerCase());
-        JdbcHelpers.innerSetStatementField(pkSelectionStatement, 1, fieldMetadata, Objects.toString(values[0]), null);
-
-//            int i = 0;
-//            for (String pkName : primaryKeys) {
-//                JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(pkName.toUpperCase());
-//                JdbcHelpers.innerSetStatementField(pkSelectionStatement, fieldMetadata.getType(), i + 1, Objects.toString(values[i]), fieldMetadata);
-//                i++;
-//            }
-//        }
-    }
-
-
-    List<Record> readLinkedRecords(Connection connection, String tableName, String fkName, Object[] fkValues, ExportContext context) throws SQLException {
+    List<Record> readLinkedRecords(Connection connection, String tableName, String[] fkNames, Object[] fkValues, ExportContext context) throws SQLException {
         List<Record> listOfRows = new ArrayList<>();
 
         if (stopTablesExcluded.contains(tableName)) {
@@ -217,10 +204,13 @@ public class DbExporter implements FkCacheAccessor {
             return listOfRows; // for tables without a pk
         }
 
-        String selectPk = selectStatementByPks(tableName, fkName, primaryKeys, orderResults);
+        String selectPk = selectStatementByPks(tableName, Arrays.asList(fkNames), orderResults);
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: now unchecked values all via prepared statement
-            setPksStatementFields(pkSelectionStatement, primaryKeys, columns, fkValues, fkName);
+            for (int i = 0; i < fkValues.length; i++) {
+                JdbcHelpers.innerSetStatementField(pkSelectionStatement, i+1, columns.get(fkNames[i].toLowerCase()),
+                        Objects.toString(fkValues[i]), null);
+            }
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
@@ -258,8 +248,12 @@ public class DbExporter implements FkCacheAccessor {
         for (Fk fk : fks) {
             context.treatedFks.add(fk);
 
-            Record.FieldAndValue elementWithName = data.findElementWithName(fk.inverted ? fk.fkcolumn : fk.pkcolumn);
-            if ((elementWithName != null) && (elementWithName.value != null)) {
+            String[] elementPkName = fk.inverted ? fk.fkcolumn : fk.pkcolumn;
+            List<Record.FieldAndValue> elementsWithName = Stream.of(elementPkName).map(s -> data.findElementWithName(s)).map(Optional::ofNullable)
+                    .flatMap(Optional::stream).collect(toList());
+            boolean anyElementNull = elementsWithName.stream().map(Record.FieldAndValue::getValue).anyMatch(x -> x == null);
+
+            if ((elementsWithName != null) && (!anyElementNull)) {
                 String databaseProductName = context.metaData.getDatabaseProductName();
 
                 String subTableName;
@@ -269,15 +263,21 @@ public class DbExporter implements FkCacheAccessor {
                     subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
                 }
 
-                String subFkName =    (fk.inverted ? fk.pkcolumn : fk.fkcolumn).toLowerCase();
+                String[] subFkNames =    (fk.inverted ? fk.pkcolumn : fk.fkcolumn);
+                for (int i = 0; i < subFkNames.length; i++) {
+                    subFkNames[i] = subFkNames[i].toLowerCase();
+                }
 
-                List<Record> subRow = this.readLinkedRecords(connection, subTableName,
-                        subFkName, new Object[] {elementWithName.value }, context); // todo: fix can there be multiple fields in a fk?
+                List<Record> subRow = this.readLinkedRecords(connection,
+                        subTableName,
+                        subFkNames,
+                        elementsWithName.stream().map(Record.FieldAndValue::getValue).toArray(),
+                        context);
                 if (!subRow.isEmpty()) {
-                    if (!elementWithName.subRow.containsKey(subTableName)) {
-                        elementWithName.subRow.put(subTableName, subRow);
+                    if (!elementsWithName.get(0).subRow.containsKey(subTableName)) {
+                        elementsWithName.get(0).subRow.put(subTableName, subRow);
                     } else {
-                        elementWithName.subRow.get(subTableName).addAll(subRow);
+                        elementsWithName.get(0).subRow.get(subTableName).addAll(subRow);
                     }
                 }
             }
@@ -338,7 +338,7 @@ public class DbExporter implements FkCacheAccessor {
             whereClause += primaryKeys.get(i) + "=" + pk + " and ";
         }
         // remove last "and"
-        whereClause = whereClause.substring(0, whereClause.length() - 4);
+        whereClause = whereClause.isEmpty() ? whereClause : whereClause.substring(0, whereClause.length() - 4);
 
         try (Formatter formatter = new Formatter()){
             return formatter.format("delete from %s where %s", r.getRowLink().getTableName(), whereClause).toString();

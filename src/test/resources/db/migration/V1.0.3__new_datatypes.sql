@@ -42,3 +42,5 @@ create table special_datatypes (
 
 insert into special_datatypes values (  1, 'ea0e2ebc-ff0b-4ce4-863f-be70222a7084' , 'bla');
 insert into special_datatypes values (  2, null, 'bla bla');
+
+

@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.ToString;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
+import org.h2.tools.Server;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.MSSQLServerContainer;
 import org.testcontainers.containers.MySQLContainer;
@@ -168,7 +169,12 @@ public class TestHelpers {
 
 
         // db console at  http://localhost:8082/
-       // Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082", "-webAdminPassword", "admin").start();
+        try {
+            Server webServer = Server.createWebServer("-webAllowOthers", "-webPort", "8082", "-webAdminPassword", "admin").start();
+        } catch (Exception e) {
+            // ignore
+            System.out.println("H2 console not opened "+ e);
+        }
 
         return con;
     }

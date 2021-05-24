@@ -207,6 +207,8 @@ public class DbExporterBasicTests {
 
         Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, book2);
         System.out.println("\ninserts: " + rowLinkObjectMap.size());
+
+        db2Graphdemo.contentAsTree(demoConnection, "book", "1");
     }
 
     @Test

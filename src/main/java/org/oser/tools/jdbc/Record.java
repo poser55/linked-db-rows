@@ -197,6 +197,7 @@ public class Record {
     /**
      * Holds one field with metadata (and potentially nested content)
      */
+    @Getter
     public static class FieldAndValue {
         public String name;
         public Object value;

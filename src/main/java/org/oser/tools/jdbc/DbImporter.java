@@ -19,12 +19,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static java.util.stream.Collectors.toList;
 import static org.oser.tools.jdbc.Fk.getFksOfTable;
 
 
@@ -170,8 +173,11 @@ public class DbImporter implements FkCacheAccessor {
 
         for (Fk fk : getFksOfTable(connection, rootTable, fkCache)) {
 
-            Record.FieldAndValue elementWithName = record.findElementWithName((fk.inverted ? fk.fkcolumn : fk.pkcolumn));
-            if (elementWithName != null) {
+            String[] elementPkName = fk.inverted ? fk.fkcolumn : fk.pkcolumn;
+            List<Record.FieldAndValue> elementsWithName = Stream.of(elementPkName).map(record::findElementWithName).map(Optional::ofNullable)
+                    .flatMap(Optional::stream).collect(toList());
+
+            if (!elementsWithName.isEmpty()) {
                 String databaseProductName = metadata.getDatabaseProductName();
 
                 String subTableName;
@@ -181,7 +187,7 @@ public class DbImporter implements FkCacheAccessor {
                     subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
                 }
 
-                JsonNode subJsonNode = json.get(elementWithName.name.toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
+                JsonNode subJsonNode = json.get(elementsWithName.get(0).name.toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
                 ArrayList<Record> records = new ArrayList<>();
 
                 if (fk.inverted) {
@@ -206,7 +212,7 @@ public class DbImporter implements FkCacheAccessor {
                 }
 
                 if (!records.isEmpty()) {
-                    elementWithName.subRow.put(subTableName, records);
+                    elementsWithName.get(0).subRow.put(subTableName, records);
                 }
             }
         }
@@ -255,7 +261,7 @@ public class DbImporter implements FkCacheAccessor {
         //  so for now, we get it from the cache:
         List<Fk> fksOfTable = getFksOfTable(connection, record.rowLink.tableName, fkCache);
 
-        Map<String, List<Fk>> fksByColumnName = fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toLowerCase()));
+        Map<String, List<Fk>> fksByColumnName = Fk.fksByColumnName(fksOfTable);
         List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
 
         List<Object> pkValues = remapPrimaryKeyValues(record, newKeys, primaryKeys, fksByColumnName, isFreePk);
@@ -356,6 +362,8 @@ public class DbImporter implements FkCacheAccessor {
             throw e;
         }
     }
+
+
 
     /**
      * @return the primary key values that are remapped if needed (if e.g. another inserted row has a pk that was remapped before)

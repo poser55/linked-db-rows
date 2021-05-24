@@ -19,18 +19,20 @@ class FkTest {
         assertEquals("\"abc", Fk.removeOptionalQuotes("\"abc"));
     }
 
+
     @Test
     void testFks() throws SQLException, IOException, ClassNotFoundException {
-        Connection demo1 = TestHelpers.getConnection("demo");
-        List<String> demo = JdbcHelpers.getAllTableNames(demo1);
-        assertTrue(demo.size() > 9);
-        System.out.println("all tables:" + demo);
-        demo.forEach(table -> {
+        Connection demo = TestHelpers.getConnection("demo");
+        List<String> allDemoTables = JdbcHelpers.getAllTableNames(demo);
+        assertTrue(allDemoTables.size() > 9);
+        System.out.println("all tables:" + allDemoTables);
+        for (String table : allDemoTables) {
             try {
-                System.out.println("table:"+table+" "+Fk.getFksOfTable(demo1, table));
+                System.out.print("table:"+table);
+                System.out.println(" "+Fk.getFksOfTable(demo, table));
             } catch (SQLException throwables) {
                 throwables.printStackTrace();
             }
-        });
+        }
     }
 }

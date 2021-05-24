@@ -73,8 +73,7 @@ public class RecordCanonicalizer {
                                               Cache<String, List<String>> pkCache) throws SQLException {
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, record.getRowLink().getTableName(), pkCache);
         List<Fk> fksOfTable = getFksOfTable(connection, record.rowLink.tableName, fkCache);
-        Map<String, List<Fk>> fksByColumnName =
-                fksOfTable.stream().collect(Collectors.groupingBy(fk1 -> (fk1.inverted ? fk1.getFkcolumn() : fk1.getPkcolumn()).toLowerCase()));
+        Map<String, List<Fk>> fksByColumnName = Fk.fksByColumnName(fksOfTable);
 
         List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
         List<Object> newPkValues = remapPrimaryKeyValuesFull(record, newKeys, primaryKeys, fksByColumnName, isFreePk);

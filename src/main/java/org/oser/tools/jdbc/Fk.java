@@ -2,16 +2,23 @@ package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.toList;
 import static org.oser.tools.jdbc.JdbcHelpers.adaptCaseForDb;
 
 /** Represents one foreign key constraint in JDBC. In JDBC <em>one</em> db constraint between table 1 and table 2 has <em>two</em> representations: the link from
@@ -19,22 +26,41 @@ import static org.oser.tools.jdbc.JdbcHelpers.adaptCaseForDb;
 @Getter
 public class Fk {
     public String pktable;
-    public String pkcolumn;
+    @Setter
+    public String[] pkcolumn;
 
     public String fktable;
-    public String fkcolumn;
+    @Setter
+    public String[] fkcolumn;
 
+    private String keySeq;
+    private String fkName;
     /** excluded in equals! */
     public boolean inverted;
 
 
-    public Fk(String pktable, String pkcolumn, String fktable, String fkcolumn, boolean inverted) {
+    /** Constructor taking single values only */
+    public Fk(String pktable, String pkcolumn, String fktable, String fkcolumn, String keySeq, String fkName, boolean inverted) {
         this.pktable = pktable;
-        this.pkcolumn = pkcolumn;
+        this.pkcolumn = new String[]{ pkcolumn };
         this.fktable = fktable;
-        this.fkcolumn = fkcolumn;
+        this.fkcolumn = new String[]{ fkcolumn };
+        this.keySeq = keySeq;
+        this.fkName = fkName;
         this.inverted = inverted;
     }
+
+    public Fk(String pktable, String[] pkcolumnArray, String fktable, String[] fkcolumnArray, String keySeq, String fkName, boolean inverted) {
+        this.pktable = pktable;
+        this.pkcolumn =  pkcolumnArray ;
+        this.fktable = fktable;
+        this.fkcolumn =  fkcolumnArray ;
+        this.keySeq = keySeq;
+        this.fkName = fkName;
+        this.inverted = inverted;
+    }
+
+
 
     public static List<Fk> getFksOfTable(Connection connection, String table, Cache<String, List<Fk>> cache) throws SQLException {
         List<Fk> result = cache.getIfPresent(table);
@@ -62,15 +88,38 @@ public class Fk {
             addFks(fks, rs, true);
         }
 
-        fks.sort(Comparator.comparing(Fk::getFktable).thenComparing(Fk::getFkcolumn));
+        fks.sort(Comparator.comparing(Fk::getFktable).thenComparing(fk -> fk.getFkcolumn()[0]));
 
-        return fks;
+        return unifyFks(fks);
+    }
+
+    /** One Fk can contain multiple columns, we need to merge those that form the same fk */
+    public static List<Fk> unifyFks(List<Fk> input) {
+        Map<String, List<Fk>> fkNameToFk = new HashMap<>();
+        input.forEach(f -> fkNameToFk.computeIfAbsent(f.getFkName(), l -> new ArrayList<>()).add(f));
+
+        List<Map.Entry<String, List<Fk>>> toMerge =
+                fkNameToFk.entrySet().stream().filter(e -> e.getValue().size() > 1).collect(toList());
+        for (Map.Entry<String, List<Fk>> e : toMerge){
+            e.getValue().sort(Comparator.comparing(Fk::getKeySeq));
+
+            e.getValue().get(0).setFkcolumn(e.getValue().stream().map(fk -> fk.getFkcolumn()[0]).collect(toList()).toArray(new String[]{}));
+            e.getValue().get(0).setPkcolumn(e.getValue().stream().map(fk -> fk.getPkcolumn()[0]).collect(toList()).toArray(new String[]{}));
+
+            e.getValue().stream().skip(1).forEach(fk -> input.remove(fk));
+        }
+
+        return input;
     }
 
     private static void addFks(List<Fk> fks, ResultSet rs, boolean inverted) throws SQLException {
         while (rs.next()) {
-            Fk fk = new Fk(getStringFromResultSet(rs,"pktable_name"), getStringFromResultSet(rs,"pkcolumn_name"),
-                    getStringFromResultSet(rs,"fktable_name"), getStringFromResultSet(rs,"fkcolumn_name"), inverted);
+            Fk fk = new Fk(getStringFromResultSet(rs,"pktable_name"),
+                    getStringFromResultSet(rs,"pkcolumn_name"),
+                    getStringFromResultSet(rs,"fktable_name"),
+                    getStringFromResultSet(rs,"fkcolumn_name"),
+                    getStringFromResultSet(rs, "KEY_SEQ"),
+                    getStringFromResultSet(rs, "fk_name"), inverted);
 
 //            ResultSetMetaData rsMetaData = rs.getMetaData();
 //            for (int i = 1; i<= rsMetaData.getColumnCount() ; i++){
@@ -98,9 +147,11 @@ public class Fk {
     public String toString() {
         return "Fk{" +
                 "fktable='" + fktable + '\'' +
-                ", fkcolumn='" + fkcolumn + '\'' +
+                ", fkcolumn='" + Arrays.asList(fkcolumn) + '\'' +
                 ", pktable='" + pktable + '\'' +
-                ", pfcolumn='" + pkcolumn + '\'' +
+                ", pkcolumn='" + Arrays.asList(pkcolumn) + '\'' +
+                ", keyseq=" + keySeq +
+                ", fkName=" + fkName +
                 ", inverted=" + inverted +
                 '}';
     }
@@ -144,7 +195,8 @@ public class Fk {
             for (Fk fk : fksOfTable) {
                 List<Fk> current = fkCache.getIfPresent(fk.pktable);
                 current = (current == null) ? new CopyOnWriteArrayList<>() : current;
-                current.add(new Fk(fk.pktable, fk.pkcolumn, fk.fktable, fk.fkcolumn, false));
+                // todo: is keyseq ok?
+                current.add(new Fk(fk.pktable, fk.pkcolumn, fk.fktable, fk.fkcolumn, fk.keySeq, fk.fkName +"inv" ,  false));
                 fkCache.put(fk.pktable, current);
             }
         }
@@ -170,13 +222,26 @@ public class Fk {
                                             String tableTwoColumn) throws SQLException {
         List<Fk> fks = Fk.getFksOfTable(dbConnection, tableOne, importerOrExporter.getFkCache());
         // add artificial FK
-        fks.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, false));
+        // todo check keyseq
+        fks.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, "1", tableOne + tableOneColumn, false));
         importerOrExporter.getFkCache().put(tableOne, fks);
 
         List<Fk> fks2 = Fk.getFksOfTable(dbConnection, tableTwo, importerOrExporter.getFkCache());
         // add artificial FK
-        fks2.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, true));
+        fks2.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, "1", tableOne + tableOneColumn, true));
         importerOrExporter.getFkCache().put(tableTwo, fks2);
+    }
+
+    /// Helper
+
+    public static Map<String, List<Fk>> fksByColumnName(List<Fk> fksOfTable) {
+        Map<String, List<Fk>> fksByColumnName = new HashMap<>();
+
+        for (Fk fk : fksOfTable){
+            String[] names = fk.inverted ? fk.getFkcolumn() : fk.getPkcolumn();
+            Stream.of(names).forEach(name -> fksByColumnName.computeIfAbsent(name.toLowerCase(), l -> new ArrayList<>()).add(fk));
+        }
+        return fksByColumnName;
     }
 
 }

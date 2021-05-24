@@ -265,7 +265,7 @@ public final class JdbcHelpers {
      * Set a value on a jdbc Statement
      *
      *  Allows overriding the handling of certain SQL types by registering a plugin in "setterPlugins". The name is supposed to be
-     *  the string type name of JDBC, all uppercase.
+     *  the string type name of JDBC, all uppercase. setterPlugins can be null.
      */
     public static void innerSetStatementField(PreparedStatement preparedStatement,
                                               int statementIndex,
@@ -432,7 +432,11 @@ public final class JdbcHelpers {
 
         boolean exists = false;
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectStatement)) {
-            setPksStatementFields(pkSelectionStatement, pkNames, columnMetadata, pkValues);
+            for (int i = 0; i < pkValues.size(); i++) {
+                JdbcHelpers.innerSetStatementField(pkSelectionStatement, i+1, columnMetadata.get(pkNames.get(i).toLowerCase()),
+                        Objects.toString(pkValues.get(i)), null);
+            }
+
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 exists = rs.next();
             }
