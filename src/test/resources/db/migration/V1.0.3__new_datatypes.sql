@@ -43,4 +43,17 @@ create table special_datatypes (
 insert into special_datatypes values (  1, 'ea0e2ebc-ff0b-4ce4-863f-be70222a7084' , 'bla');
 insert into special_datatypes values (  2, null, 'bla bla');
 
+${postgres_include_start}
+CREATE TABLE postgres_test (
+    id int8 NOT NULL,
+    file bytea NULL,
+    delta varchar(500) NULL,
+    CONSTRAINT postgres_pkey PRIMARY KEY (id)
+);
 
+-- sets file to null
+insert into postgres_test values (  1, 'xxx', 'ea0e2ebc-ff0b-4ce4-863f-be70222a7084' );
+
+INSERT INTO postgres_test (id, file) VALUES (10, decode('013d7d16d7ad4fefb61bd95b765c8ceb', 'hex'))
+
+${postgres_include_end}

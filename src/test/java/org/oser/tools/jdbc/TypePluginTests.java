@@ -3,11 +3,14 @@ package org.oser.tools.jdbc;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.HashMap;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -81,5 +84,42 @@ class TypePluginTests {
                         "special_datatypes", 2, 1, true);
 
     }
+
+
+    @Test
+    /** test BYTEA type plugin (only for postgresql), again is now a std plugin */
+    void postgresTest() throws Exception {
+        Connection connection = TestHelpers.getConnection("demo");
+
+        if (!connection.getMetaData().getDatabaseProductName().contains("PostgreSQL")) {
+            return;
+        }
+
+        FieldImporter postgresImporter = (tableName, metadata, statement, insertIndex, value ) -> {
+            System.out.println("===");
+            if (value != null) {
+                InputStream inputStream = new ByteArrayInputStream(value.getBytes());
+                statement.setBinaryStream(insertIndex, inputStream);
+            } else {
+                statement.setArray(insertIndex, null);
+            }
+            return true;
+        };
+
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,
+                dbExporter -> {
+                },
+                dbImporter -> {
+//                    List.of("file", "thumbnail").
+//                            forEach(f -> dbImporter.registerFieldImporter(null, f, /*FieldImporter.NOP_FIELDIMPORTER*/ postgresImporter));
+                },
+                record -> {}
+                ,
+                new HashMap<>(),
+                "postgres_test", 13, 1, true);
+
+    }
+
+
 
 }

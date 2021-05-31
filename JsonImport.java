@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.2-SNAPSHOT
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.5-SNAPSHOT
 //DEPS info.picocli:picocli:4.5.0
 import static java.lang.System.*;
 
@@ -43,6 +43,8 @@ public class JsonImport implements Callable<Integer> {
     @Option(names = {"-db"}, description = "What jdbc driver to use? (default:postgres) ")
     private String  databaseShortName = "postgres";
 
+    @Option(names = {"-e","--exclude-fields"}, required = false, description = "Name of fields to be excluded.")
+    private List<String> excludedFields;
 
     public static void main(String... args) throws SQLException, ClassNotFoundException {
 		int exitCode = new CommandLine(new JsonImport()).execute(args);
@@ -67,6 +69,10 @@ public class JsonImport implements Callable<Integer> {
         } catch (Exception e) {
             System.err.println("Issue in reading json file"+e);
             return -2;
+        }
+
+        if (excludedFields != null) {
+            excludedFields.forEach(f -> dbImporter.registerFieldImporter(null, f, FieldImporter.NOP_FIELDIMPORTER));
         }
 
         dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, tableName, json));

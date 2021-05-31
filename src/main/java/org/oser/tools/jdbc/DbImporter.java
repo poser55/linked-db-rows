@@ -8,7 +8,9 @@ import org.oser.tools.jdbc.spi.pkgenerator.NextValuePkGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -65,6 +67,21 @@ public class DbImporter implements FkCacheAccessor {
      *  {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, String, Map)}
      */
     private final Map<String, FieldImporter> typeFieldImporters = new HashMap<>();
+
+    {
+        FieldImporter postgresImporter = (tableName, metadata, statement, insertIndex, value ) -> {
+            if (value != null) {
+                InputStream inputStream = new ByteArrayInputStream(value.getBytes());
+                statement.setBinaryStream(insertIndex, inputStream);
+            } else {
+                statement.setArray(insertIndex, null);
+            }
+            return true;
+        };
+
+        typeFieldImporters.put("BYTEA", postgresImporter);
+    }
+
 
     /** with cycles in the FKs we would throw an exception - we can try inserting what we can anyway */
     private boolean ignoreFkCycles = false;
@@ -133,6 +150,8 @@ public class DbImporter implements FkCacheAccessor {
 
     /** Convert JsonNode to Record */
     public Record jsonToRecord(Connection connection, String rootTable, JsonNode json) throws SQLException {
+        JdbcHelpers.assertTableExists(connection, rootTable);
+
         Record record = new Record(rootTable, null);
 
         DatabaseMetaData metadata = connection.getMetaData();
