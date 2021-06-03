@@ -116,6 +116,10 @@ Id orders are determined based on the original order in the database (so assumin
 should be stable for equality). We do not use any data in the records to determine the order. 
 Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
 
+#### Logging SQL statements
+We use Log4j. There is a convenience method to enable some loggers, example use:
+`Loggers.enableLoggers(EnumSet.of(Loggers.CHANGE, Loggers.SELECT));`
+
 #### Deleting a graph
 Refer to `DbExporter.getDeleteStatements()`. It does a db export first (using all the parameters of DbExporter). 
 You should check that the export to JSON is correct before proceeding!  
