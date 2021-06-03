@@ -310,9 +310,9 @@ public class DbImporter implements FkCacheAccessor {
         }
 
         Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = record.getColumnMetadata();
-        String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.getRowLink().getTableName(), fieldNames, record.getPkName(), isInsert, columnMetadata);
+        JdbcHelpers.SqlChangeStatement sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.getRowLink().getTableName(), fieldNames, record.getPkName(), isInsert, columnMetadata);
         PreparedStatement savedStatement = null;
-        try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
+        try (PreparedStatement statement = connection.prepareStatement(sqlStatement.getStatement())) {
             final String[] valueToInsert = {"-"};
 
             for (String currentFieldName : fieldNames) {
@@ -334,21 +334,7 @@ public class DbImporter implements FkCacheAccessor {
                     });
                 }
 
-                Integer statementPosition = record.findElementPositionWithName(currentFieldName);
-                if (statementPosition == null) {
-                    Loggers.LOGGER_WARNINGS.warn("unexpected element position for field {}", currentFieldName);
-                    continue;
-                }
-
-                // adapt order of fields in update statements
-                if (!isInsert) {
-                    if (fieldIsPk) { // todo: fix for multiple pks!
-                        statementPosition = fieldNames.size();
-                    } else {
-                        int pkPosition = record.findElementPositionWithName(primaryKeys.get(0));
-                        statementPosition = (statementPosition > pkPosition) ? statementPosition - 1 : statementPosition;
-                    }
-                }
+                int statementPosition = sqlStatement.getFields().indexOf(currentFieldName.toLowerCase()) + 1;
 
                 valueToInsert[0] = removeQuotes(valueToInsert[0]);
 

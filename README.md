@@ -39,7 +39,7 @@ Maven dependency:
 <dependency>
   <groupId>org.oser.tools.jdbc</groupId>
   <artifactId>linked-db-rows</artifactId>
-  <version>0.4</version>
+  <version>0.6</version>
 </dependency>
 ```
 
@@ -139,9 +139,9 @@ The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sa
    It requires installing https://www.jbang.dev/
  * Examples:
     *  `jbang JsonExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
-    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"`
+    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"` --log=select
     *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table" --url "jdbc:h2:mem:demo" -db h2 -l sa -pw " "`   
-    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"  -db postgres > out.json`
+    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"  -db postgres  > out.json`
     *  `jbang JsonImport.java -j out.json -db postgres`
     
  * Help about options:  `jbang JsonExport.java -h`

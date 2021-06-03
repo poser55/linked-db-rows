@@ -2,6 +2,8 @@ package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,30 +138,42 @@ public final class JdbcHelpers {
     /**
      * generate insert or update statement to insert columnNames into tableName
      * // todo: this only works for updating with 1 primary key fields
+     * @return a pair (sqlstatement, list of all occurring fields)
      */
-    public static String getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert, Map<String, ColumnMetadata> columnMetadata) {
+    public static SqlChangeStatement getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert, Map<String, ColumnMetadata> columnMetadata) {
         String result;
-        String fieldList = columnNames.stream().filter(name -> (isInsert || !name.toLowerCase().equals(pkName.toLowerCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
+        List<String> individualFields = columnNames.stream().filter(name -> (isInsert || !name.toLowerCase().equals(pkName.toLowerCase()))).collect(Collectors.toList());
+        // todo clean up
+        String concatenatedFields = columnNames.stream().filter(name -> (isInsert || !name.toLowerCase().equals(pkName.toLowerCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
 
         if (isInsert) {
             Map<String, ColumnMetadata> metadataInCurrentTableAndInsert = columnMetadata.entrySet().stream().filter(e -> columnNames.contains(e.getKey().toLowerCase())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
             String questionsMarks = metadataInCurrentTableAndInsert.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
                     .map(JdbcHelpers::questionMarkOrTypeCasting).collect(Collectors.joining(", "));
-            result = "insert into " + tableName + " (" + fieldList + ") values (" + questionsMarks + ")";
+            result = "insert into " + tableName + " (" + concatenatedFields + ") values (" + questionsMarks + ")";
         } else {
-            fieldList += " = ? ";
-
-            result = "update " + tableName + " set " + fieldList + " where " + pkName + " = ?";
+            concatenatedFields += " = ? ";
+            individualFields.add(pkName.toLowerCase());
+            result = "update " + tableName + " set " + concatenatedFields + " where " + pkName + " = ?";
         }
 
-        return result;
+        return new SqlChangeStatement(result, individualFields);
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class SqlChangeStatement {
+        private String statement;
+        private List<String> fields;
+
     }
 
     private static String questionMarkOrTypeCasting(ColumnMetadata e) {
         if (e != null && e.columnDef != null && e.columnDef.endsWith(e.type) &&
                 // mysql puts CURRENT_TIMESTAMP as the columnDef of Timestamp, this leads to an automatically set fields
-                !e.columnDef.equals("CURRENT_TIMESTAMP")){
+                // postgres text has a ::text here
+                !(e.columnDef.equals("CURRENT_TIMESTAMP") || e.type.equals("text"))){
             // to handle inserts e.g. for enums correctly
             return e.columnDef.replace("'G'", "?");
         }

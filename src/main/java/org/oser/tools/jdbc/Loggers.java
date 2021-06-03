@@ -6,7 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Global logging convenience abstraction (to globally enable certain details in logs, such as all select statements or all insert/update statements).
  *  Just uses Log4j. */
@@ -30,11 +33,11 @@ public enum Loggers {
     static final Set<Loggers> CONCRETE_DB_OPERATIONS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE);
     static final Set<Loggers> ALL_LOGGERS = EnumSet.allOf(Loggers.class);
 
-    static final Logger LOGGER_SELECT = LoggerFactory.getLogger(Loggers.class + "." + Loggers.SELECT.name());
-    static final Logger LOGGER_CHANGE = LoggerFactory.getLogger(Loggers.class + "." + Loggers.CHANGE.name());
-    static final Logger LOGGER_DELETE = LoggerFactory.getLogger(Loggers.class + "." + Loggers.DELETE.name());
-    static final Logger LOGGER_WARNINGS = LoggerFactory.getLogger(Loggers.class + "." + Loggers.WARNINGS.name());
-    static final Logger LOGGER_INFO = LoggerFactory.getLogger(Loggers.class + "." + Loggers.INFO.name());
+    static final Logger LOGGER_SELECT = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.SELECT.name());
+    static final Logger LOGGER_CHANGE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.CHANGE.name());
+    static final Logger LOGGER_DELETE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.DELETE.name());
+    static final Logger LOGGER_WARNINGS = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.WARNINGS.name());
+    static final Logger LOGGER_INFO = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.INFO.name());
 
     /** Convenience method to enable what you would like to see in the logs */
     public static void enableLoggers(Set<Loggers> loggers) {
@@ -65,6 +68,19 @@ public enum Loggers {
     /** Convenience method to only show warning logs */
     public static void disableDefaultLogs() {
         setLoggerLevel(CONCRETE_LOGGERS, Level.WARN);
+    }
+
+
+    public static Set<Loggers> stringListToLoggerSet(List<String> logs){
+        return logs.stream().map(String::toUpperCase).map(n -> optionalGetLogger(n)).flatMap(Optional::stream).collect(Collectors.toSet());
+    }
+
+    private static Optional<Loggers> optionalGetLogger(String logger){
+        try {
+            return Optional.of(Loggers.valueOf(logger));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
 }

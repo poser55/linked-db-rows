@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.5-SNAPSHOT
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.6
 //DEPS info.picocli:picocli:4.5.0
 import static java.lang.System.*;
 
@@ -50,6 +50,9 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"-db"}, description = "What jdbc driver to use? (default:postgres) ")
     private String  databaseShortName = "postgres";
 
+    @Option(names = {"--log"}, description = "What to log (change,select,delete,all)")
+    private List<String> logs;
+
 
     public static void main(String... args) throws SQLException, ClassNotFoundException {
 		int exitCode = new CommandLine(new JsonExport()).execute(args);
@@ -74,6 +77,11 @@ public class JsonExport implements Callable<Integer> {
             err.println("Could not get jdbc connection for:"+databaseShortName);
             return -1;
         }
+
+        if (logs != null) {
+            Loggers.enableLoggers(Loggers.stringListToLoggerSet(logs));
+        }
+
         Record asRecord = dbExporter.contentAsTree(connection, tableName, pkValue);
 
         if (doCanonicalize) {
