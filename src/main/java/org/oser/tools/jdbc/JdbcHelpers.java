@@ -437,6 +437,7 @@ public final class JdbcHelpers {
                         Objects.toString(pkValues.get(i)), null);
             }
 
+            Loggers.LOGGER_SELECT.info("{}", pkSelectionStatement);
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 exists = rs.next();
             }

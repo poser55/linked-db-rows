@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.oser.tools.jdbc.spi.pkgenerator.NextValuePkGenerator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -37,13 +35,6 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
  * Import a JSON structure exported with {@link DbExporter} into the db again.
  */
 public class DbImporter implements FkCacheAccessor {
-    public enum Loggers {
-        I_META, I_UPDATES, I_EXISTENCE_CHECK
-    }
-
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DbImporter.class);
-    private static final Logger LOGGER_UPDATES = LoggerFactory.getLogger(DbImporter.class + "." + Loggers.I_UPDATES.name());
     public static final String JSON_SUBTABLE_SUFFIX = "*";
 
     // options
@@ -158,7 +149,7 @@ public class DbImporter implements FkCacheAccessor {
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable, metadataCache);
         List<String> pks = JdbcHelpers.getPrimaryKeys(metadata, rootTable, pkCache);
 
-        record.pkName = pks.get(0);
+        record.setPkName(pks.get(0));
         record.setColumnMetadata(columns);
 
         List<String> jsonFieldNames = getJsonFieldNames(json);
@@ -180,7 +171,7 @@ public class DbImporter implements FkCacheAccessor {
             }
 
             Record.FieldAndValue d = new Record.FieldAndValue(currentFieldName, columns.get(currentFieldName), valueToInsert);
-            record.content.add(d);
+            record.getContent().add(d);
         }
         record.setPkValue(primaryKeyValues);
 
@@ -210,7 +201,7 @@ public class DbImporter implements FkCacheAccessor {
                 ArrayList<Record> records = new ArrayList<>();
 
                 if (fk.inverted) {
-                    record.optionalFks.add(fk);
+                    record.getOptionalFks().add(fk);
                 }
 
                 if (subJsonNode != null) {
@@ -227,7 +218,7 @@ public class DbImporter implements FkCacheAccessor {
                 }
 
                 if (!fk.inverted) {
-                    records.forEach(r -> r.optionalFks.add(fk));
+                    records.forEach(r -> r.getOptionalFks().add(fk));
                 }
 
                 if (!records.isEmpty()) {
@@ -262,7 +253,7 @@ public class DbImporter implements FkCacheAccessor {
         Set<RowLink> rowLinksNotToInsert = newKeys.keySet();
 
         CheckedFunction<Record, Void> insertOneRecord = (Record r) -> {
-            if (!rowLinksNotToInsert.contains(r.rowLink)) {
+            if (!rowLinksNotToInsert.contains(r.getRowLink())) {
                 this.insertOneRecord(connection, r, newKeys);
             }
             return null; // strange that we need this hack
@@ -278,7 +269,7 @@ public class DbImporter implements FkCacheAccessor {
 
         // todo : bug sometimes the optionalFk is not correct on record (e.g. on node)
         //  so for now, we get it from the cache:
-        List<Fk> fksOfTable = getFksOfTable(connection, record.rowLink.tableName, fkCache);
+        List<Fk> fksOfTable = getFksOfTable(connection, record.getRowLink().getTableName(), fkCache);
 
         Map<String, List<Fk>> fksByColumnName = Fk.fksByColumnName(fksOfTable);
         List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
@@ -296,8 +287,8 @@ public class DbImporter implements FkCacheAccessor {
                 if (isFreePk.get(i)) {
                     Record.FieldAndValue elementWithName = record.findElementWithName(primaryKeys.get(i));
 
-                    candidatePk = getCandidatePk(connection, record.getRowLink().tableName, elementWithName.metadata.type, primaryKeys.get(i));
-                    RowLink key = new RowLink(record.getRowLink().tableName, record.findElementWithName(record.pkName).value);
+                    candidatePk = getCandidatePk(connection, record.getRowLink().getTableName(), elementWithName.metadata.type, primaryKeys.get(i));
+                    RowLink key = new RowLink(record.getRowLink().getTableName(), record.findElementWithName(record.getPkName()).value);
                     newKeys.put(key, candidatePk);
 
                     pkValues.set(i, candidatePk); // maybe not needed (catched by later remapping?)
@@ -309,7 +300,7 @@ public class DbImporter implements FkCacheAccessor {
         List<String> fieldNames = record.getFieldNames();
 
         // fields must both be in json AND in db metadata, remove those missing in db metadata
-        Set<String> columnsDbNames = record.content.stream().map(e -> e.name).collect(Collectors.toSet());
+        Set<String> columnsDbNames = record.getContent().stream().map(e -> e.name).collect(Collectors.toSet());
         fieldNames.removeIf(e -> !columnsDbNames.contains(e));
         // todo log if there is a delta between the 2 sets, ok for those who map subrows !
 
@@ -319,7 +310,7 @@ public class DbImporter implements FkCacheAccessor {
         }
 
         Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = record.getColumnMetadata();
-        String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.rowLink.tableName, fieldNames, record.pkName, isInsert, columnMetadata);
+        String sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.getRowLink().getTableName(), fieldNames, record.getPkName(), isInsert, columnMetadata);
         PreparedStatement savedStatement = null;
         try (PreparedStatement statement = connection.prepareStatement(sqlStatement)) {
             final String[] valueToInsert = {"-"};
@@ -345,7 +336,7 @@ public class DbImporter implements FkCacheAccessor {
 
                 Integer statementPosition = record.findElementPositionWithName(currentFieldName);
                 if (statementPosition == null) {
-                    LOGGER.warn("unexpected element position for field {}", currentFieldName);
+                    Loggers.LOGGER_WARNINGS.warn("unexpected element position for field {}", currentFieldName);
                     continue;
                 }
 
@@ -374,10 +365,11 @@ public class DbImporter implements FkCacheAccessor {
             savedStatement = statement;
             int result = statement.executeUpdate();
 
-            LOGGER_UPDATES.debug("statement called: {} updateCount:{}", statement, result);
+            Loggers.LOGGER_CHANGE.info("{} -- updateCount:{}", statement, result);
 
         } catch (SQLException e) {
-            LOGGER.info("issue with statement: {} ", savedStatement);
+            Loggers.LOGGER_CHANGE.info("{}", savedStatement);
+            Loggers.LOGGER_WARNINGS.info("issue with statement: {} ", savedStatement);
             throw e;
         }
     }

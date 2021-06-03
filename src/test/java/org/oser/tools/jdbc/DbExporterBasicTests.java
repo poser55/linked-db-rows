@@ -1,6 +1,5 @@
 package org.oser.tools.jdbc;
 
-import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -44,8 +43,8 @@ public class DbExporterBasicTests {
                         new HashMap<>(),
                         "datatypes", 1, 1, true);
 
-        assertEquals(6, basicChecksResult.getAsRecordAgain().content.size());
-        assertEquals(6, basicChecksResult.getAsRecord().content.size());
+        assertEquals(6, basicChecksResult.getAsRecordAgain().getContent().size());
+        assertEquals(6, basicChecksResult.getAsRecord().getContent().size());
     }
 
     @Test
@@ -152,7 +151,7 @@ public class DbExporterBasicTests {
     @Test
     @DisabledIfSystemProperty(named = "mixedCaseTableNames", matches = "false")
     void testGraph() throws Exception {
-        TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.DEBUG);
+        Loggers.enableLoggers(EnumSet.of(Loggers.CHANGE, Loggers.SELECT));
         Connection demo = TestHelpers.getConnection("demo");
         long start = System.currentTimeMillis();
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
@@ -165,7 +164,7 @@ public class DbExporterBasicTests {
                 "Nodes", 1, 10);
         System.out.println("timing: " + (System.currentTimeMillis() - start));
 
-        TestHelpers.setLoggerLevel(EnumSet.of(DbImporter.Loggers.I_UPDATES), Level.INFO);
+        Loggers.disableDefaultLogs();
 
         // test simple deletion
         Object newPk = basicChecksResult.getRowLinkObjectMap().entrySet().stream().filter(r -> r.getKey().getTableName().equals("nodes")).findFirst().get().getValue();
@@ -224,7 +223,7 @@ public class DbExporterBasicTests {
 
         Map<RowLink, Object> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
         System.out.println("remapped: " + pkAndTableObjectMap.size() + " new book Pk" + pkAndTableObjectMap.keySet().stream()
-                .filter(p -> p.tableName.equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
+                .filter(p -> p.getTableName().equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
 
         assertEquals(2, pkAndTableObjectMap.size());
     }

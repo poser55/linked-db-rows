@@ -349,15 +349,6 @@ public class TestHelpers {
         rootLogger.setLevel(Level.INFO);
     }
 
-    // todo make more generic, move globally
-    public static void setLoggerLevel(EnumSet<DbImporter.Loggers> loggers, ch.qos.logback.classic.Level newLevel) {
-        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-        for (DbImporter.Loggers logger : loggers) {
-            ch.qos.logback.classic.Logger rootLogger = lc.getLogger(DbImporter.class + "." + logger.name());
-            rootLogger.setLevel(newLevel);
-        }
-    }
-
     private static final Cache<String, List<String>> pkCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
 }

@@ -27,8 +27,8 @@ class JdbcHelpersTest {
     @Test
     void pkTable() {
         RowLink t1 = new RowLink("lender/1");
-        assertEquals("lender", t1.tableName);
-        assertEquals(1L, t1.pks[0]);
+        assertEquals("lender", t1.getTableName());
+        assertEquals(1L, t1.getPks()[0]);
 
         Assertions.assertThrows(IllegalArgumentException.class, () -> {new RowLink("l");});
 

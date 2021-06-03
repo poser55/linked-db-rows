@@ -3,8 +3,6 @@ package org.oser.tools.jdbc;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Clob;
 import java.sql.Connection;
@@ -36,8 +34,6 @@ import static org.oser.tools.jdbc.Fk.getFksOfTable;
  *  Export db data to JSON.
  */
 public class DbExporter implements FkCacheAccessor {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DbExporter.class);
-
     // configuration settings:
     private final Set<String> stopTablesExcluded = new HashSet<>();
     private final Set<String> stopTablesIncluded = new HashSet<>();
@@ -132,6 +128,7 @@ public class DbExporter implements FkCacheAccessor {
                         Objects.toString(pkValues[i]), null);
             }
 
+            Loggers.LOGGER_SELECT.info("{}", pkSelectionStatement);
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
                 int columnCount = rsMetaData.getColumnCount();
@@ -142,7 +139,7 @@ public class DbExporter implements FkCacheAccessor {
                         Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
 
                         if (d != null) {
-                            data.content.add(d);
+                            data.getContent().add(d);
                         }
                     }
                 } else {
@@ -212,16 +209,17 @@ public class DbExporter implements FkCacheAccessor {
                         Objects.toString(fkValues[i]), null);
             }
 
+            Loggers.LOGGER_SELECT.info("{}", pkSelectionStatement);
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
                 int columnCount = rsMetaData.getColumnCount();
                 while (rs.next()) { // treat 1 fk-link
                     Record row = innerReadRecord(tableName, columns, rs, rsMetaData, columnCount, primaryKeys, context);
-                    if (context.containsNode(tableName, row.rowLink.pks)) {
+                    if (context.containsNode(tableName, row.getRowLink().getPks())) {
                         continue; // we have already read this node
                     }
 
-                    context.visitedNodes.put(new RowLink(tableName, row.rowLink.pks), row);
+                    context.visitedNodes.put(new RowLink(tableName, row.getRowLink().getPks()), row);
                     listOfRows.add(row);
                 }
             }
@@ -243,7 +241,7 @@ public class DbExporter implements FkCacheAccessor {
     void addSubRowDataFromFks(Connection connection, String tableName, Record data, ExportContext context) throws SQLException {
         List<Fk> fks = getFksOfTable(connection, tableName, fkCache);
 
-        data.optionalFks = fks;
+        data.setOptionalFks(fks);
 
         for (Fk fk : fks) {
             context.treatedFks.add(fk);
@@ -296,7 +294,7 @@ public class DbExporter implements FkCacheAccessor {
             String columnName = rsMetaData.getColumnName(i);
             Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
             if (d != null) {
-                row.content.add(d);
+                row.getContent().add(d);
 
                 if (primaryKeyArrayPosition.containsKey(d.name.toLowerCase())){
                     primaryKeyValues[primaryKeyArrayPosition.get(d.name.toLowerCase())] = d.value;
@@ -362,6 +360,8 @@ public class DbExporter implements FkCacheAccessor {
     public void doDeletionWithException(Connection connection, List<String> deleteStatements) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
             for (String sqlString : deleteStatements) {
+
+                Loggers.LOGGER_DELETE.info("{}", sqlString);
                 int count = stmt.executeUpdate(sqlString);
                 if (count != 1) {
                     throw new IllegalStateException("Deletion not successful "+sqlString+" result: "+count);

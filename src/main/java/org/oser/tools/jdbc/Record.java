@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -40,10 +41,15 @@ import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
  */
 @Getter
 public class Record {
-    RowLink rowLink;
-    List<FieldAndValue> content = new ArrayList<>();
-    String pkName;
-    List<Fk> optionalFks = new ArrayList<>(); // the fks from here to other tables
+    private RowLink rowLink;
+    private List<FieldAndValue> content = new ArrayList<>();
+
+    @Setter
+    private String pkName;
+
+    @Setter
+    /**  the fks from here to other tables */
+    private List<Fk> optionalFks = new ArrayList<>();
 
     Map<RecordMetadata, Object> optionalMetadata = new EnumMap<>(RecordMetadata.class);
     private Map<String, JdbcHelpers.ColumnMetadata> columnMetadata;
@@ -52,7 +58,7 @@ public class Record {
         rowLink = new RowLink(tableName, pks);
     }
 
-    ObjectMapper mapper = getObjectMapper();
+    private ObjectMapper mapper = getObjectMapper();
 
     public static ObjectMapper getObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -157,14 +163,14 @@ public class Record {
 
     /** visit all Records in insertion order */
     public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws Exception {
-        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.tableName, exceptionWithCycles, cache);
+        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.getTableName(), exceptionWithCycles, cache);
 
         Map<String, List<Record>> tableToRecords = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         visitRecords(r -> {
-            if (!tableToRecords.containsKey(r.rowLink.tableName)) {
-                tableToRecords.put(r.rowLink.tableName, new ArrayList<>());
+            if (!tableToRecords.containsKey(r.rowLink.getTableName())) {
+                tableToRecords.put(r.rowLink.getTableName(), new ArrayList<>());
             }
-            tableToRecords.get(r.rowLink.tableName).add(r);
+            tableToRecords.get(r.rowLink.getTableName()).add(r);
         });
 
         for (String tableName : insertionOrder) {

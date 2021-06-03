@@ -55,8 +55,8 @@ public class RowLink {
         return optionalLongValue;
     }
 
-    String tableName;
-    Object[] pks;
+    private String tableName;
+    private Object[] pks;
 
     @Override
     public boolean equals(Object o) {
