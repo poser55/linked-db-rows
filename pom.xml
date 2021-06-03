@@ -4,7 +4,7 @@
 
     <groupId>org.oser.tools.jdbc</groupId>
     <artifactId>linked-db-rows</artifactId>
-    <version>0.5-SNAPSHOT</version>
+    <version>0.5</version>
 
     <name>linked-db-rows</name>
 
@@ -18,7 +18,7 @@
         <connection>scm:git:${repository.url}</connection>
         <developerConnection>scm:git:${repository.url}</developerConnection>
         <url>${repository.url}</url>
-        <tag>HEAD</tag>
+        <tag>v0.5</tag>
     </scm>
 
     <licenses>
