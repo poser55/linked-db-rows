@@ -70,7 +70,9 @@ public class DbExporter implements FkCacheAccessor {
     public Record contentAsTree(Connection connection, String tableName, Object... pkValue) throws SQLException {
         ExportContext context = new ExportContext(connection);
 
-        JdbcHelpers.assertTableExists(connection, tableName);
+        if (pkCache.getIfPresent(tableName) == null) {
+            JdbcHelpers.assertTableExists(connection, tableName);
+        }
 
         Record data = readOneRecord(connection, tableName, pkValue, context);
         addSubRowDataFromFks(connection, tableName, data, context);
@@ -128,7 +130,8 @@ public class DbExporter implements FkCacheAccessor {
                         Objects.toString(pkValues[i]), null);
             }
 
-            Loggers.LOGGER_SELECT.info("{}", pkSelectionStatement);
+            Loggers.logSelectStatement(pkSelectionStatement, selectPk, Arrays.asList(pkValues));
+
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
                 int columnCount = rsMetaData.getColumnCount();
@@ -209,7 +212,7 @@ public class DbExporter implements FkCacheAccessor {
                         Objects.toString(fkValues[i]), null);
             }
 
-            Loggers.LOGGER_SELECT.info("{}", pkSelectionStatement);
+            Loggers.logSelectStatement(pkSelectionStatement, selectPk, Arrays.asList(fkValues));
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
                 int columnCount = rsMetaData.getColumnCount();

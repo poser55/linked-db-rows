@@ -49,6 +49,8 @@ public class DbExporterBasicTests {
 
     @Test
     void blog() throws Exception {
+        Loggers.enableLoggers(EnumSet.of(Loggers.CHANGE, Loggers.SELECT));
+
         Connection demo = TestHelpers.getConnection("demo");
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
                 dbExporter -> {
@@ -58,6 +60,7 @@ public class DbExporterBasicTests {
                     Fk.initFkCacheForMysql_LogException(demo, dbImporter.getFkCache());
                 },
                 "blogpost", 2, 3);
+        Loggers.disableDefaultLogs();
 
         // now duplicate this blog post entry to user_table/1 (it is now linked to user_table/2)
 
@@ -179,16 +182,28 @@ public class DbExporterBasicTests {
 
     @Test
     void testJsonToRecord() throws Exception {
-        Connection demoConnection = TestHelpers.getConnection("demo"); // getConnectionTestContainer("demo");
-        DbExporter db2Graphdemo = new DbExporter();
-        Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
+        Timer t = new Timer();
+        Connection demoConnection = TestHelpers.getConnection("demo");
+        t.printCurrent("-2");
+
+        DbExporter dbExporter = new DbExporter();
+
+        t.printCurrent("-1");
+
+        Record book = dbExporter.contentAsTree(demoConnection, "book", "1");
+
+        t.printCurrent("-0.5");
 
         System.out.println("book:" + book.asJsonNode().toString());
+
+        t.printCurrent("0");
 
         DbImporter dbImporter = new DbImporter();
         Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJsonNode().toString());
 
         System.out.println("book2:" + book2.asJsonNode().toString());
+
+        t.printCurrent("1");
 
         ObjectMapper mapper = Record.getObjectMapper();
 
@@ -196,8 +211,10 @@ public class DbExporterBasicTests {
         assertEquals(mapper.readTree(book.asJsonNode().toString().toLowerCase()), mapper.readTree(book2.asJsonNode().toString().toLowerCase()));
         assertEquals(book.getAllNodes(), book2.getAllNodes());
 
-        Record author1 = db2Graphdemo.contentAsTree(demoConnection, "author", "1");
+        Record author1 = dbExporter.contentAsTree(demoConnection, "author", "1");
         Record author2 = dbImporter.jsonToRecord(demoConnection, "author", author1.asJsonNode().toString());
+
+        t.printCurrent("2");
 
         assertEquals(mapper.readTree(author1.asJsonNode().toString().toLowerCase()), mapper.readTree(author2.asJsonNode().toString().toLowerCase()));
 
@@ -206,7 +223,25 @@ public class DbExporterBasicTests {
         Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, book2);
         System.out.println("\ninserts: " + rowLinkObjectMap.size());
 
-        db2Graphdemo.contentAsTree(demoConnection, "book", "1");
+        dbExporter.contentAsTree(demoConnection, "book", "1");
+
+        t.printCurrent("end");
+    }
+
+    public static class Timer {
+        long started;
+        long lastDelta;
+
+        public Timer() {
+            this.started = System.currentTimeMillis();
+            lastDelta = started;
+        }
+        public void printCurrent(String x){
+            long now = System.currentTimeMillis();
+            long fullDelta = now - started;
+            System.out.println(x+". delta: "+ fullDelta +" "+(now - lastDelta));
+            lastDelta = now;
+        }
     }
 
     @Test

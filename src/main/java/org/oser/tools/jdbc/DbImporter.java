@@ -144,7 +144,9 @@ public class DbImporter implements FkCacheAccessor {
 
     /** Convert JsonNode to Record */
     public Record jsonToRecord(Connection connection, String rootTable, JsonNode json) throws SQLException {
-        JdbcHelpers.assertTableExists(connection, rootTable);
+        if (pkCache.getIfPresent(rootTable) == null) {
+            JdbcHelpers.assertTableExists(connection, rootTable);
+        }
 
         Record record = new Record(rootTable, null);
 
@@ -315,6 +317,7 @@ public class DbImporter implements FkCacheAccessor {
         Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = record.getColumnMetadata();
         JdbcHelpers.SqlChangeStatement sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.getRowLink().getTableName(), fieldNames, record.getPkName(), isInsert, columnMetadata);
         PreparedStatement savedStatement = null;
+        Map<String, Object> insertedValues = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement(sqlStatement.getStatement())) {
             final String[] valueToInsert = {"-"};
 
@@ -343,6 +346,7 @@ public class DbImporter implements FkCacheAccessor {
 
                 FieldImporter fieldImporter = getFieldImporter(record.getRowLink().getTableName(), currentFieldName);
                 boolean bypassNormalInsertion = false;
+                insertedValues.put(currentElement.getName(), valueToInsert[0]);
                 if (fieldImporter != null) {
                     bypassNormalInsertion = fieldImporter.importField(record.getRowLink().getTableName(), currentElement.metadata, statement, statementPosition, valueToInsert[0]);
                 }
@@ -352,13 +356,14 @@ public class DbImporter implements FkCacheAccessor {
             }
 
             savedStatement = statement;
-            int result = statement.executeUpdate();
+            int optionalUpdateCount = statement.executeUpdate();
 
-            Loggers.LOGGER_CHANGE.info("{} -- updateCount:{}", statement, result);
+            Loggers.logChangeStatement(statement, sqlStatement.getStatement(), insertedValues, optionalUpdateCount);
 
         } catch (SQLException e) {
-            Loggers.LOGGER_CHANGE.info("{}", savedStatement);
+            Loggers.logChangeStatement(savedStatement, sqlStatement.getStatement(), insertedValues, 0);
             Loggers.LOGGER_WARNINGS.info("issue with statement: {} ", savedStatement);
+
             throw e;
         }
     }

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
@@ -69,5 +70,13 @@ class JdbcHelpersTest {
         System.out.println(counts + " "+allTableNames);
         assertTrue( counts.keySet().size() >= 10);
         assertTrue(allTableNames.size() >= 10);
+    }
+
+    @Test
+    void getPrimaryKeys_notExistingTable() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo1 = TestHelpers.getConnection("demo");
+        DatabaseMetaData metaData = demo1.getMetaData();
+        List<String> xxx = JdbcHelpers.getPrimaryKeys(metaData, "xxx");
+        assertNotNull(xxx);
     }
 }

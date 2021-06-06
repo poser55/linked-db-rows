@@ -5,8 +5,11 @@ import ch.qos.logback.classic.LoggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -83,4 +86,24 @@ public enum Loggers {
         }
     }
 
+    public static void logSelectStatement(PreparedStatement pkSelectionStatement, String selectPk, List<Object> values) throws SQLException {
+        // postgres has nicest toString of prepareStatements
+        if (Loggers.LOGGER_SELECT.isInfoEnabled() && isPostgreSQL(pkSelectionStatement)) {
+            LOGGER_SELECT.info("{}", pkSelectionStatement);
+        } else {
+            LOGGER_SELECT.info("{} {}", selectPk, values);
+        }
+    }
+
+    public static void logChangeStatement(PreparedStatement statement, String stringStatement, Map<String, Object> insertedValues, int optionalUpdateCount) throws SQLException {
+        if (Loggers.LOGGER_SELECT.isInfoEnabled() && isPostgreSQL(statement)) {
+            Loggers.LOGGER_CHANGE.info("{} -- updateCount:{}", statement, optionalUpdateCount);
+        } else {
+            Loggers.LOGGER_CHANGE.info("{} {} -- updateCount:{}", stringStatement, insertedValues, optionalUpdateCount);
+        }
+    }
+
+    private static boolean isPostgreSQL(PreparedStatement pkSelectionStatement) throws SQLException {
+        return pkSelectionStatement.getConnection().getMetaData().getDatabaseProductName().equals("PostgreSQL");
+    }
 }

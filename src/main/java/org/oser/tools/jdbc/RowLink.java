@@ -18,7 +18,10 @@ public class RowLink {
     public RowLink(String tableName, Object ... pks) {
         this.setTableName(tableName.toLowerCase());
         if (pks != null) {
-            this.setPks(Stream.of(pks).map(RowLink::normalizePk).toArray(Object[]::new));
+            for (int i = 0; i < pks.length; i++){
+                pks[i] = RowLink.normalizePk(pks[i]);
+            }
+            this.setPks(pks);
         }
     }
 

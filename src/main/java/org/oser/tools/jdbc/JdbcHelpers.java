@@ -306,6 +306,7 @@ public final class JdbcHelpers {
         boolean isEmpty = valueToInsert == null || (valueToInsert.trim().isEmpty() || valueToInsert.equals("null"));
         switch (columnMetadata.type.toUpperCase()) {
             case "BOOLEAN":
+            case "BIT":
             case "BOOL":
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.BOOLEAN);
@@ -438,7 +439,7 @@ public final class JdbcHelpers {
                         Objects.toString(pkValues.get(i)), null);
             }
 
-            Loggers.LOGGER_SELECT.info("{}", pkSelectionStatement);
+            Loggers.logSelectStatement(pkSelectionStatement, selectStatement, pkValues);
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {
                 exists = rs.next();
             }

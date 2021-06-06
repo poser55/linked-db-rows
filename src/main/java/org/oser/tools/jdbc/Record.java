@@ -58,14 +58,18 @@ public class Record {
         rowLink = new RowLink(tableName, pks);
     }
 
-    private final ObjectMapper mapper = getObjectMapper();
+    private static final ObjectMapper mapper = getObjectMapper();
 
     public static ObjectMapper getObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
-        mapper.configure(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true);
-        mapper.setNodeFactory(JsonNodeFactory.withExactBigDecimals(true));
-        return mapper;
+        if (mapper != null) {
+            return mapper;
+        }
+
+        ObjectMapper privateMapper = new ObjectMapper();
+        privateMapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+        privateMapper.configure(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true);
+        privateMapper.setNodeFactory(JsonNodeFactory.withExactBigDecimals(true));
+        return privateMapper;
     }
 
     /** JsonNode representation  */
@@ -117,8 +121,11 @@ public class Record {
         return content.stream().filter(e -> !e.subRow.isEmpty()).map(e -> e.name).collect(toList());
     }
 
-    public void setPkValue(Object[] value) {
-        rowLink.setPks(Stream.of(value).map(RowLink::normalizePk).toArray(Object[]::new));
+    public void setPkValue(Object[] values) {
+        for (int i = 0; i < values.length; i++){
+            values[i] = RowLink.normalizePk(values[i]);
+        }
+        rowLink.setPks(values);
     }
 
     public String metadata() {
