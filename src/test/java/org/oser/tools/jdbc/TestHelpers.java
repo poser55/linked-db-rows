@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -258,18 +257,18 @@ public class TestHelpers {
             optionalExporterConfigurer.accept(dbExporter);
         }
         Record asRecord = dbExporter.contentAsTree(connection, tableName, primaryKeyValue);
-        String asString = asRecord.asJson();
+        String asString = asRecord.asJsonNode().toString();
 
         System.out.println("export as json2:" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode()));
-        // this assertion was dropped, as the old .asJson() method handles int types wrong (it quotes them in some cases)
-        //assertEquals(mapper.readTree(asRecord.asJson()).toString(), asRecord.asJsonNode().toString());
+        // this assertion was dropped, as the old .asJsonNode().toString() method handles int types wrong (it quotes them in some cases)
+        //assertEquals(mapper.readTree(asRecord.asJsonNode().toString()).toString(), asRecord.asJsonNode().toString());
 
         DbImporter dbImporter = new DbImporter();
         if (optionalImporterConfigurer != null) {
             optionalImporterConfigurer.accept(dbImporter);
         }
         Record asRecordAgain = dbImporter.jsonToRecord(connection, tableName, asString);
-        String asStringAgain = asRecordAgain.asJson();
+        String asStringAgain = asRecordAgain.asJsonNode().toString();
 
         assertEquals(numberNodes, asRecord.getAllNodes().size());
         assertEquals(numberNodes, asRecordAgain.getAllNodes().size());

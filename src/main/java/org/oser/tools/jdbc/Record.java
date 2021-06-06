@@ -41,8 +41,8 @@ import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
  */
 @Getter
 public class Record {
-    private RowLink rowLink;
-    private List<FieldAndValue> content = new ArrayList<>();
+    private final RowLink rowLink;
+    private final List<FieldAndValue> content = new ArrayList<>();
 
     @Setter
     private String pkName;
@@ -58,7 +58,7 @@ public class Record {
         rowLink = new RowLink(tableName, pks);
     }
 
-    private ObjectMapper mapper = getObjectMapper();
+    private final ObjectMapper mapper = getObjectMapper();
 
     public static ObjectMapper getObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -90,7 +90,7 @@ public class Record {
      *   returns null if not found */
     public FieldAndValue findElementWithName(String columnName) {
         for (FieldAndValue d : content) {
-            if (d.name.toLowerCase().equals(columnName.toLowerCase())) {
+            if (d.name.equalsIgnoreCase(columnName)) {
                 return d;
             }
         }
@@ -101,7 +101,7 @@ public class Record {
     public Integer findElementPositionWithName(String columnName) {
         int position = 1;
         for (FieldAndValue d : content) {
-            if (d.name.toLowerCase().equals(columnName.toLowerCase())) {
+            if (d.name.equalsIgnoreCase(columnName)) {
                 return position;
             }
             position++;
@@ -225,6 +225,7 @@ public class Record {
             }
             switch (metadata.type.toUpperCase()) {
                 case "BOOLEAN":
+                case "BIT": // mysql uses this for booleans
                 case "BOOL":
                     Boolean bool = null;
                     if (value instanceof String) {
@@ -233,6 +234,8 @@ public class Record {
                         } catch (NumberFormatException e) {
                             // ok
                         }
+                    } else if (value instanceof Boolean) {
+                        bool = (Boolean) value;
                     }
                     return bool != null ? bool : value;
                 case "SERIAL":
@@ -291,7 +294,7 @@ public class Record {
 
         public void addToJsonNode(ObjectNode topLevelNode) {
             putFieldToJsonNode(topLevelNode);
-            if  ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElseGet(() -> 0) == 0))) {
+            if  ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElse(0) == 0))) {
                 addSubRowToJsonNode(topLevelNode);
             }
         }
@@ -305,7 +308,7 @@ public class Record {
         public String toString() {
             return "\"" + name +
                     "\":" + getValueWithQuoting() +
-                    ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElseGet(() -> 0) == 0)) ?
+                    ((!(subRow.isEmpty() || subRow.values().stream().map(List::size).max(Integer::compareTo).orElse(0) == 0)) ?
                             (", " + maplistlist2jsonString(name, subRow)) :
                             "") +
                     "";

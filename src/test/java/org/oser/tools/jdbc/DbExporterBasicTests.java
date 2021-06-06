@@ -88,8 +88,7 @@ public class DbExporterBasicTests {
                     try {
                         Fk.initFkCacheForMysql_LogException(demo, dbImporter.getFkCache());
 
-                        Fk.addVirtualForeignKey(demo, dbImporter,
-                                "user_table", "id", "preferences", "user_id");
+                        Fk.addVirtualForeignKeyAsString(demo, dbImporter, "user_table(id)-preferences(user_id)");
 
                         importer.set(dbImporter);
                     } catch (SQLException throwables) {
@@ -184,23 +183,23 @@ public class DbExporterBasicTests {
         DbExporter db2Graphdemo = new DbExporter();
         Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
 
-        System.out.println("book:" + book.asJson());
+        System.out.println("book:" + book.asJsonNode().toString());
 
         DbImporter dbImporter = new DbImporter();
-        Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJson());
+        Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJsonNode().toString());
 
-        System.out.println("book2:" + book2.asJson());
+        System.out.println("book2:" + book2.asJsonNode().toString());
 
         ObjectMapper mapper = Record.getObjectMapper();
 
         // todo: known issue .jsonToRecord converts json keys to upper case
-        assertEquals(mapper.readTree(book.asJson().toLowerCase()), mapper.readTree(book2.asJson().toLowerCase()));
+        assertEquals(mapper.readTree(book.asJsonNode().toString().toLowerCase()), mapper.readTree(book2.asJsonNode().toString().toLowerCase()));
         assertEquals(book.getAllNodes(), book2.getAllNodes());
 
         Record author1 = db2Graphdemo.contentAsTree(demoConnection, "author", "1");
-        Record author2 = dbImporter.jsonToRecord(demoConnection, "author", author1.asJson());
+        Record author2 = dbImporter.jsonToRecord(demoConnection, "author", author1.asJsonNode().toString());
 
-        assertEquals(mapper.readTree(author1.asJson().toLowerCase()), mapper.readTree(author2.asJson().toLowerCase()));
+        assertEquals(mapper.readTree(author1.asJsonNode().toString().toLowerCase()), mapper.readTree(author2.asJsonNode().toString().toLowerCase()));
 
         // as inserts
 
@@ -216,10 +215,10 @@ public class DbExporterBasicTests {
         DbExporter db2Graphdemo = new DbExporter();
         Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
 
-        System.out.println("book:" + book.asJson());
+        System.out.println("book:" + book.asJsonNode().toString());
 
         DbImporter dbImporter = new DbImporter();
-        Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJson());
+        Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJsonNode().toString());
 
         Map<RowLink, Object> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
         System.out.println("remapped: " + pkAndTableObjectMap.size() + " new book Pk" + pkAndTableObjectMap.keySet().stream()
@@ -287,8 +286,8 @@ public class DbExporterBasicTests {
     void testFieldExporter() {
         DbExporter dbExporter = new DbExporter();
 
-        FieldExporter tfExporter = (FieldExporter) (tableName, fieldName, metadata, rs) -> {     return null;  };
-        FieldExporter nullFfExporter = (FieldExporter) (tableName, fieldName, metadata, rs) -> {     return new Record.FieldAndValue("name", null, null);  };
+        FieldExporter tfExporter = (tableName, fieldName, metadata, rs) -> {  return null;  };
+        FieldExporter nullFfExporter = (tableName, fieldName, metadata, rs) -> {  return new Record.FieldAndValue("name", null, null);  };
         dbExporter.registerFieldExporter("t", "f", tfExporter);
         dbExporter.registerFieldExporter(null, "ff", nullFfExporter);
         assertEquals(tfExporter, dbExporter.getFieldExporter("t", "f"));

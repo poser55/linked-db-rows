@@ -1,6 +1,7 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.6
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.6-SNAPSHOT
 //DEPS info.picocli:picocli:4.5.0
+//DEPS ch.qos.logback:logback-classic:1.2.3
 import static java.lang.System.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,8 +29,8 @@ public class JsonImport implements Callable<Integer> {
 	@Option(names = {"-u","--url"}, description = "jdbc connection-url")
     private String url = "jdbc:postgresql://localhost/demo";
 	
-	@Option(names = {"-t","--tableanName"}, description = "Table name to import")
-    private String tableName = "blogpost";
+	@Option(names = {"-t","--tableanName"}, required = true, description = "Table name to import")
+    private String tableName;
 
     @Option(names = {"-l","--login"}, description = "Login name of database")
     private String username = "postgres";
@@ -46,7 +47,17 @@ public class JsonImport implements Callable<Integer> {
     @Option(names = {"-e","--exclude-fields"}, required = false, description = "Name of fields to be excluded.")
     private List<String> excludedFields;
 
+    @Option(names = {"-fks"}, description = "Virtual foreign key configurations. " +
+            "Example: 'user_table(id)-preferences(user_id)'  " +
+            "This sets a foreign key from table user_table to the preferences table, id is the FK column in user_table, " +
+            "user_id is the FK id in preferences. Use ';' to separate multiple FKs;")
+    private String fks;
+
+    @Option(names = {"--log"}, description = "What to log (change,select,delete,all)")
+    private List<String> logs;
+
     public static void main(String... args) throws SQLException, ClassNotFoundException {
+        Loggers.disableDefaultLogs();
 		int exitCode = new CommandLine(new JsonImport()).execute(args);
         System.exit(exitCode);
     }
@@ -64,6 +75,11 @@ public class JsonImport implements Callable<Integer> {
 
         if (logs != null) {
             Loggers.enableLoggers(Loggers.stringListToLoggerSet(logs));
+        }
+
+        if (fks != null) {
+            System.out.println("Virtual foreign keys:"+fks);
+            Fk.addVirtualForeignKeyAsString(dbConnection, dbImporter, fks);
         }
 
         String json = "";

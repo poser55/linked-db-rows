@@ -251,7 +251,7 @@ public class DbExporter implements FkCacheAccessor {
                     .flatMap(Optional::stream).collect(toList());
             boolean anyElementNull = elementsWithName.stream().map(Record.FieldAndValue::getValue).anyMatch(x -> x == null);
 
-            if ((elementsWithName != null) && (!anyElementNull)) {
+            if (!anyElementNull) {
                 String databaseProductName = context.metaData.getDatabaseProductName();
 
                 String subTableName;
@@ -424,12 +424,10 @@ public class DbExporter implements FkCacheAccessor {
         if (fieldMatch != null) {
             match = fieldMatch.get(tableName);
 
-            if (match != null) {
-                return match;
-            } else {
+            if (match == null) {
                 match = fieldMatch.get(null);
-                return match;
             }
+            return match;
         }
         return null;
     }

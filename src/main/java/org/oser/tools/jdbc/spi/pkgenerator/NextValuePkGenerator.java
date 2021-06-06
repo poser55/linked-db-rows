@@ -17,7 +17,7 @@ public class NextValuePkGenerator implements PkGenerator {
 
         if (pkTypeUppercase.equals("VARCHAR")) {
             return UUID.randomUUID().toString();
-        } else if (pkTypeUppercase.startsWith("INT") || pkTypeUppercase.equals("NUMBER")|| pkTypeUppercase.equals("SERIAL")|| pkTypeUppercase.equals("NUMERIC") || pkTypeUppercase.toUpperCase().equals("DECIMAL")) {
+        } else if (pkTypeUppercase.startsWith("INT") || pkTypeUppercase.equals("NUMBER")|| pkTypeUppercase.equals("SERIAL")|| pkTypeUppercase.equals("NUMERIC") || pkTypeUppercase.equalsIgnoreCase("DECIMAL")) {
             return  getMaxUsedIntPk(connection, tableName, pkName) + 1;
         }
         throw new IllegalArgumentException("not yet supported type for pk " + pkType);

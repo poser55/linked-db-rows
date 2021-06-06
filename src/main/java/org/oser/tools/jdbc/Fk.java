@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -33,8 +35,8 @@ public class Fk {
     @Setter
     public String[] fkcolumn;
 
-    private String keySeq;
-    private String fkName;
+    private final String keySeq;
+    private final String fkName;
     /** excluded in equals! */
     public boolean inverted;
 
@@ -213,13 +215,13 @@ public class Fk {
 
     /** Add a virtualForeignKey to the foreign key cache "importerOrExporter".
      *   (needs to be done once for the DbImporter AND the DbExporter).
-     *   This requires 2 foreign keys, one of which is reverted */
+     *   This requires 2 internal foreign keys, one of which is reverted */
     public static void addVirtualForeignKey(Connection dbConnection,
                                             FkCacheAccessor importerOrExporter,
                                             String tableOne,
-                                            String tableOneColumn,
+                                            String[] tableOneColumn,
                                             String tableTwo,
-                                            String tableTwoColumn) throws SQLException {
+                                            String[] tableTwoColumn) throws SQLException {
         List<Fk> fks = Fk.getFksOfTable(dbConnection, tableOne, importerOrExporter.getFkCache());
         // add artificial FK
         // todo check keyseq
@@ -232,7 +234,20 @@ public class Fk {
         importerOrExporter.getFkCache().put(tableTwo, fks2);
     }
 
-    /// Helper
+    /** Add a virtualForeignKey to the foreign key cache "importerOrExporter".
+     *   (needs to be done once for the DbImporter AND the DbExporter).
+     *   This requires 2 internal foreign keys, one of which is reverted */
+    public static void addVirtualForeignKey(Connection dbConnection,
+                                            FkCacheAccessor importerOrExporter,
+                                            String tableOne,
+                                            String tableOneColumn,
+                                            String tableTwo,
+                                            String tableTwoColumn) throws SQLException {
+        addVirtualForeignKey(dbConnection, importerOrExporter, tableOne, new String[] {tableOneColumn},
+                tableTwo, new String[] {tableTwoColumn});
+    }
+
+        /// Helper
 
     public static Map<String, List<Fk>> fksByColumnName(List<Fk> fksOfTable) {
         Map<String, List<Fk>> fksByColumnName = new HashMap<>();
@@ -244,4 +259,55 @@ public class Fk {
         return fksByColumnName;
     }
 
+    /** register virtualFK via String
+     *   experimental string config of a virtual foreing key
+     *    table1(field1,field2)-table2(field3,field4) */
+    public static void addOneVirtualForeignKeyAsString(Connection dbConnection, FkCacheAccessor importerOrExporter, String asString) throws SQLException {
+        FkMatchedFields fkMatchedFields = new FkMatchedFields(asString).parse();
+        String table1 = fkMatchedFields.getTable1();
+        String fields1AsString = fkMatchedFields.getFields1AsString();
+        String table2 = fkMatchedFields.getTable2();
+        String fields2AsString = fkMatchedFields.getFields2AsString();
+
+        addVirtualForeignKey(dbConnection, importerOrExporter, table1, fields1AsString.split(","), table2, fields2AsString.split(","));
+    }
+
+    public static void addVirtualForeignKeyAsString(Connection dbConnection, FkCacheAccessor importerOrExporter, String asString) throws SQLException {
+        if (asString.contains(";")){
+            String[] split = asString.split(";");
+            for (String one : split) {
+                addOneVirtualForeignKeyAsString(dbConnection, importerOrExporter, one);
+            }
+        } else {
+            addOneVirtualForeignKeyAsString(dbConnection, importerOrExporter, asString);
+        }
+    }
+
+    @Getter
+    static class FkMatchedFields {
+        private String asString;
+        private String table1;
+        private String fields1AsString;
+        private String table2;
+        private String fields2AsString;
+
+        public FkMatchedFields(String asString) {
+            this.asString = asString;
+        }
+
+        public FkMatchedFields parse() {
+            String regex = "([A-Za-z0-9_]*)\\(([A-Za-z0-9,_]*)\\)-([A-Za-z0-9_]*)\\(([A-Za-z0-9,_]*)\\)";
+            Pattern pattern = Pattern.compile(regex);
+            Matcher matcher = pattern.matcher(asString);
+            if ( !matcher.find()){
+                throw new IllegalArgumentException("Wrong pattern '"+asString+"'. Not matched.");
+            }
+
+            table1 = matcher.group(1);
+            fields1AsString = matcher.group(2);
+            table2 = matcher.group(3);
+            fields2AsString = matcher.group(4);
+            return this;
+        }
+    }
 }

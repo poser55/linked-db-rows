@@ -141,36 +141,44 @@ public final class JdbcHelpers {
      * @return a pair (sqlstatement, list of all occurring fields)
      */
     public static SqlChangeStatement getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert, Map<String, ColumnMetadata> columnMetadata) {
-        String result;
-        List<String> individualFields = columnNames.stream().filter(name -> (isInsert || !name.toLowerCase().equals(pkName.toLowerCase()))).collect(Collectors.toList());
+        String statement;
+        List<String> individualFields = columnNames.stream().filter(name -> (isInsert || !name.equalsIgnoreCase(pkName))).collect(Collectors.toList());
         // todo clean up
-        String concatenatedFields = columnNames.stream().filter(name -> (isInsert || !name.toLowerCase().equals(pkName.toLowerCase()))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
+        String concatenatedFields = columnNames.stream().filter(name -> (isInsert || !name.equalsIgnoreCase(pkName))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
 
         if (isInsert) {
             Map<String, ColumnMetadata> metadataInCurrentTableAndInsert = columnMetadata.entrySet().stream().filter(e -> columnNames.contains(e.getKey().toLowerCase())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
             String questionsMarks = metadataInCurrentTableAndInsert.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
                     .map(JdbcHelpers::questionMarkOrTypeCasting).collect(Collectors.joining(", "));
-            result = "insert into " + tableName + " (" + concatenatedFields + ") values (" + questionsMarks + ")";
+            statement = "insert into " + tableName + " (" + concatenatedFields + ") values (" + questionsMarks + ")";
         } else {
             concatenatedFields += " = ? ";
             individualFields.add(pkName.toLowerCase());
-            result = "update " + tableName + " set " + concatenatedFields + " where " + pkName + " = ?";
+            statement = "update " + tableName + " set " + concatenatedFields + " where " + pkName + " = ?";
         }
 
-        return new SqlChangeStatement(result, individualFields);
+        // sanity check (the columnDef settings are a bit magic)
+        long questionMarkCount = statement.chars().filter(ch -> ch == '?').count();
+        if (questionMarkCount != individualFields.size()){
+            throw new IllegalStateException(" Not enough ? in insert statement! "+statement+" "+individualFields.size());
+        }
+
+        return new SqlChangeStatement(statement, individualFields);
     }
 
     @Getter
     @AllArgsConstructor
     public static class SqlChangeStatement {
-        private String statement;
-        private List<String> fields;
+        private final String statement;
+        private final List<String> fields;
 
     }
 
     private static String questionMarkOrTypeCasting(ColumnMetadata e) {
         if (e != null && e.columnDef != null && e.columnDef.endsWith(e.type) &&
+                // todo: make this more robust (also pluggable?)
+
                 // mysql puts CURRENT_TIMESTAMP as the columnDef of Timestamp, this leads to an automatically set fields
                 // postgres text has a ::text here
                 !(e.columnDef.equals("CURRENT_TIMESTAMP") || e.type.equals("text"))){
@@ -185,9 +193,7 @@ public final class JdbcHelpers {
         DatabaseMetaData dbm = connection.getMetaData();
 
         try (ResultSet tables = dbm.getTables(connection.getCatalog(), connection.getSchema(), adaptCaseForDb(tableName, dbm.getDatabaseProductName()), null)) {
-            if (tables.next()) {
-                return; // Table exists
-            } else {
+            if (!tables.next()) {
                 throw new IllegalArgumentException("Table " + tableName + " does not exist");
             }
         }
@@ -352,7 +358,7 @@ public final class JdbcHelpers {
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
                 } else {
-                    if (columnMetadata.type.toUpperCase().equals("TIMESTAMP")) {
+                    if (columnMetadata.type.equalsIgnoreCase("TIMESTAMP")) {
                         LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
                         preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(localDateTime));
                     } else {
@@ -362,7 +368,7 @@ public final class JdbcHelpers {
                 }
                 break;
             default:
-                if (columnMetadata != null && columnMetadata.getDataType() != Types.ARRAY ) {
+                if (columnMetadata.getDataType() != Types.ARRAY) {
                     if (valueToInsert == null){
                         preparedStatement.setNull(statementIndex, columnMetadata.getDataType());
                     } else {
@@ -378,6 +384,7 @@ public final class JdbcHelpers {
     /**
      * Represents simplified JDBC metadata about a column
      */
+    @Getter
     public static class ColumnMetadata {
         private static final Set<Integer> QUOTING_DATATYPES = Set.of(Types.DATE, Types.TIMESTAMP, Types.TIME, Types.TIME_WITH_TIMEZONE, Types.TIMESTAMP_WITH_TIMEZONE,
                 Types.ARRAY, Types.BLOB, Types.CHAR, Types.CLOB, Types.DATALINK, Types.LONGNVARCHAR, Types.VARCHAR, Types.SQLXML, Types.NCHAR);
@@ -402,26 +409,6 @@ public final class JdbcHelpers {
             this.size = size;
             this.columnDef = columnDef;
             this.ordinalPos = ordinalPos;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getType() {
-            return type;
-        }
-
-        public String getSize() {
-            return size;
-        }
-
-        public int getOrdinalPos() {
-            return ordinalPos;
-        }
-
-        public int getDataType() {
-            return dataType;
         }
 
         public boolean needsQuoting() {

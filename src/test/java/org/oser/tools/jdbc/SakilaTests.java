@@ -35,7 +35,7 @@ public class SakilaTests {
         dbExporter.getStopTablesExcluded().add("inventory");
 
         Record actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
-        String asString = actor199.asJson();
+        String asString = actor199.asJsonNode().toString();
 
         Set<RowLink> allNodes = actor199.getAllNodes();
         System.out.println(asString +" \nnumberNodes:"+ allNodes.size());

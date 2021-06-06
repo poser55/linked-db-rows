@@ -3,7 +3,6 @@ package org.oser.tools.jdbc;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 

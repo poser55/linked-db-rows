@@ -92,7 +92,7 @@ public class DbImporter implements FkCacheAccessor {
 
 
     private static String prepareStringTypeToInsert(String typeAsString, String valueToInsert) {
-        if (typeAsString.toUpperCase().equals("VARCHAR") || typeAsString.toUpperCase().equals("TEXT")) {
+        if (typeAsString.equalsIgnoreCase("VARCHAR") || typeAsString.equalsIgnoreCase("TEXT")) {
             valueToInsert = valueToInsert == null ? null : getInnerValueToInsert(valueToInsert);
         }
         return valueToInsert;
@@ -132,6 +132,9 @@ public class DbImporter implements FkCacheAccessor {
 
     /** Convert jsonString to record */
     public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
+        if (jsonString == null || jsonString.isEmpty()){
+            throw new IllegalArgumentException("JSON string is null or empty.");
+        }
         ObjectMapper mapper = Record.getObjectMapper();
 
         JsonNode json = mapper.readTree(jsonString);
@@ -452,12 +455,10 @@ public class DbImporter implements FkCacheAccessor {
         if (fieldMatch != null) {
             match = fieldMatch.get(tableName);
 
-            if (match != null) {
-                return match;
-            } else {
+            if (match == null) {
                 match = fieldMatch.get(null);
-                return match;
             }
+            return match;
         }
         return null;
     }

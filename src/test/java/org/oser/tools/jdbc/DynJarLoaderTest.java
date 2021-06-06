@@ -20,7 +20,7 @@ public class DynJarLoaderTest {
 
         Class loadedClass = DynJarLoader.loadClassDynamically(className, DynJarLoader.getUrlClassLoader(jarLocation, this.getClass().getClassLoader()));
         Method method = loadedClass.getDeclaredMethod("clone", Object.class);
-        Object instance = loadedClass.newInstance();
+        Object instance = loadedClass.getDeclaredConstructor().newInstance();
         method.setAccessible(true);
         Object result = method.invoke(instance, o);
 
@@ -30,7 +30,7 @@ public class DynJarLoaderTest {
     void loadJarAndInvoke2(String jarLocation, String className) throws Exception {
 
         Class loadedClass = DynJarLoader.loadClassDynamically(className, DynJarLoader.getUrlClassLoader(jarLocation, this.getClass().getClassLoader()));
-        Object instance = loadedClass.newInstance();
+        Object instance = loadedClass.getDeclaredConstructor().newInstance();
     }
 
     @Test

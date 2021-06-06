@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FkTest {
@@ -34,5 +35,25 @@ class FkTest {
                 throwables.printStackTrace();
             }
         }
+    }
+
+    @Test
+    void matchFkStrings() {
+        Fk.FkMatchedFields parsed = new Fk.FkMatchedFields("a(b)-c(d)").parse();
+        assertEquals("a", parsed.getTable1());
+        assertEquals("c", parsed.getTable2());
+        assertEquals("b", parsed.getFields1AsString());
+        assertEquals("d", parsed.getFields2AsString());
+    }
+
+    @Test
+    void parseMultiFks() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo = TestHelpers.getConnection("demo");
+        DbExporter importerOrExporter = new DbExporter();
+        Fk.addVirtualForeignKeyAsString(demo, importerOrExporter, "a(b)-c(d);aa(bb)-cc(dd)");
+        List<Fk> a = importerOrExporter.getFkCache().getIfPresent("a");
+        List<Fk> aa = importerOrExporter.getFkCache().getIfPresent("aa");
+        assertNotNull(a);
+        assertNotNull(aa);
     }
 }

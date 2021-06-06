@@ -104,9 +104,11 @@ There are accessors on DbImporter and DbExporter that allow setting various opti
 #### Add artificial (=virtual) foreign keys
 One can configure foreign keys that do not exist in the db, just for the exporting or importing. Refer to the examples
 in the  org.oser.tools.jdbc.DbExporterBasicTests#blog_artificialFk test. We added a new table `preferences` that holds the
-user preferences. There is no FK between the `user_table` and the `preferences` table. The test demonstrates how to add a virtual FK externally.
+user preferences. There is no FK between the `user_table` and the `preferences` table.
+The test demonstrates how to add a virtual FK externally. You can add a FK via a string notation such as
+`user_table(id)-preferences(user_id)` or explicit fields; refer to `Fk#addVirtualForeignKeyAsString()` or `Fk#addVirtualForeignKey()` 
 CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is inverted (inverted = true). (2) one needs to get the existing FKs and can then add the new FK.
-Refer to `Fk#addVirtualForeignKey()`
+
 
 #### Canonicalization of primary keys
 Two graphs may be equivalent given their contained data but just have different primary keys (if we assume that the primary keys
@@ -135,14 +137,13 @@ duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTe
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 
 #### Scripts to export/ import via command line
- * Exports a db row and all linked rows as JSON (you can chose a supported db via a short name, it downloads the needed jdbc driver if needed)
+ * Exports a db row and all linked rows as JSON (you can choose a supported db via a short name, it downloads the needed jdbc driver if needed)
    It requires installing https://www.jbang.dev/
  * Examples:
-    *  `jbang JsonExport.java -t tableName -p PK -u jdbc:postgresql://localhost/demo`
-    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"` --log=select
-    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table" --url "jdbc:h2:mem:demo" -db h2 -l sa -pw " "`   
-    *  `jbang JsonExport.java -p 3 --stopTablesExcluded="user_table"  -db postgres  > out.json`
-    *  `jbang JsonImport.java -j out.json -db postgres`
+     * `jbang JsonExport.java  -t blogpost -p 3 --stopTablesExcluded="user_table"  -db postgres  -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin > blogpost3.json`
+         * This exports the data of the table blogpost with primary key 3 to the file blogpost3.json
+     * `jbang JsonImport.java -j blogpost3.json -t blogpost -db postgres -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin --log=CHANGE`
+        * This imports the JSON file blogpost3.json into the local postgres "demo" db 
     
  * Help about options:  `jbang JsonExport.java -h`
  

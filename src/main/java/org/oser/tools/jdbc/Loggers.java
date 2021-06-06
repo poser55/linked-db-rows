@@ -33,7 +33,7 @@ public enum Loggers {
     static final Set<Loggers> CONCRETE_DB_OPERATIONS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE);
     static final Set<Loggers> ALL_LOGGERS = EnumSet.allOf(Loggers.class);
 
-    static final Logger LOGGER_SELECT = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.SELECT.name());
+    public static final Logger LOGGER_SELECT = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.SELECT.name());
     static final Logger LOGGER_CHANGE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.CHANGE.name());
     static final Logger LOGGER_DELETE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.DELETE.name());
     static final Logger LOGGER_WARNINGS = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.WARNINGS.name());
@@ -52,7 +52,7 @@ public enum Loggers {
             } else if (logger.equals(Loggers.ALL)) {
                 setLoggerLevel(ALL_LOGGERS, newLevel);
             } else {
-                ch.qos.logback.classic.Logger rootLogger = lc.getLogger(Loggers.class + "." + logger.name());
+                ch.qos.logback.classic.Logger rootLogger = lc.getLogger(Loggers.class.getName() + "." + logger.name());
                 if (rootLogger != null) {
                     rootLogger.setLevel(newLevel);
                 }
