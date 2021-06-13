@@ -13,11 +13,14 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.Date;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -271,7 +274,7 @@ public class Record {
                             // ok
                         }
                     }
-                    return  d != null ? d : value;
+                    return d != null ? d : value;
                 case "TIMESTAMP":
                     Timestamp ts = null;
                     if (value instanceof String) {
@@ -281,7 +284,7 @@ public class Record {
                             // ok
                         }
                     }
-                    return  ts != null ? ts : value;
+                    return ts != null ? ts : value;
                 case "DATE":
                     Date date = null;
                     if (value instanceof String) {
@@ -291,7 +294,23 @@ public class Record {
                             // ok
                         }
                     }
-                    return  date != null ? date : value;
+                    return date != null ? date : value;
+                case "BLOB":
+                case "BYTEA":
+                    byte[] decodedBytes = new byte[0];
+                    if (value instanceof String) { // todo unsure this is ok in all cases (why is this sometimes a string?)
+                        try {
+                            decodedBytes = Base64.getDecoder().decode((String) value);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            System.out.println(metadata);
+                            throw e;
+                        }
+                    } else {
+                        decodedBytes = (byte[]) value;
+                    }
+
+                    return decodedBytes;
                 case "VARCHAR":
                 case "TEXT":
                 default:
@@ -361,7 +380,7 @@ public class Record {
             }
         }
 
-        void putFieldToJsonNode(ObjectNode node) {
+        void putFieldToJsonNode(ObjectNode node)  {
             if (value == null) {
                 node.put(name, (String)null);
             } else if (value instanceof Integer) {
@@ -374,6 +393,14 @@ public class Record {
                 node.put(name, (String) value);
             } else if (value instanceof Boolean) {
                 node.put(name, (Boolean) value);
+            } else if (value instanceof byte[]) {
+                node.put(name, (byte[]) value);
+            } else if (value instanceof Blob) {
+                try {
+                    node.put(name, ((Blob)value).getBytes(1, (int) ((Blob) value).length()));
+                } catch (SQLException throwables) {
+                    throw new IllegalStateException("could not convert blob to byte[]", throwables);
+                }
             } else if (value instanceof Timestamp) {
                 node.put(name,  DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(((Timestamp) value).toLocalDateTime()));
             } else if (value instanceof Date) {

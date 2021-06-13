@@ -9,10 +9,12 @@ import org.oser.tools.jdbc.spi.pkgenerator.NextValuePkGenerator;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -69,8 +71,23 @@ public class DbImporter implements FkCacheAccessor {
             }
             return true;
         };
-
         typeFieldImporters.put("BYTEA", postgresImporter);
+
+        FieldImporter blobImporter = (tableName, metadata, statement, insertIndex, value ) -> {
+            if (value != null) {
+                Blob blob = statement.getConnection().createBlob();
+
+                // todo: this is wrong, how to handle such data?
+                // probably we should assume it is base64 encoded and we convert it to byte[]
+                blob.setBytes(1, value.getBytes());
+                statement.setBlob(insertIndex, blob);
+            } else {
+                statement.setNull(insertIndex, Types.BLOB);
+            }
+            return true;
+        };
+        typeFieldImporters.put("BLOB", blobImporter);
+
     }
 
 

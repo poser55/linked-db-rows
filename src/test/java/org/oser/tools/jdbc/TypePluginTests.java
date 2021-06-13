@@ -1,12 +1,17 @@
 package org.oser.tools.jdbc;
 
+import org.apache.commons.io.IOUtils;
+import org.junit.Assert;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Clob;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.HashMap;
@@ -53,7 +58,17 @@ class TypePluginTests {
             return true;
         };
 
+        byte[] apachePicture = fileToByteArray("testpictures/icon-apache.png");
 
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "UPDATE special_datatypes SET a_blob = ? WHERE id = ?")) {
+
+            preparedStatement.setBlob(1,
+                    new ByteArrayInputStream(apachePicture));
+            preparedStatement.setInt(2, 3);
+            int i = preparedStatement.executeUpdate();
+            System.out.println("inserted picture in blob "+i);
+        }
 
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,
                         dbExporter -> {
@@ -82,6 +97,28 @@ class TypePluginTests {
                         new HashMap<>(),
                         "special_datatypes", 2, 1, true);
 
+        TestHelpers.BasicChecksResult basicChecksResult3 = TestHelpers.testExportImportBasicChecks(connection,
+                "special_datatypes", 3, 1);
+        System.out.println("id 3 as json"+ basicChecksResult3.getAsRecordAgain());
+        System.out.println("");
+
+        byte[] asByte = (byte[]) basicChecksResult3.getAsRecord().findElementWithName("a_blob").value;
+        Assert.assertArrayEquals( apachePicture, asByte );
+
+        Object remappedPkId3 = basicChecksResult3.getRowLinkObjectMap().values().stream().findFirst().get();
+        TestHelpers.BasicChecksResult basicChecksResult4 = TestHelpers.testExportImportBasicChecks(connection,
+                "special_datatypes", remappedPkId3, 1);
+
+        System.out.println(basicChecksResult4.getAsRecordAgain());
+
+        byte[] asByte2 = (byte[]) basicChecksResult4.getAsRecord().findElementWithName("a_blob").value;
+        Assert.assertArrayEquals( apachePicture, asByte2 );
+
+    }
+
+    public static byte[] fileToByteArray(String filename) throws IOException {
+        final ClassPathResource classPathResource = new ClassPathResource(filename);
+        return IOUtils.toByteArray(classPathResource.getInputStream());
     }
 
 

@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -386,6 +387,7 @@ public final class JdbcHelpers {
      * Represents simplified JDBC metadata about a column
      */
     @Getter
+    @ToString
     public static class ColumnMetadata {
         private static final Set<Integer> QUOTING_DATATYPES = Set.of(Types.DATE, Types.TIMESTAMP, Types.TIME, Types.TIME_WITH_TIMEZONE, Types.TIMESTAMP_WITH_TIMEZONE,
                 Types.ARRAY, Types.BLOB, Types.CHAR, Types.CLOB, Types.DATALINK, Types.LONGNVARCHAR, Types.VARCHAR, Types.SQLXML, Types.NCHAR);

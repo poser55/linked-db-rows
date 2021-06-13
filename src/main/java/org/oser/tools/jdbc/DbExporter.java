@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
 
+import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -57,6 +58,21 @@ public class DbExporter implements FkCacheAccessor {
             return new Record.FieldAndValue(fieldName, metadata, clob == null ? null : clob.getSubString(1, (int) clob.length()));
         };
         typeFieldExporters.put("CLOB", clobExporter);
+
+        FieldExporter blobExporter = (tableName, fieldName, metadata, resultSet) -> {
+            Blob blob = resultSet.getBlob(fieldName);
+
+            if (blob != null) {
+                long length = blob.length();
+                if (length > (int) length) {
+                    throw new IllegalStateException("Blob too long (does not fit in int)!" + fieldName + " " + tableName + " " + metadata);
+                }
+                return new Record.FieldAndValue(fieldName, metadata, blob.getBytes(1, (int) length));
+            } else {
+                return new Record.FieldAndValue(fieldName, metadata, null);
+            }
+        };
+        typeFieldExporters.put("BLOB", blobExporter);
     }
 
     /** experimental feature to order results by first pk when exporting */
