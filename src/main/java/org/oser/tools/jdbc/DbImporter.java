@@ -9,6 +9,7 @@ import org.oser.tools.jdbc.spi.pkgenerator.NextValuePkGenerator;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -57,14 +58,14 @@ public class DbImporter implements FkCacheAccessor {
             .maximumSize(1000).build();
 
     /** to overwrite how special JDBC types are set on a preparedStatement. Refer to
-     *  {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, String, Map)}
+     *  {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, Object, Map)}
      */
     private final Map<String, FieldImporter> typeFieldImporters = new HashMap<>();
 
     {
         FieldImporter postgresImporter = (tableName, metadata, statement, insertIndex, value ) -> {
             if (value != null) {
-                InputStream inputStream = new ByteArrayInputStream(value.getBytes());
+                InputStream inputStream = new ByteArrayInputStream( JdbcHelpers.valueToByteArray(value));
                 statement.setBinaryStream(insertIndex, inputStream);
             } else {
                 statement.setArray(insertIndex, null);
@@ -77,9 +78,7 @@ public class DbImporter implements FkCacheAccessor {
             if (value != null) {
                 Blob blob = statement.getConnection().createBlob();
 
-                // todo: this is wrong, how to handle such data?
-                // probably we should assume it is base64 encoded and we convert it to byte[]
-                blob.setBytes(1, value.getBytes());
+                blob.setBytes(1, JdbcHelpers.valueToByteArray(value));
                 statement.setBlob(insertIndex, blob);
             } else {
                 statement.setNull(insertIndex, Types.BLOB);
@@ -89,6 +88,8 @@ public class DbImporter implements FkCacheAccessor {
         typeFieldImporters.put("BLOB", blobImporter);
 
     }
+
+
 
 
     /** with cycles in the FKs we would throw an exception - we can try inserting what we can anyway */
@@ -108,15 +109,17 @@ public class DbImporter implements FkCacheAccessor {
     }
 
 
-    private static String prepareStringTypeToInsert(String typeAsString, String valueToInsert) {
-        if (typeAsString.equalsIgnoreCase("VARCHAR") || typeAsString.equalsIgnoreCase("TEXT")) {
-            valueToInsert = valueToInsert == null ? null : getInnerValueToInsert(valueToInsert);
+    private static Object prepareStringTypeToInsert(String typeAsString, Object valueToInsert) {
+        if (valueToInsert != null &&
+                (typeAsString.equalsIgnoreCase("VARCHAR") || typeAsString.equalsIgnoreCase("TEXT")) &&
+                (valueToInsert instanceof String)) {
+            valueToInsert = valueToInsert == null ? null : getInnerValueToInsert((String)valueToInsert);
         }
         return valueToInsert;
     }
 
 
-    private static String prepareStringTypeToInsert(Map<String, JdbcHelpers.ColumnMetadata> columns, String currentFieldName, String valueToInsert) {
+    private static Object prepareStringTypeToInsert(Map<String, JdbcHelpers.ColumnMetadata> columns, String currentFieldName, Object valueToInsert) {
         return prepareStringTypeToInsert(columns.get(currentFieldName).getType(), valueToInsert);
     }
 
@@ -138,9 +141,9 @@ public class DbImporter implements FkCacheAccessor {
                 .map(String::toLowerCase).collect(Collectors.toList());
     }
 
-    private static String removeQuotes(String valueToInsert) {
-        if ((valueToInsert != null) && valueToInsert.startsWith("\"")) {
-            valueToInsert = valueToInsert.substring(1, valueToInsert.length() - 1);
+    private static Object removeQuotes(Object valueToInsert) {
+        if ((valueToInsert != null) && (valueToInsert instanceof String) && ((String)valueToInsert).startsWith("\"")) {
+            valueToInsert = ((String)valueToInsert).substring(1, ((String)valueToInsert).length() - 1);
         }
         return valueToInsert;
     }
@@ -184,7 +187,7 @@ public class DbImporter implements FkCacheAccessor {
         Object[] primaryKeyValues = new Object[pks.size()];
 
         for (String currentFieldName : jsonFieldNames) {
-            String valueToInsert = json.get(currentFieldName.toLowerCase()).asText();
+            Object valueToInsert = getJavaTypeOfJsonNode(json, currentFieldName.toLowerCase());
 
             valueToInsert = prepareStringTypeToInsert(columns, currentFieldName, valueToInsert);
 
@@ -250,6 +253,21 @@ public class DbImporter implements FkCacheAccessor {
         }
 
         return record;
+    }
+
+    private Object getJavaTypeOfJsonNode(JsonNode json, String fieldName) {
+        JsonNode jsonNode = json.get(fieldName);
+        if (jsonNode.isIntegralNumber()){
+            return jsonNode.asLong();
+        } else if (jsonNode.isBigDecimal()) {
+            return new BigDecimal(jsonNode.bigIntegerValue());
+        } else if (jsonNode.isBoolean()) {
+            return jsonNode.asBoolean();
+        } else if (jsonNode.isDouble()) {
+            return jsonNode.asDouble();
+        } else {
+            return jsonNode.asText();
+        }
     }
 
 
@@ -336,11 +354,11 @@ public class DbImporter implements FkCacheAccessor {
         PreparedStatement savedStatement = null;
         Map<String, Object> insertedValues = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement(sqlStatement.getStatement())) {
-            final String[] valueToInsert = {"-"};
+            final Object[] valueToInsert = {"-"};
 
             for (String currentFieldName : fieldNames) {
                 Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
-                valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, Objects.toString(currentElement.value, null));
+                valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, currentElement.value);
 
                 boolean fieldIsPk = primaryKeys.stream().map(String::toLowerCase).anyMatch(e -> currentFieldName.toLowerCase().equals(e));
 
@@ -350,7 +368,7 @@ public class DbImporter implements FkCacheAccessor {
                     // remap fks!
                     List<Fk> fks = fksByColumnName.get(currentFieldName);
 
-                    String earlierIntendedFk = valueToInsert[0];
+                    Object earlierIntendedFk = valueToInsert[0];
                     fks.forEach(fk -> {
                         Object potentialNewValue = newKeys.get(new RowLink(fk.pktable, earlierIntendedFk));
                         valueToInsert[0] = potentialNewValue != null ? Objects.toString(potentialNewValue) : valueToInsert[0];
@@ -490,7 +508,7 @@ public class DbImporter implements FkCacheAccessor {
     }
 
     /** Allows overriding how we set a value on a jdbc prepared statement.
-     * Refer to {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, String, Map)} */
+     * Refer to {@link JdbcHelpers#innerSetStatementField(PreparedStatement, int, JdbcHelpers.ColumnMetadata, Object, Map)} */
     public Map<String, FieldImporter> getTypeFieldImporters() {
         return typeFieldImporters;
     }

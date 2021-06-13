@@ -52,7 +52,7 @@ create table special_datatypes (
 
 insert into special_datatypes (id, uuid_example, additional_text) values (  1, 'ea0e2ebc-ff0b-4ce4-863f-be70222a7084' , 'bla');
 insert into special_datatypes (id, uuid_example, additional_text) values (  2, null, 'bla bla');
-insert into special_datatypes (id, uuid_example, additional_text) values (  3, 'a-a-a', 'bla bla');
+insert into special_datatypes (id, uuid_example, additional_text) values (  3, '11112ebc-ff0b-4ce4-863f-be70222a7084', 'bla bla');
 
 ${postgres_include_start}
 CREATE TABLE postgres_test (

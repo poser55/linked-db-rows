@@ -384,7 +384,7 @@ public class Record {
             if (value == null) {
                 node.put(name, (String)null);
             } else if (value instanceof Integer) {
-                    node.put(name, (Integer) value);
+                node.put(name, (Integer) value);
             } else if (value instanceof BigDecimal) {
                 node.put(name, (BigDecimal) value);
             } else if (value instanceof Long) {

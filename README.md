@@ -132,6 +132,12 @@ One can add a tree of linked db rows in *another* part of the graph of rows. E.g
 duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTests#blog test: it takes a blog entry
 (with the blogpost, its comments and with the link to its user) and adds it to *another* user.
 
+#### JSON format
+  * Numbers, Booleans, Strings are directly usable. 
+  * Date-Types are mapped to Strings.
+  * Blobs are serialized as BASE64 encoded Strings. 
+  * Subtables are added after the field that links to them (via the foreign key). Subtables are always in sub-arrays.
+    They are behind a JSON entry of the name  `NAME_OF_FK_COLUMN*NAME_OF_SUBTABLE`, example: `author_id*author*`.
 
 #### Sakila database example
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)

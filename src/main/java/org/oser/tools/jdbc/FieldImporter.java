@@ -29,7 +29,7 @@ public interface FieldImporter {
 	 * Sets the "value" on the "statement"
 	 * @param tableName what table name the field should be matched - in certain case is "" (when it cannot be easily found)
 	 * @return true if we should bypass normal treatment afterwards! */
-	boolean importField(String tableName, JdbcHelpers.ColumnMetadata metadata, PreparedStatement statement, int insertIndex, String value) throws SQLException;
+	boolean importField(String tableName, JdbcHelpers.ColumnMetadata metadata, PreparedStatement statement, int insertIndex, Object value) throws SQLException;
 
 	/** Ignores a field when importing
 	 *  @deprecated use {@link #NOP_FIELDIMPORTER} instead */

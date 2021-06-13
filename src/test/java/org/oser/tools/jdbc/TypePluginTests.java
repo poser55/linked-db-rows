@@ -31,6 +31,11 @@ class TypePluginTests {
         TestHelpers.DbConfig databaseConfig = TestHelpers.getDbConfig();
         Connection connection = TestHelpers.getConnection("demo");
 
+        // sql server does not have blob type
+        if (!connection.getMetaData().getDatabaseProductName().equals("SQLServer")) {
+            return;
+        }
+
         FieldImporter uuidSetter = (tableToIgnore, columnMetadata, preparedStatement, statementIndex, valueToInsert) -> {
             try {
                 if (valueToInsert == null) {
@@ -62,13 +67,19 @@ class TypePluginTests {
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(
                 "UPDATE special_datatypes SET a_blob = ? WHERE id = ?")) {
+            // blobs need a transaction
+            connection.setAutoCommit(false);
 
-            preparedStatement.setBlob(1,
+            preparedStatement.setBinaryStream(1,
                     new ByteArrayInputStream(apachePicture));
-            preparedStatement.setInt(2, 3);
+            preparedStatement.setLong(2, 3L);
             int i = preparedStatement.executeUpdate();
+            connection.commit();
             System.out.println("inserted picture in blob "+i);
+
+            connection.setAutoCommit(true);
         }
+
 
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,
                         dbExporter -> {
@@ -134,7 +145,7 @@ class TypePluginTests {
         FieldImporter postgresImporter = (tableName, metadata, statement, insertIndex, value ) -> {
             System.out.println("===");
             if (value != null) {
-                InputStream inputStream = new ByteArrayInputStream(value.getBytes());
+                InputStream inputStream = new ByteArrayInputStream(JdbcHelpers.valueToByteArray(value));
                 statement.setBinaryStream(insertIndex, inputStream);
             } else {
                 statement.setArray(insertIndex, null);

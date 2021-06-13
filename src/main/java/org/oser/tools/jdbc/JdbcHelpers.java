@@ -22,6 +22,7 @@ import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -291,7 +292,7 @@ public final class JdbcHelpers {
     public static void innerSetStatementField(PreparedStatement preparedStatement,
                                               int statementIndex,
                                               ColumnMetadata columnMetadata,
-                                              String valueToInsert,
+                                              Object valueToInsert,
                                               Map<String, FieldImporter> setterPlugins) throws SQLException {
         if ((setterPlugins != null) && (setterPlugins.containsKey(columnMetadata.getType().toUpperCase()))) {
             // in some cases metadata of preparedStatements may be null (e.g. for h2 and some insert statements)
@@ -304,7 +305,7 @@ public final class JdbcHelpers {
             }
         }
 
-        boolean isEmpty = valueToInsert == null || (valueToInsert.trim().isEmpty() || valueToInsert.equals("null"));
+        boolean isEmpty = valueToInsert == null;
         switch (columnMetadata.type.toUpperCase()) {
             case "BOOLEAN":
             case "BIT":
@@ -312,7 +313,8 @@ public final class JdbcHelpers {
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.BOOLEAN);
                 } else {
-                    preparedStatement.setBoolean(statementIndex, Boolean.parseBoolean(valueToInsert.trim()));
+                    preparedStatement.setBoolean(statementIndex,
+                            valueToInsert instanceof String ? Boolean.parseBoolean(((String)valueToInsert).trim()): (Boolean)valueToInsert);
                 }
                 break;
             case "SERIAL":
@@ -327,7 +329,8 @@ public final class JdbcHelpers {
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.NUMERIC);
                 } else {
-                    preparedStatement.setLong(statementIndex, Long.parseLong(valueToInsert.trim()));
+                    preparedStatement.setLong(statementIndex,
+                            valueToInsert instanceof String ? Long.parseLong(((String)valueToInsert).trim()) : (Long)valueToInsert);
                 }
                 break;
             case "NUMERIC":
@@ -335,7 +338,8 @@ public final class JdbcHelpers {
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.NUMERIC);
                 } else {
-                    preparedStatement.setDouble(statementIndex, Double.parseDouble(valueToInsert.trim()));
+                    preparedStatement.setDouble(statementIndex,
+                            valueToInsert instanceof String ? Double.parseDouble(((String)valueToInsert).trim()): (Double)valueToInsert);
                 }
                 break;
             case "UUID":
@@ -350,7 +354,7 @@ public final class JdbcHelpers {
                     preparedStatement.setObject(statementIndex, valueToInsert, Types.OTHER);
                 } else {
                     Clob clob = preparedStatement.getConnection().createClob();
-                    clob.setString(1, valueToInsert);
+                    clob.setString(1, (String)valueToInsert);
                     preparedStatement.setClob(statementIndex, clob);
                 }
                 break;
@@ -360,11 +364,16 @@ public final class JdbcHelpers {
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
                 } else {
+
+                    // todo: we convert date types to string do the conversion here
+                    //  we should find a better approach
+                    String valueAsString = Objects.toString(valueToInsert);
+
                     if (columnMetadata.type.equalsIgnoreCase("TIMESTAMP")) {
-                        LocalDateTime localDateTime = LocalDateTime.parse(valueToInsert.replace(" ", "T"));
+                        LocalDateTime localDateTime = LocalDateTime.parse(valueAsString.replace(" ", "T"));
                         preparedStatement.setTimestamp(statementIndex, Timestamp.valueOf(localDateTime));
                     } else {
-                        LocalDate localDate = LocalDate.parse(valueToInsert.replace(" ", "T"));
+                        LocalDate localDate = LocalDate.parse(valueAsString.replace(" ", "T"));
                         preparedStatement.setDate(statementIndex, Date.valueOf(String.valueOf(localDate)));
                     }
                 }
@@ -494,6 +503,17 @@ public final class JdbcHelpers {
             }
         }
         return tableNames;
+    }
+
+    /** convert a value to byte[]
+     *  strings are assumed to be byte64 encoded */
+    public static byte[] valueToByteArray(Object value) {
+        if (value == null || value instanceof byte[]){
+            return (byte[])value;
+        } else if (value instanceof String){
+            return Base64.getDecoder().decode((String) value);
+        }
+        throw new IllegalStateException("Unkown how to convert value "+value+" to byte[].");
     }
 
 }
