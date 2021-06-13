@@ -24,7 +24,7 @@ public enum Loggers {
         CHANGE,
         /** SQL delete statements */
         DELETE,
-        WARNINGS,
+        WARNING,
         INFO,
         /** meta Logger to mean all db operations */
         DB_OPERATIONS,
@@ -32,14 +32,14 @@ public enum Loggers {
         ALL;
 
 
-    static final Set<Loggers> CONCRETE_LOGGERS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE, Loggers.WARNINGS,  Loggers.INFO);
+    static final Set<Loggers> CONCRETE_LOGGERS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE, Loggers.WARNING,  Loggers.INFO);
     static final Set<Loggers> CONCRETE_DB_OPERATIONS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE);
     static final Set<Loggers> ALL_LOGGERS = EnumSet.allOf(Loggers.class);
 
     public static final Logger LOGGER_SELECT = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.SELECT.name());
     static final Logger LOGGER_CHANGE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.CHANGE.name());
     static final Logger LOGGER_DELETE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.DELETE.name());
-    static final Logger LOGGER_WARNINGS = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.WARNINGS.name());
+    static final Logger LOGGER_WARNING = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.WARNING.name());
     static final Logger LOGGER_INFO = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.INFO.name());
 
     /** Convenience method to enable what you would like to see in the logs */

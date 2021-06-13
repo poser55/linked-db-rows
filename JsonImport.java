@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.7-SNAPSHOT
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.7
 //DEPS info.picocli:picocli:4.5.0
 //DEPS ch.qos.logback:logback-classic:1.2.3
 import static java.lang.System.*;
@@ -22,7 +22,7 @@ import java.util.concurrent.Callable;
 
 /** Json import via script, needs https://www.jbang.dev/
  *  call 'jbang JsonImport.java -h' for help */
-@Command(name = "JsonImport", mixinStandardHelpOptions = true, version = "JsonImport 0.2",
+@Command(name = "JsonImport", mixinStandardHelpOptions = true, version = "JsonImport 0.7",
         description = "Imports a table and its linked tables from JSON.", showDefaultValues = true)
 public class JsonImport implements Callable<Integer> {
 

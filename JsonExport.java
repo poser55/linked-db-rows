@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.7-SNAPSHOT
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.7
 //DEPS info.picocli:picocli:4.5.0
 //DEPS ch.qos.logback:logback-classic:1.2.3
 import static java.lang.System.*;
@@ -20,7 +20,7 @@ import java.util.concurrent.Callable;
 
 /** Json export via script, needs https://www.jbang.dev/
  *  call 'jbang JsonExport.java -h' for help */
-@Command(name = "JsonExport", mixinStandardHelpOptions = true, version = "JsonExport 0.2",
+@Command(name = "JsonExport", mixinStandardHelpOptions = true, version = "JsonExport 0.7",
         description = "Exports a table and its linked tables as JSON. Writes the JSON to stdout (other output to stderr), you can use > myFile.json to get it in a file.", showDefaultValues = true)
 public class JsonExport implements Callable<Integer> {
 

@@ -39,7 +39,7 @@ Maven dependency:
 <dependency>
   <groupId>org.oser.tools.jdbc</groupId>
   <artifactId>linked-db-rows</artifactId>
-  <version>0.6</version>
+  <version>0.7</version>
 </dependency>
 ```
 
@@ -60,10 +60,11 @@ What purpose does this have?
 Additional features
 ---------------------
 * By default, when inserting it can *remap* the primary keys of inserted rows in order to not clash with existing primary keys. 
-(So if in the JSON there is a book with PK 7 (book/7) and in the db also, it looks for another PK to insert the entry, and then it remaps all other links to the book/7.)
+(So if in the JSON there is a book with primary key 7 (book/7) and in the db also, it looks for another PK to insert the entry, 
+  and then it remaps all other links to the book/7.)
 * Determine the order in which tables can be inserted (taking care of their dependencies).
 * Various other helpers for JDBC, refer to JdbHelpers for more details.
-* Optional canonicalization of primary keys in exported data (to more easily compare data)
+* Optional canonicalization of primary keys in exported data (to more easily compare data).
 * Some options on how to export/ re-import linked db rows (see below).
 
 
@@ -82,7 +83,7 @@ License
 Usage (longer version)
 -----------------------
 #### Options to export and import
-There are accessors on DbImporter and DbExporter that allow setting various options:
+There are accessors on `DbImporter` and `DbExporter` that allow setting various options:
 1. DbExporter
     * stopTablesExcluded: tables that we do NOT want in the exported tree - the export stops before those.
     * stopTablesIncluded: tables that we want in the exported tree, but from which no more FK following shall occur.
@@ -99,16 +100,19 @@ There are accessors on DbImporter and DbExporter that allow setting various opti
       return true to stop the default treatment after the plugin is called! 
     * forceInsert: in case an update would be possible: create a new row and remap other entries. Default: true 
       If forceInsert is false we update the existing entries (if entries exist for the given primary key).  
-    * ignoreFkCycles: by default if in your DDL there are cycles between your table relationships, it refuses to re-import them. Setting this flag to true, ignores cycles (and imports non-cycles anyways).
+    * ignoreFkCycles: by default if in your DDL there are cycles between your table relationships, it refuses to re-import them. 
+      Setting this flag to true, ignores cycles (and imports non-cycles anyways).
     
 #### Add artificial (=virtual) foreign keys
-One can configure foreign keys that do not exist in the db, just for the exporting or importing. Refer to the examples
-in the  org.oser.tools.jdbc.DbExporterBasicTests#blog_artificialFk test. We added a new table `preferences` that holds the
-user preferences. There is no FK between the `user_table` and the `preferences` table.
-The test demonstrates how to add a virtual FK externally. You can add a FK via a string notation such as
-`user_table(id)-preferences(user_id)` or explicit fields; refer to `Fk#addVirtualForeignKeyAsString()` or `Fk#addVirtualForeignKey()` 
-CAVEAT: (1) one needs to define the FK on *both* tables, on the second one it is inverted (inverted = true). (2) one needs to get the existing FKs and can then add the new FK.
+One can configure foreign keys that do not exist in the db, just for the exporting or importing (=virtual foreign keys). 
 
+You can add a FK via a string notation such as `user_table(id)-preferences(user_id)`. The foreign key is then added from 
+the table `user_table` and the column `id` to the table `preferences` with the column `user_id`. Multiple virtual foreign keys can be separated by `;`.
+Alternatively you can also configure it via the 4 parameters (first and second table, first and second list of columns), 
+refer to `Fk#addVirtualForeignKeyAsString()` or `Fk#addVirtualForeignKey()`
+
+Refer to the examples in the  org.oser.tools.jdbc.DbExporterBasicTests#blog_artificialFk test. We added a new table `preferences` that holds the
+user preferences. There is no FK between the `user_table` and the `preferences` table in the db DDL.
 
 #### Canonicalization of primary keys
 Two graphs may be equivalent given their contained data but just have different primary keys (if we assume that the primary keys
@@ -121,6 +125,12 @@ Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
 #### Logging SQL statements
 We use Log4j. There is a convenience method to enable some loggers, example use:
 `Loggers.enableLoggers(EnumSet.of(Loggers.CHANGE, Loggers.SELECT));`
+Alternatively use the loggers:
+org.oser.tools.jdbc.Loggers.SELECT
+org.oser.tools.jdbc.Loggers.CHANGE
+org.oser.tools.jdbc.Loggers.DELETE
+org.oser.tools.jdbc.Loggers.WARNING
+org.oser.tools.jdbc.Loggers.INFO
 
 #### Deleting a graph
 Refer to `DbExporter.getDeleteStatements()`. It does a db export first (using all the parameters of DbExporter). 
@@ -139,6 +149,30 @@ duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTe
   * Subtables are added after the field that links to them (via the foreign key). Subtables are always in sub-arrays.
     They are behind a JSON entry of the name  `NAME_OF_FK_COLUMN*NAME_OF_SUBTABLE`, example: `author_id*author*`.
 
+#### Transactions
+The library participates in the current transaction setting: it supports both auto-commit or manual 
+transaction handling. When running e.g. in an existing Spring transaction context, you could do the following:
+```Java
+@Autowired
+EntityManager em;
+
+// flushing before
+em.flush();
+Session session = (Session) em.getDelegate();
+
+Object result = session.doReturningWork(new ReturningWork<Object>() {
+
+   public Object execute(Connection connection) throws SQLException {
+      // use linked-db-rows code here, using the same connection as Spring
+        
+      return result;
+   }
+};
+
+// end transaction as normal
+
+```
+
 #### Sakila database example
 The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
 
@@ -146,8 +180,10 @@ The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sa
  * Exports a db row and all linked rows as JSON (you can choose a supported db via a short name, it downloads the needed jdbc driver if needed)
    It requires installing https://www.jbang.dev/
  * Examples:
-     * `jbang JsonExport.java  -t blogpost -p 3 --stopTablesExcluded="user_table"  -db postgres  -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin > blogpost3.json`
+     * `jbang JsonExport.java  -t blogpost -p 3 --stopTablesExcluded="user_table"  -db postgres  
+       -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin -fks 'user_table(id)-preferences(user_id)' > blogpost3.json`
          * This exports the data of the table blogpost with primary key 3 to the file blogpost3.json
+         * It defines also a virtual foreign key 
      * `jbang JsonImport.java -j blogpost3.json -t blogpost -db postgres -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin --log=CHANGE`
         * This imports the JSON file blogpost3.json into the local postgres "demo" db 
     

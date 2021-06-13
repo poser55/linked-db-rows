@@ -397,7 +397,7 @@ public class DbImporter implements FkCacheAccessor {
 
         } catch (SQLException e) {
             Loggers.logChangeStatement(savedStatement, sqlStatement.getStatement(), insertedValues, 0);
-            Loggers.LOGGER_WARNINGS.info("issue with statement: {} ", savedStatement);
+            Loggers.LOGGER_WARNING.info("issue with statement: {} ", savedStatement);
 
             throw e;
         }
