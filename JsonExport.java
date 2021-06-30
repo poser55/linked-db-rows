@@ -54,7 +54,7 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"-fks"}, description = "Virtual foreign key configurations. " +
             "Example: 'user_table(id)-preferences(user_id)'  " +
             "This sets a foreign key from table user_table to the preferences table, id is the FK column in user_table, " +
-            "user_id is the FK id in preferences. Use ';' to separate multiple FKs;")
+            "user_id is the FK id in preferences. Use ';' to separate multiple FKs.")
     private String fks;
 
     @Option(names = {"--log"}, description = "What to log (change,select,delete,all)")

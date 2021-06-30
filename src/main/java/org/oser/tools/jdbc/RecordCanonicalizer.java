@@ -104,7 +104,7 @@ public class RecordCanonicalizer {
             if (fksByColumnName.containsKey(primaryKey.toLowerCase())) {
                 List<Fk> fks = fksByColumnName.get(primaryKey.toLowerCase());
                 fks.forEach(fk -> {
-                    RowLink rowLinkToFind = new RowLink(fk.pktable, elementWithName.value);
+                    RowLink rowLinkToFind = new RowLink(fk.pktable, elementWithName.getValue());
                     potentialValueToInsert[0] = newKeys.get(rowLinkToFind);
                 });
             }
@@ -112,7 +112,7 @@ public class RecordCanonicalizer {
             // if it is remapped, it is a fk from somewhere else -> so we cannot set it freely
             isFreePk.add(potentialValueToInsert[0] == null);
 
-            pkValues.add(potentialValueToInsert[0] != null ? ((List<Object>)potentialValueToInsert[0]).get(0): elementWithName.value);
+            pkValues.add(potentialValueToInsert[0] != null ? ((List<Object>)potentialValueToInsert[0]).get(0): elementWithName.getValue());
         }
         return pkValues;
     }
@@ -138,7 +138,7 @@ public class RecordCanonicalizer {
         // remap pk values of this record
         int pkIndex = 0;
         for (String primaryKeyName : primaryKeys) {
-            r.findElementWithName(primaryKeyName).value = newKeysForThisRecord.get(pkIndex);
+            r.findElementWithName(primaryKeyName).setValue(newKeysForThisRecord.get(pkIndex));
             pkIndex++;
         }
 
@@ -148,14 +148,14 @@ public class RecordCanonicalizer {
             List<Fk> fks = fksByColumnName.get(fieldName);
 
             fks.forEach(fk -> {
-                List<Object> potentialNewValue = newKeys.get(new RowLink(fk.pktable, r.findElementWithName(fieldName).value));
+                List<Object> potentialNewValue = newKeys.get(new RowLink(fk.pktable, r.findElementWithName(fieldName).getValue()));
 
                 if (potentialNewValue != null) {
                     if (potentialNewValue.size() > 1) {
                         System.out.println("issue: potentialNewValue is more than 1 value");
                     }
 
-                    r.findElementWithName(fieldName).value = potentialNewValue.get(0);
+                    r.findElementWithName(fieldName).setValue(potentialNewValue.get(0));
                 }
             });
         }

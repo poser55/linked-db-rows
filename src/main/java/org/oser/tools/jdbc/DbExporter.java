@@ -291,10 +291,10 @@ public class DbExporter implements FkCacheAccessor {
                         elementsWithName.stream().map(Record.FieldAndValue::getValue).toArray(),
                         context);
                 if (!subRow.isEmpty()) {
-                    if (!elementsWithName.get(0).subRow.containsKey(subTableName)) {
-                        elementsWithName.get(0).subRow.put(subTableName, subRow);
+                    if (!elementsWithName.get(0).getSubRow().containsKey(subTableName)) {
+                        elementsWithName.get(0).getSubRow().put(subTableName, subRow);
                     } else {
-                        elementsWithName.get(0).subRow.get(subTableName).addAll(subRow);
+                        elementsWithName.get(0).getSubRow().get(subTableName).addAll(subRow);
                     }
                 }
             }
@@ -315,8 +315,8 @@ public class DbExporter implements FkCacheAccessor {
             if (d != null) {
                 row.getContent().add(d);
 
-                if (primaryKeyArrayPosition.containsKey(d.name.toLowerCase())){
-                    primaryKeyValues[primaryKeyArrayPosition.get(d.name.toLowerCase())] = d.value;
+                if (primaryKeyArrayPosition.containsKey(d.getName().toLowerCase())){
+                    primaryKeyValues[primaryKeyArrayPosition.get(d.getName().toLowerCase())] = d.getValue();
                 }
 
             }

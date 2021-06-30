@@ -239,7 +239,7 @@ public final class JdbcHelpers {
                                 rs.getString("TYPE_NAME"),
                                 rs.getInt("DATA_TYPE"),
                                 rs.getInt("SOURCE_DATA_TYPE"),
-                                rs.getString("COLUMN_SIZE"),
+                                rs.getInt("COLUMN_SIZE"),
                                 rs.getString("COLUMN_DEF"),
                                 rs.getInt("ORDINAL_POSITION")));
 
@@ -408,12 +408,12 @@ public final class JdbcHelpers {
          * (<code>null</code> if DATA_TYPE  isn't DISTINCT or user-generated REF) */
         private final int sourceDataType;
 
-        String size; // adapt later?
+        private int size;
         private final String columnDef;
         // starts at 1
         private final int ordinalPos;
 
-        public ColumnMetadata(String name, String type, int dataType, int sourceDataType, String size, String columnDef, int ordinalPos) {
+        public ColumnMetadata(String name, String type, int dataType, int sourceDataType, int size, String columnDef, int ordinalPos) {
             this.name = name;
             this.type = type;
             this.dataType = dataType;

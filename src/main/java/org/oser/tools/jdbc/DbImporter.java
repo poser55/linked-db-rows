@@ -222,7 +222,7 @@ public class DbImporter implements FkCacheAccessor {
                     subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
                 }
 
-                JsonNode subJsonNode = json.get(elementsWithName.get(0).name.toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
+                JsonNode subJsonNode = json.get(elementsWithName.get(0).getName().toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
                 ArrayList<Record> records = new ArrayList<>();
 
                 if (fk.inverted) {
@@ -247,7 +247,7 @@ public class DbImporter implements FkCacheAccessor {
                 }
 
                 if (!records.isEmpty()) {
-                    elementsWithName.get(0).subRow.put(subTableName, records);
+                    elementsWithName.get(0).getSubRow().put(subTableName, records);
                 }
             }
         }
@@ -327,8 +327,8 @@ public class DbImporter implements FkCacheAccessor {
                 if (isFreePk.get(i)) {
                     Record.FieldAndValue elementWithName = record.findElementWithName(primaryKeys.get(i));
 
-                    candidatePk = getCandidatePk(connection, record.getRowLink().getTableName(), elementWithName.metadata.type, primaryKeys.get(i));
-                    RowLink key = new RowLink(record.getRowLink().getTableName(), record.findElementWithName(record.getPkName()).value);
+                    candidatePk = getCandidatePk(connection, record.getRowLink().getTableName(), elementWithName.getMetadata().type, primaryKeys.get(i));
+                    RowLink key = new RowLink(record.getRowLink().getTableName(), record.findElementWithName(record.getPkName()).getValue());
                     newKeys.put(key, candidatePk);
 
                     pkValues.set(i, candidatePk); // maybe not needed (catched by later remapping?)
@@ -340,7 +340,7 @@ public class DbImporter implements FkCacheAccessor {
         List<String> fieldNames = record.getFieldNames();
 
         // fields must both be in json AND in db metadata, remove those missing in db metadata
-        Set<String> columnsDbNames = record.getContent().stream().map(e -> e.name).collect(Collectors.toSet());
+        Set<String> columnsDbNames = record.getContent().stream().map(e -> e.getName()).collect(Collectors.toSet());
         fieldNames.removeIf(e -> !columnsDbNames.contains(e));
         // todo log if there is a delta between the 2 sets, ok for those who map subrows !
 
@@ -358,7 +358,7 @@ public class DbImporter implements FkCacheAccessor {
 
             for (String currentFieldName : fieldNames) {
                 Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
-                valueToInsert[0] = prepareStringTypeToInsert(currentElement.metadata.type, currentElement.value);
+                valueToInsert[0] = prepareStringTypeToInsert(currentElement.getMetadata().type, currentElement.getValue());
 
                 boolean fieldIsPk = primaryKeys.stream().map(String::toLowerCase).anyMatch(e -> currentFieldName.toLowerCase().equals(e));
 
@@ -383,10 +383,10 @@ public class DbImporter implements FkCacheAccessor {
                 boolean bypassNormalInsertion = false;
                 insertedValues.put(currentElement.getName(), valueToInsert[0]);
                 if (fieldImporter != null) {
-                    bypassNormalInsertion = fieldImporter.importField(record.getRowLink().getTableName(), currentElement.metadata, statement, statementPosition, valueToInsert[0]);
+                    bypassNormalInsertion = fieldImporter.importField(record.getRowLink().getTableName(), currentElement.getMetadata(), statement, statementPosition, valueToInsert[0]);
                 }
                 if (!bypassNormalInsertion) {
-                    JdbcHelpers.innerSetStatementField(statement, statementPosition, currentElement.metadata, valueToInsert[0], typeFieldImporters);
+                    JdbcHelpers.innerSetStatementField(statement, statementPosition, currentElement.getMetadata(), valueToInsert[0], typeFieldImporters);
                 }
             }
 
@@ -424,13 +424,13 @@ public class DbImporter implements FkCacheAccessor {
             if (fksByColumnName.containsKey(primaryKey.toLowerCase())) {
                 List<Fk> fks = fksByColumnName.get(primaryKey.toLowerCase());
                 fks.forEach(fk -> {
-                    potentialValueToInsert[0] = newKeys.get(new RowLink(fk.pktable, elementWithName.value));
+                    potentialValueToInsert[0] = newKeys.get(new RowLink(fk.pktable, elementWithName.getValue()));
                 });
             }
             // if it is remapped, it is a fk from somewhere else -> so we cannot set it freely
             isFreePk.add(potentialValueToInsert[0] == null);
 
-            pkValues.add(potentialValueToInsert[0] != null ? potentialValueToInsert[0]: elementWithName.value);
+            pkValues.add(potentialValueToInsert[0] != null ? potentialValueToInsert[0]: elementWithName.getValue());
         }
         return pkValues;
     }

@@ -35,9 +35,9 @@ public class DbExporterBasicTests {
                         record -> {
                             if (databaseConfig.getShortname().equals("oracle")) {
                                 // for oracle a "DATE" type has also a time, we remove it here again
-                                String dateWithTime = (String) record.findElementWithName("date_type").value;
+                                String dateWithTime = (String) record.findElementWithName("date_type").getValue();
                                 int tPosition = dateWithTime.indexOf("T");
-                                record.findElementWithName("date_type").value = dateWithTime.substring(0, tPosition);
+                                record.findElementWithName("date_type").setValue(dateWithTime.substring(0, tPosition));
                             }
                         },
                         new HashMap<>(),
@@ -68,7 +68,7 @@ public class DbExporterBasicTests {
         Map<RowLink, Object> remapping = new HashMap<>();
         remapping.put(new RowLink("user_table/2"), 1);
         // to make it interesting, adapt the entry
-        basicChecksResult.getAsRecordAgain().findElementWithName("title").value = "new title";
+        basicChecksResult.getAsRecordAgain().findElementWithName("title").setValue("new title");
         importer.insertRecords(demo, basicChecksResult.getAsRecordAgain(), remapping);
     }
 
@@ -124,17 +124,17 @@ public class DbExporterBasicTests {
                     dbImporter.setForceInsert(false);
                 },
                 record -> {
-                    Object number_pages = record.findElementWithName("number_pages").value;
+                    Object number_pages = record.findElementWithName("number_pages").getValue();
                     number_pages =  (number_pages != null) ? (1 + ((Long)number_pages)) : 1;
                     pages.set((Long)number_pages);
-                    record.findElementWithName("number_pages").value = number_pages;
+                    record.findElementWithName("number_pages").setValue(number_pages);
                 },
                 remapping,
                 "book", 1, 2, false);
 
         Record book = exporter.get().contentAsTree(demoConnection, "book", 1);
         System.out.println(book);
-        assertEquals(pages.get() +"", ""+book.findElementWithName("number_pages").value);
+        assertEquals(pages.get() +"", ""+book.findElementWithName("number_pages").getValue());
     }
 
     @Test // Bug https://github.com/poser55/linked-db-rows/issues/1
@@ -301,9 +301,9 @@ public class DbExporterBasicTests {
                 record -> {
                     if (databaseConfig.getShortname().equals("oracle")) {
                         // for oracle a "DATE" type has also a time, we remove it here again
-                        String dateWithTime = (String) record.findElementWithName("date_type").value;
+                        String dateWithTime = (String) record.findElementWithName("date_type").getValue();
                         int tPosition = dateWithTime.indexOf("T");
-                        record.findElementWithName("date_type").value = dateWithTime.substring(0, tPosition);
+                        record.findElementWithName("date_type").setValue(dateWithTime.substring(0, tPosition));
                     }
                 },
                 new HashMap<>(),
@@ -314,7 +314,7 @@ public class DbExporterBasicTests {
         DbExporter dbExporter = new DbExporter();
         Record asRecord = dbExporter.contentAsTree(demoConnection, "datatypes", o);
 
-        assertNull(asRecord.findElementWithName("text_type").value);
+        assertNull(asRecord.findElementWithName("text_type").getValue());
     }
 
     @Test

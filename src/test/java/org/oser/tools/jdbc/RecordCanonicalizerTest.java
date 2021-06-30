@@ -30,11 +30,11 @@ class RecordCanonicalizerTest {
 
         System.out.println(record);
 
-        assertEquals(1L, record.findElementWithName("id").value);
-        assertEquals(1L, record.findElementWithName( "author_id").value);
-        Record authorRecord = record.findElementWithName("author_id").subRow.get("author").get(0);
+        assertEquals(1L, record.findElementWithName("id").getValue());
+        assertEquals(1L, record.findElementWithName( "author_id").getValue());
+        Record authorRecord = record.findElementWithName("author_id").getSubRow().get("author").get(0);
 
-        assertEquals(1L, authorRecord.findElementWithName("id").value);
+        assertEquals(1L, authorRecord.findElementWithName("id").getValue());
     }
 
     @Test

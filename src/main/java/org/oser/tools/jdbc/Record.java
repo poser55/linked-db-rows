@@ -18,7 +18,9 @@ import java.sql.Connection;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
@@ -31,7 +33,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -167,6 +168,7 @@ public class Record {
         return toVisit.stream().flatMap(e -> e.visitRecords(visitor).stream()).collect(toSet());
     }
 
+    /** visit all Records in insertion order */
     public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles) throws Exception {
         visitRecordsInInsertionOrder(connection, visitor, exceptionWithCycles, Caffeine.newBuilder().maximumSize(10_000).build());
     }
@@ -214,11 +216,12 @@ public class Record {
      * Holds one field with metadata (and potentially nested content)
      */
     @Getter
+    @Setter
     public static class FieldAndValue {
-        public String name;
-        public Object value;
-        public JdbcHelpers.ColumnMetadata metadata;
-        public Map<String, List<Record>> subRow = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        private String name;
+        private Object value;
+        private JdbcHelpers.ColumnMetadata metadata;
+        private Map<String, List<Record>> subRow = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
         public FieldAndValue(String name, JdbcHelpers.ColumnMetadata metadata, Object value) {
             this.name = name.toLowerCase();
@@ -229,7 +232,7 @@ public class Record {
 
         private final ObjectMapper mapper = getObjectMapper();
 
-        private Object convertTypeForValue(JdbcHelpers.ColumnMetadata metadata, Object value) {
+        Object convertTypeForValue(JdbcHelpers.ColumnMetadata metadata, Object value) {
             if ("null".equals(value)) {
                 return null;
             }

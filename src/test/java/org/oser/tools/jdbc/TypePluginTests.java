@@ -113,7 +113,7 @@ class TypePluginTests {
         System.out.println("id 3 as json"+ basicChecksResult3.getAsRecordAgain());
         System.out.println("");
 
-        byte[] asByte = (byte[]) basicChecksResult3.getAsRecord().findElementWithName("a_blob").value;
+        byte[] asByte = (byte[]) basicChecksResult3.getAsRecord().findElementWithName("a_blob").getValue();
         Assert.assertArrayEquals( apachePicture, asByte );
 
         Object remappedPkId3 = basicChecksResult3.getRowLinkObjectMap().values().stream().findFirst().get();
@@ -122,7 +122,7 @@ class TypePluginTests {
 
         System.out.println(basicChecksResult4.getAsRecordAgain());
 
-        byte[] asByte2 = (byte[]) basicChecksResult4.getAsRecord().findElementWithName("a_blob").value;
+        byte[] asByte2 = (byte[]) basicChecksResult4.getAsRecord().findElementWithName("a_blob").getValue();
         Assert.assertArrayEquals( apachePicture, asByte2 );
 
     }

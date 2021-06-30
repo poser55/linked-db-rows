@@ -123,7 +123,7 @@ should be stable for equality). We do not use any data in the records to determi
 Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
 
 #### Logging SQL statements
-We use Log4j. There is a convenience method to enable some loggers, example use:
+We use SLF4j/ Logback. There is a convenience method to enable some loggers, example use:
 `Loggers.enableLoggers(EnumSet.of(Loggers.CHANGE, Loggers.SELECT));`
 Alternatively use the loggers:
 org.oser.tools.jdbc.Loggers.SELECT
@@ -144,10 +144,13 @@ duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTe
 
 #### JSON format
   * Numbers, Booleans, Strings are directly usable. 
-  * Date-Types are mapped to Strings.
+  * Date-Types are mapped to Strings. We use [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) dates by default for timestamps,
+     example: `2019-01-01T12:19:11`, the `T` character can be replaced by a blank, as the normal toString() of
+    java.sql.Timestamp. Dates (without a time) are in the form of 2019-01-01.  
+    (Some DBs need a config to default to this format, refer to tests.)
   * Blobs are serialized as BASE64 encoded Strings. 
   * Subtables are added after the field that links to them (via the foreign key). Subtables are always in sub-arrays.
-    They are behind a JSON entry of the name  `NAME_OF_FK_COLUMN*NAME_OF_SUBTABLE`, example: `author_id*author*`.
+    They are behind a JSON entry of the name  `NAME_OF_FK_COLUMN*NAME_OF_SUBTABLE*`, example: `author_id*author*`.
 
 #### Transactions
 The library participates in the current transaction setting: it supports both auto-commit or manual 
