@@ -31,7 +31,6 @@ class DateHandlingTest {
 
 
     @Test
-
     void dateConversionTest() {
         JdbcHelpers.ColumnMetadata columnMetadata = new JdbcHelpers.ColumnMetadata("dummy", "TIMESTAMP", 2,2,1, "", 1);
         Record.FieldAndValue dummy = new Record.FieldAndValue("test", columnMetadata, "xxx");

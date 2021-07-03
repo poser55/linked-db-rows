@@ -194,7 +194,9 @@ public final class JdbcHelpers {
     public static void assertTableExists(Connection connection, String tableName) throws SQLException {
         DatabaseMetaData dbm = connection.getMetaData();
 
-        try (ResultSet tables = dbm.getTables(connection.getCatalog(), connection.getSchema(), adaptCaseForDb(tableName, dbm.getDatabaseProductName()), null)) {
+        Table table = new Table(connection, tableName);
+
+        try (ResultSet tables = dbm.getTables(connection.getCatalog(), table.getSchema(), table.getTableName(), null)) {
             if (!tables.next()) {
                 throw new IllegalArgumentException("Table " + tableName + " does not exist");
             }
@@ -202,6 +204,9 @@ public final class JdbcHelpers {
     }
 
     static String adaptCaseForDb(String originalName, String dbProductName) {
+        if (originalName == null) {
+            return null;
+        }
         switch (dbProductName) {
             case "PostgreSQL":
                 return originalName.toLowerCase();
@@ -209,6 +214,10 @@ public final class JdbcHelpers {
                 return originalName.toUpperCase();
             case "MySQL":
                 return originalName;
+            case "HSQL Database Engine":
+                return originalName.toUpperCase();
+            case "Microsoft SQL Server":
+                return originalName.toLowerCase();
             default:
                 return originalName.toUpperCase();
         }
@@ -229,8 +238,9 @@ public final class JdbcHelpers {
     public static SortedMap<String, ColumnMetadata> getColumnMetadata(DatabaseMetaData metadata, String tableName) throws SQLException {
         SortedMap<String, ColumnMetadata> result = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
-        try (ResultSet rs = metadata.getColumns(null, metadata.getConnection().getSchema(),
-                adaptCaseForDb(tableName, metadata.getDatabaseProductName()), null)) {
+        Table table = new Table(metadata.getConnection(), tableName);
+
+        try (ResultSet rs = metadata.getColumns(null, table.getSchema(), table.getTableName(), null)) {
 
             while (rs.next()) {
                 String column_name = rs.getString("COLUMN_NAME").toLowerCase();
@@ -273,12 +283,34 @@ public final class JdbcHelpers {
     public static List<String> getPrimaryKeys(DatabaseMetaData metadata, String tableName) throws SQLException {
         List<String> result = new ArrayList<>();
 
-        try (ResultSet rs = metadata.getPrimaryKeys(null, metadata.getConnection().getSchema(),
-                adaptCaseForDb(tableName, metadata.getDatabaseProductName()))) {
+        Table table = new Table(metadata.getConnection(), tableName);
+
+        try (ResultSet rs = metadata.getPrimaryKeys(null, table.getSchema(), table.getTableName())) {
             while (rs.next()) {
                 result.add(rs.getString("COLUMN_NAME"));
             }
             return result;
+        }
+    }
+
+    @Getter
+    public static class Table {
+        private String tableName;
+        private String schema;
+
+        public Table(Connection connection, String expression) throws SQLException {
+           if (expression.contains(".")){
+               int i = expression.indexOf(".");
+               schema = expression.substring(0, i);
+               tableName = expression.substring(i + 1);
+           } else {
+               tableName = expression;
+               String rawSchema = connection.getSchema(); // mysql returns null for default schema
+               this.schema = rawSchema == null ? "": rawSchema; // default schema
+           }
+            String databaseProductName = connection.getMetaData().getDatabaseProductName();
+            tableName = adaptCaseForDb(tableName, databaseProductName);
+            schema = adaptCaseForDb(schema, databaseProductName);
         }
     }
 
@@ -476,13 +508,44 @@ public final class JdbcHelpers {
         }
     }
 
-    /** not yet very optimized */
+    /** not yet very optimized <br/>
+     *
+     *   takes the current default schema */
     public static Map<String, Integer> getNumberElementsInEachTable(Connection connection) throws SQLException {
-        Map<String, Integer> result = new HashMap<>();
+        return getNumberElementsInEachTable(connection, connection.getSchema());
+    }
 
-        for (String tableName : getAllTableNames(connection)) {
+    public static Map<String, Integer> getNumberElementsInEachTable(Connection connection, List<String> schemas) throws SQLException {
+        if (schemas == null) {
+            throw new IllegalArgumentException("Schemas must not be null");
+        }
+        Map<String, Integer> combined = new HashMap<>();
+
+        for (String schema : schemas) {
+            Map<String, Integer> elements = getNumberElementsInEachTable(connection, schema);
+
+            String schemaPrefix = getSchemaPrefix(connection, schema);
+
+            elements.entrySet().forEach( e -> {
+                combined.put(schemaPrefix + e.getKey(), e.getValue());
+            });
+        }
+
+        return combined;
+    }
+
+    /** not yet very optimized */
+    public static Map<String, Integer> getNumberElementsInEachTable(Connection connection, String schema) throws SQLException {
+        Map<String, Integer> result = new HashMap<>();
+        schema = adaptCaseForDb(schema, connection.getMetaData().getDatabaseProductName());
+
+        for (String tableName : getAllTableNames(connection, schema)) {
             Statement statement = connection.createStatement();
-            try (ResultSet resultSet = statement.executeQuery("select count(*) from \"" + tableName + "\"")) {
+            String schemaPrefix = getSchemaPrefix(connection, schema);
+
+            // mysql wants a quote around mixedcase table names
+            String optionalQuote = connection.getMetaData().getDatabaseProductName().equals("MySQL") ? "\"" : "";
+            try (ResultSet resultSet = statement.executeQuery("select count(*) from " +optionalQuote + schemaPrefix + tableName + optionalQuote)) {
 
                 while (resultSet.next()) {
                     result.put(tableName, resultSet.getInt(1));
@@ -493,13 +556,32 @@ public final class JdbcHelpers {
         return result;
     }
 
+    // system is default schema in oracle,
+    // dbo is the default schema in sqlserver,
+    // Java-null is the default schema in mysql,
+    // public is the default schema in other dbs
+    public static String getSchemaPrefix(Connection connection, String schema) throws SQLException {
+        String connectionSchema = connection.getSchema();
+        return ((connectionSchema == null && schema == null) ||
+                (connectionSchema != null && connectionSchema.equalsIgnoreCase(schema))) ? "" : schema + ".";
+    }
+
+    /** of current default schema */
     public static List<String> getAllTableNames(Connection connection) throws SQLException {
+        return getAllTableNames(connection, connection.getSchema());
+    }
+
+
+    public static List<String> getAllTableNames(Connection connection, String schema) throws SQLException {
         List<String> tableNames = new ArrayList<>();
 
         DatabaseMetaData md = connection.getMetaData();
-        try (ResultSet rs = md.getTables(connection.getCatalog(), connection.getSchema(), "%", new String[]{"TABLE"})) {
+        try (ResultSet rs = md.getTables(connection.getCatalog(), adaptCaseForDb(schema, connection.getMetaData().getDatabaseProductName()), "%", new String[]{"TABLE"})) {
             while (rs.next()) {
-                tableNames.add(rs.getString("TABLE_NAME"));
+                if (Objects.equals(schema, rs.getString("TABLE_SCHEM"))) {
+                    // mysql returns tables also in other schemas
+                    tableNames.add(rs.getString("TABLE_NAME"));
+                }
             }
         }
         return tableNames;

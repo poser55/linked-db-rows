@@ -113,6 +113,7 @@ refer to `Fk#addVirtualForeignKeyAsString()` or `Fk#addVirtualForeignKey()`
 
 Refer to the examples in the  org.oser.tools.jdbc.DbExporterBasicTests#blog_artificialFk test. We added a new table `preferences` that holds the
 user preferences. There is no FK between the `user_table` and the `preferences` table in the db DDL.
+Another example illustrates virtual foreign keys between tables in different database schemas: MultiSchemaExperimentTests.
 
 #### Canonicalization of primary keys
 Two graphs may be equivalent given their contained data but just have different primary keys (if we assume that the primary keys
@@ -216,7 +217,7 @@ Further Ideas
 * Clean ups
     - Reduce the limitations
     - Fix hints marked as todo
-    - Support for different schemas
+    - Test support for different schemas more
     - Handle uppercase letters of table names in mysql queries correctly for importing
 * Fix bugs:
     - Escaping of table and field names

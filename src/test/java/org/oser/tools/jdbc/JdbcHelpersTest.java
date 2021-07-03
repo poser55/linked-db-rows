@@ -61,11 +61,17 @@ class JdbcHelpersTest {
 
     @Test
     void getNumberElementsInEachTable() throws SQLException, ClassNotFoundException, IOException {
-        Connection demo1 = TestHelpers.getConnection("demo");
-        List<String> allTableNames = JdbcHelpers.getAllTableNames(demo1);
-        Map<String, Integer> counts = JdbcHelpers.getNumberElementsInEachTable(demo1);
+        Connection demo = TestHelpers.getConnection("demo");
+        List<String> allTableNames = JdbcHelpers.getAllTableNames(demo);
+        Map<String, Integer> counts = JdbcHelpers.getNumberElementsInEachTable(demo);
         assertNotNull(allTableNames);
         assertNotNull(counts);
+
+        String dbname = TestHelpers.getDbConfig().getShortname();
+        if (!(dbname.equals("oracle") || dbname.equals("sqlserver")  || dbname.equals("mysql"))) {
+            Map<String, Integer> counts2 = JdbcHelpers.getNumberElementsInEachTable(demo, "doc");
+            assertEquals(1, counts2.size());
+        }
 
         System.out.println(counts + " "+allTableNames);
         assertTrue( counts.keySet().size() >= 10);
@@ -79,4 +85,46 @@ class JdbcHelpersTest {
         List<String> xxx = JdbcHelpers.getPrimaryKeys(metaData, "xxx");
         assertNotNull(xxx);
     }
+
+    @Test
+    void testTable() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo1 = TestHelpers.getConnection("demo");
+        JdbcHelpers.Table table = new JdbcHelpers.Table(demo1, "aaa.bbb");
+        assertEquals("aaa", table.getSchema().toLowerCase());
+        assertEquals("bbb", table.getTableName().toLowerCase());
+
+        JdbcHelpers.Table table2 = new JdbcHelpers.Table(demo1, "xxx");
+        assertEquals("xxx", table2.getTableName().toLowerCase() );
+        String s = table2.getSchema().toLowerCase();
+        assertTrue("public".equals(s) || "system".equals(s) || "dbo".equals(s) || "".equals(""));
+    }
+
+    @Test
+    void multischemaPrimaryKeys() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo = TestHelpers.getConnection("demo");
+        DatabaseMetaData metaData = demo.getMetaData();
+        List<String> book = JdbcHelpers.getPrimaryKeys(metaData, "book");
+        assertEquals(1, book.size());
+
+        // does not work for h2
+//        book = JdbcHelpers.getPrimaryKeys(metaData, "public.book");
+//        assertEquals(1, book.size());
+
+        String dbname = TestHelpers.getDbConfig().getShortname();
+        if (!(dbname.equals("oracle") || dbname.equals("sqlserver") || dbname.equals("mysql"))) {
+            List<String> document = JdbcHelpers.getPrimaryKeys(metaData, "doc.document");
+            assertNotNull(document);
+            assertEquals(1, document.size());
+        }
+    }
+
+    @Test
+    void numberOfElementsInTables() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo1 = TestHelpers.getConnection("demo");
+        Map<String, Integer> numberElementsInEachTable = JdbcHelpers.getNumberElementsInEachTable(demo1, Arrays.asList(demo1.getSchema(), "doc"));
+        System.out.println(numberElementsInEachTable);
+        assertTrue(numberElementsInEachTable.size() > 0);
+    }
+
+
 }

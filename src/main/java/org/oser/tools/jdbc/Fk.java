@@ -185,6 +185,8 @@ public class Fk {
      *  (it only shows the direct links via {@link DatabaseMetaData#getImportedKeys(String, String, String)})
      *  - so we fake it here and add these indirect keys to the cache
      * (goes through all database tables for this)
+     *
+     * does only take the current schema into account
      */
     public static void initFkCacheForMysql(Cache<String, List<Fk>> fkCache, Connection connection) throws SQLException {
         if (!connection.getMetaData().getDatabaseProductName().equals("MySQL")) {
@@ -296,7 +298,7 @@ public class Fk {
         }
 
         public FkMatchedFields parse() {
-            String regex = "([A-Za-z0-9_]*)\\(([A-Za-z0-9,_]*)\\)-([A-Za-z0-9_]*)\\(([A-Za-z0-9,_]*)\\)";
+            String regex = "([A-Za-z0-9_.]*)\\(([A-Za-z0-9,_]*)\\)-([A-Za-z0-9_.]*)\\(([A-Za-z0-9,_]*)\\)";
             Pattern pattern = Pattern.compile(regex);
             Matcher matcher = pattern.matcher(asString);
             if ( !matcher.find()){

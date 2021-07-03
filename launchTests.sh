@@ -8,6 +8,6 @@ set -e
 
 for databaseName in h2 postgres oracle sqlserver mysql; do
   echo -e "\n\n\n Running tests for ${databaseName}\n"
-  ACTIVE_DB=${databaseName} mvn clean install
+  ACTIVE_DB=${databaseName} mvn clean install || (echo -e "\n\n\n Last test run with ${databaseName}\n"; exit 1) 
 done
 

@@ -11,13 +11,17 @@ CREATE TABLE book (
     author_id integer NOT NULL,
     title varchar(50) NOT NULL,
     number_pages integer,
+    dms_id integer,
     CONSTRAINT book_pkey PRIMARY KEY (id),
     foreign key (author_id) references author(id)
 );
 
 insert into author (id, last_name) values (1, 'Hemingway');
 insert into author (id, last_name) values (2, 'Huxley');
-insert into book (id, author_id, title) values (1, 2, 'Brave new world');
+insert into author (id, last_name) values (3, 'Vonnegut');
+insert into book (id, author_id, title, dms_id) values (1, 2, 'Brave new world', 1);
+--insert into book (id, author_id, title) values (2, 2, 'Island');
+insert into book (id, author_id, title, dms_id) values (3, 3, 'Slaughter House Five' , 2);
 
 
 CREATE TABLE datatypes (

@@ -19,6 +19,7 @@ import org.testcontainers.utility.DockerImageName;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -249,7 +250,8 @@ public class TestHelpers {
                                                                 Consumer<DbImporter> optionalImporterConfigurer, Consumer<Record> optionalRecordChanger,
                                                                 Map<RowLink, Object> remapping, String tableName, Object primaryKeyValue,
                                                                 int numberNodes, boolean checkUpdates) throws Exception {
-        Map<String, Integer> before = JdbcHelpers.getNumberElementsInEachTable(connection);
+        List<String> testSchemas = getDefaultSchemaPlusDoc(connection);
+        Map<String, Integer> before = JdbcHelpers.getNumberElementsInEachTable(connection, testSchemas);
 
 
         DbExporter dbExporter = new DbExporter();
@@ -283,7 +285,7 @@ public class TestHelpers {
         // todo: bug: asRecord is missing columnMetadata/ other values
         Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(connection, asRecordAgain, remapping);
 
-        Map<String, Integer> after = JdbcHelpers.getNumberElementsInEachTable(connection);
+        Map<String, Integer> after = JdbcHelpers.getNumberElementsInEachTable(connection, testSchemas);
 
         if (checkUpdates) {
             // when updating, the number of inserted db entries does not increase, so we do not check it here
@@ -304,10 +306,20 @@ public class TestHelpers {
         return new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap, rowLinkListMap);
     }
 
+    private static List<String> getDefaultSchemaPlusDoc(Connection connection) {
+        String defaultSchema = "public";
+        try {
+            defaultSchema = connection.getSchema();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return Arrays.asList("doc", defaultSchema);
+    }
+
     private static void assertNumberInserts(Map<String, Integer> before, Map<String, Integer> after, int numberNodes) {
         int numberRowsBefore = before.values().stream().reduce((l, r) -> l+r).get();
         int numberRowsAfter = after.values().stream().reduce((l, r) -> l+r).get();
-        assertEquals(numberNodes, numberRowsAfter -numberRowsBefore);
+        assertEquals(numberNodes, numberRowsAfter - numberRowsBefore);
     }
 
     private static String canonicalize(String asString) {
