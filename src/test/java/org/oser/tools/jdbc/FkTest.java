@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -55,5 +56,18 @@ class FkTest {
         List<Fk> aa = importerOrExporter.getFkCache().getIfPresent("aa");
         assertNotNull(a);
         assertNotNull(aa);
+    }
+
+    @Test
+    void link2self() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo = TestHelpers.getConnection("demo");
+        List<Fk> fks = Fk.getFksOfTable(demo, "link2self");
+        System.out.println(fks);
+        assertEquals(3, fks.size());
+        List<Fk> link2self = fks.stream().filter(e -> e.getFkName().toLowerCase().equals("link2self")).collect(Collectors.toList());
+        assertEquals(2, link2self.size());
+        assertEquals(link2self.get(0).getFktable(), link2self.get(0).getPktable());
+        assertEquals(link2self.get(1).getFktable(), link2self.get(1).getPktable());
+        assertEquals(1, link2self.get(0).getFkcolumn().length);
     }
 }

@@ -18,12 +18,11 @@ import java.sql.Connection;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
@@ -157,6 +156,19 @@ public class Record {
         return result;
     }
 
+    /** @return all records contained */
+    public Set<Record> getAllRecords(){
+        Set<Record> result = new HashSet<>();
+        result.add(this);
+
+        // not fully implemented via streams (as nested streams use more stack levels)
+        List<Record> subRecords = content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).collect(toList());
+        for (Record record : subRecords) {
+            result.addAll(record.getAllRecords());
+        }
+        return result;
+    }
+
     /** visit all Records (breath first search). You can ignore the result of this method (used internally). */
     public Set<Record> visitRecords(Consumer<Record> visitor){
         visitor.accept(this);
@@ -188,11 +200,48 @@ public class Record {
         for (String tableName : insertionOrder) {
             List<Record> records = tableToRecords.get(tableName);
             if (records != null) {
+                List<Fk> fksOfTable = Fk.getFksOfTable(connection, tableName, cache);
+                if (Fk.hasSelfLink(fksOfTable)) {
+                    orderRecordsForInsertion(records, fksOfTable);
+                }
                 for (Record record : records) {
                     visitor.apply(record);
                 }
             }
         }
+    }
+
+    /** If a table has self-links the insertion can fail if tables inserted earlier refer to later tables */
+    //@VisibleForTesting
+    static void orderRecordsForInsertion(List<Record> records, List<Fk> fksOfTable) {
+        List<Fk> selfLinkFks = fksOfTable.stream().filter(e -> Fk.hasSelfLink(e)).collect(toList());
+
+        // todo: this is an imperfect algo that just works for special cases
+        Fk fk = selfLinkFks.get(0);
+        String fkColumn = fk.getFkcolumn()[0];
+        Comparator<? super Record> compareRecords = (a, b)-> {
+            Object right = b.findElementWithName(fkColumn).getValue();
+            Object left = a.findElementWithName(fkColumn).getValue();
+
+            if (right == null || left == null){
+                return a.nullCompare(left, right);
+            } else {
+                Comparator<Object> c = Comparator.comparing(Objects::toString);
+                return c.compare(left, right);
+            }
+        };
+
+        records.sort(compareRecords);
+    }
+
+    private int nullCompare(Object a, Object b) {
+        if (a == null) {
+            return (b == null) ? 0 : -1;
+        } else if (b == null) {
+            return 1;
+        }
+        // should not happen
+        return 0;
     }
 
     /** count number of each table */

@@ -73,6 +73,10 @@ public class Fk {
         return result;
     }
 
+    public static boolean hasSelfLink(List<Fk> fks) {
+        return fks.stream().anyMatch(e -> hasSelfLink(e));
+    }
+
     /**
      * get FK metadata of one table (both direction of metadata, exported and imported FKs)
      */
@@ -101,7 +105,7 @@ public class Fk {
         input.forEach(f -> fkNameToFk.computeIfAbsent(f.getFkName(), l -> new ArrayList<>()).add(f));
 
         List<Map.Entry<String, List<Fk>>> toMerge =
-                fkNameToFk.entrySet().stream().filter(e -> e.getValue().size() > 1).collect(toList());
+                fkNameToFk.entrySet().stream().filter(e -> e.getValue().size() > 1 && !hasSelfLink(e.getValue().get(0))).collect(toList());
         for (Map.Entry<String, List<Fk>> e : toMerge){
             e.getValue().sort(Comparator.comparing(Fk::getKeySeq));
 
@@ -112,6 +116,11 @@ public class Fk {
         }
 
         return input;
+    }
+
+    /** check for link to self (e.g. table N having a FK to itself */
+    public static boolean hasSelfLink(Fk e) {
+        return e.getFktable().equals(e.getPktable());
     }
 
     private static void addFks(List<Fk> fks, ResultSet rs, boolean inverted) throws SQLException {

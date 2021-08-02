@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +47,11 @@ public enum Loggers {
     /** Convenience method to enable what you would like to see in the logs */
     public static void enableLoggers(Set<Loggers> loggers) {
         setLoggerLevel(loggers, Level.INFO);
+    }
+
+    /** Convenience method to enable what you would like to see in the logs */
+    public static void enableLoggers(Loggers... loggers) {
+        setLoggerLevel(new HashSet(Arrays.asList(loggers)), Level.INFO);
     }
 
     static void setLoggerLevel(Set<Loggers> loggers, ch.qos.logback.classic.Level newLevel) {

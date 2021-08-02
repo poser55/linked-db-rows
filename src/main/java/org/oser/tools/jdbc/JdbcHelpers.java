@@ -8,6 +8,7 @@ import lombok.ToString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -370,8 +371,11 @@ public final class JdbcHelpers {
                 if (isEmpty) {
                     preparedStatement.setNull(statementIndex, Types.NUMERIC);
                 } else {
-                    preparedStatement.setDouble(statementIndex,
-                            valueToInsert instanceof String ? Double.parseDouble(((String)valueToInsert).trim()): (Double)valueToInsert);
+                    if (valueToInsert instanceof String) {
+                        preparedStatement.setDouble(statementIndex, Double.parseDouble(((String)valueToInsert).trim()));
+                    } else {
+                        preparedStatement.setBigDecimal(statementIndex, (BigDecimal)valueToInsert);
+                    }
                 }
                 break;
             case "UUID":
