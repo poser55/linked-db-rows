@@ -24,7 +24,7 @@ class DoubleFkTest {
         System.out.println(Fk.getFksOfTable(demo, "Edge"));
 
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(TestHelpers.getConnection("demo"),
-                "link", 1, 2);
+                "link", 1, 5);
 
         // wrong result before latest refactoring
         System.out.println(new DbExporter().contentAsTree(demo, "combined", 1, 2));
