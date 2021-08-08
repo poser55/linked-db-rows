@@ -329,8 +329,8 @@ public class TestHelpers {
                 .replace(".0,", ",");
     }
 
-    @Getter
     /** Holds test results */
+    @Getter
     public static class BasicChecksResult {
         private final Record asRecord;
         private final String asString;

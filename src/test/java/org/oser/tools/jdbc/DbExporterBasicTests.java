@@ -327,6 +327,6 @@ public class DbExporterBasicTests {
         dbExporter.registerFieldExporter(null, "ff", nullFfExporter);
         assertEquals(tfExporter, dbExporter.getFieldExporter("t", "f"));
         assertEquals(nullFfExporter, dbExporter.getFieldExporter("anyTable", "ff"));
-        assertEquals(null, dbExporter.getFieldExporter("tt", "f"));
+        assertNull(dbExporter.getFieldExporter("tt", "f"));
     }
 }

@@ -175,17 +175,17 @@ public class Fk {
         Fk fk = (Fk) o;
 
         if (!Objects.equals(fktable, fk.fktable)) return false;
-        if (!Objects.equals(pkcolumn, fk.pkcolumn)) return false;
+        if (!Arrays.equals(pkcolumn, fk.pkcolumn)) return false;
         if (!Objects.equals(pktable, fk.pktable)) return false;
-        return Objects.equals(fkcolumn, fk.fkcolumn);
+        return Arrays.equals(fkcolumn, fk.fkcolumn);
     }
 
     @Override
     public int hashCode() {
         int result = fktable != null ? fktable.hashCode() : 0;
-        result = 31 * result + (pkcolumn != null ? pkcolumn.hashCode() : 0);
+        result = 31 * result + (pkcolumn != null ? Arrays.hashCode(pkcolumn) : 0);
         result = 31 * result + (pktable != null ? pktable.hashCode() : 0);
-        result = 31 * result + (fkcolumn != null ? fkcolumn.hashCode() : 0);
+        result = 31 * result + (fkcolumn != null ? Arrays.hashCode(fkcolumn) : 0);
         return result;
     }
 
@@ -236,12 +236,12 @@ public class Fk {
         List<Fk> fks = Fk.getFksOfTable(dbConnection, tableOne, importerOrExporter.getFkCache());
         // add artificial FK
         // todo check keyseq
-        fks.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, "1", tableOne + tableOneColumn, false));
+        fks.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, "1", tableOne + tableOneColumn[0], false));
         importerOrExporter.getFkCache().put(tableOne, fks);
 
         List<Fk> fks2 = Fk.getFksOfTable(dbConnection, tableTwo, importerOrExporter.getFkCache());
         // add artificial FK
-        fks2.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, "1", tableOne + tableOneColumn, true));
+        fks2.add(new Fk(tableOne, tableOneColumn, tableTwo, tableTwoColumn, "1", tableOne + tableOneColumn[0], true));
         importerOrExporter.getFkCache().put(tableTwo, fks2);
     }
 
@@ -320,5 +320,15 @@ public class Fk {
             fields2AsString = matcher.group(4);
             return this;
         }
+    }
+
+    public static String getSubtableName(Fk fk, String databaseProductName) {
+        String subTableName;
+        if (databaseProductName.equals("MySQL")) {
+            subTableName = fk.inverted ? fk.pktable : fk.fktable;
+        } else {
+            subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
+        }
+        return subTableName;
     }
 }

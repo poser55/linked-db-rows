@@ -33,9 +33,9 @@ public class RecordCanonicalizer {
      * @return the remapped primary keys (here all the values can be remapped, not just the first free value as in DbImporter)
      */
     public static Map<RowLink, List<Object>> canonicalizeIds(Connection connection,
-                                                             Record record) throws Exception {
+                                                             Record dbRecord) throws Exception {
         return canonicalizeIds(connection,
-                record,
+                dbRecord,
                 Caffeine.newBuilder().maximumSize(10_000).build(),
                 Caffeine.newBuilder().maximumSize(1000).build());
     }
@@ -44,7 +44,7 @@ public class RecordCanonicalizer {
     /** refer to
      * {@link RecordCanonicalizer#canonicalizeIds(Connection, Record)} */
     public static Map<RowLink, List<Object>> canonicalizeIds(Connection connection,
-                                                             Record record,
+                                                             Record dbRecord,
                                                              Cache<String, List<Fk>> fkCache,
                                                              Cache<String, List<String>> pkCache) throws Exception {
         Map<RowLink, List<Object>> newKeys = new HashMap<>();
@@ -57,27 +57,27 @@ public class RecordCanonicalizer {
             return null; // strange that we need this hack
         };
 
-        record.visitRecordsInInsertionOrder(connection, canonicalizeOneRecord, false);
+        dbRecord.visitRecordsInInsertionOrder(connection, canonicalizeOneRecord, false);
 
         return newKeys;
     }
 
 
     private static void canonicalizeOneRecord(Connection connection,
-                                              Record record,
+                                              Record dbRecord,
                                               Map<RowLink, List<Object>> newKeys,
                                               DatabaseMetaData metaData,
                                               Map<String, Integer> counterPerTableName,
                                               Cache<String, List<Fk>> fkCache,
                                               Cache<String, List<String>> pkCache) throws SQLException {
-        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, record.getRowLink().getTableName(), pkCache);
-        List<Fk> fksOfTable = getFksOfTable(connection, record.getRowLink().getTableName(), fkCache);
+        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, dbRecord.getRowLink().getTableName(), pkCache);
+        List<Fk> fksOfTable = getFksOfTable(connection, dbRecord.getRowLink().getTableName(), fkCache);
         Map<String, List<Fk>> fksByColumnName = Fk.fksByColumnName(fksOfTable);
 
         List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
-        List<Object> newPkValues = remapPrimaryKeyValuesFull(record, newKeys, primaryKeys, fksByColumnName, isFreePk);
+        List<Object> newPkValues = remapPrimaryKeyValuesFull(dbRecord, newKeys, primaryKeys, fksByColumnName, isFreePk);
 
-        remapKeysAndUpdateNewKeys(record, counterPerTableName, primaryKeys, newPkValues, isFreePk, newKeys, fksByColumnName);
+        remapKeysAndUpdateNewKeys(dbRecord, counterPerTableName, primaryKeys, newPkValues, isFreePk, newKeys, fksByColumnName);
     }
 
 
@@ -89,7 +89,7 @@ public class RecordCanonicalizer {
 
      *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
      * */
-    static List<Object> remapPrimaryKeyValuesFull(Record record,
+    static List<Object> remapPrimaryKeyValuesFull(Record dbRecord,
                                                   Map<RowLink, List<Object>> newKeys,
                                                   List<String> primaryKeys,
                                                   Map<String, List<Fk>> fksByColumnName,
@@ -97,7 +97,7 @@ public class RecordCanonicalizer {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
 
         for (String primaryKey : primaryKeys) {
-            Record.FieldAndValue elementWithName = record.findElementWithName(primaryKey);
+            Record.FieldAndValue elementWithName = dbRecord.findElementWithName(primaryKey);
 
             // find primaryKey values that were remapped before
             Object[] potentialValueToInsert = {null};

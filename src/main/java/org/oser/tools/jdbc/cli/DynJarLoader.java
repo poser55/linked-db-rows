@@ -122,9 +122,9 @@ public class DynJarLoader {
             JDBC_DRIVERS.stream().collect(Collectors.toMap(JdbcDriverConfig::getShortname, Function.identity()));
 
 
+    /** Hold metadata for a jdbc driver */
     @Getter
     @ToString
-    /** Hold metadata for a jdbc driver */
     static class JdbcDriverConfig {
         public JdbcDriverConfig(String shortname, String mavenCentralUrl, String driverName) {
             this.shortname = shortname;

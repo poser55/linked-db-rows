@@ -99,7 +99,7 @@ class JdbcHelpersTest {
         JdbcHelpers.Table table2 = new JdbcHelpers.Table(demo1, "xxx");
         assertEquals("xxx", table2.getTableName().toLowerCase() );
         String s = table2.getSchema().toLowerCase();
-        assertTrue("public".equals(s) || "system".equals(s) || "dbo".equals(s) || "".equals(""));
+        assertTrue("public".equals(s) || "system".equals(s) || "dbo".equals(s) || "".equals(s));
     }
 
     @Test

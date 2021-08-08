@@ -49,7 +49,7 @@ public class RowLink {
     }
 
     private Object parseOneKey(String rest) {
-        long optionalLongValue = 0;
+        long optionalLongValue;
         try {
             optionalLongValue = Long.parseLong(rest);
         } catch (NumberFormatException e) {

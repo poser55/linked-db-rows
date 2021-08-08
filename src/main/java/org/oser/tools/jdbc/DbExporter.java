@@ -270,14 +270,7 @@ public class DbExporter implements FkCacheAccessor {
             boolean anyElementNull = elementsWithName.stream().map(Record.FieldAndValue::getValue).anyMatch(x -> x == null);
 
             if (!anyElementNull) {
-                String databaseProductName = context.metaData.getDatabaseProductName();
-
-                String subTableName;
-                if (databaseProductName.equals("MySQL")) {
-                    subTableName = fk.inverted ? fk.pktable : fk.fktable;
-                } else {
-                    subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
-                }
+                String subTableName = Fk.getSubtableName(fk, context.metaData.getDatabaseProductName());
 
                 String[] subFkNames =    (fk.inverted ? fk.pkcolumn : fk.fkcolumn);
                 for (int i = 0; i < subFkNames.length; i++) {
@@ -299,7 +292,6 @@ public class DbExporter implements FkCacheAccessor {
             }
         }
     }
-
 
     private Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys, ExportContext context) throws SQLException {
         Record row = new Record(tableName, null);
@@ -432,9 +424,7 @@ public class DbExporter implements FkCacheAccessor {
         fieldName = fieldName.toLowerCase();
         tableName = (tableName != null) ? tableName.toLowerCase() : null;
 
-        if (!fieldExporters.containsKey(fieldName)){
-            fieldExporters.put(fieldName, new HashMap<>());
-        }
+        fieldExporters.computeIfAbsent(fieldName, k -> new HashMap());
         fieldExporters.get(fieldName).put(tableName, newFieldExporter);
     }
 
@@ -452,7 +442,7 @@ public class DbExporter implements FkCacheAccessor {
 
         // find best match
         Map<String, FieldExporter> fieldMatch = fieldExporters.get(fieldName);
-        FieldExporter match = null;
+        FieldExporter match;
         if (fieldMatch != null) {
             match = fieldMatch.get(tableName);
 

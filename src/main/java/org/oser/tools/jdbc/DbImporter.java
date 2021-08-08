@@ -90,16 +90,8 @@ public class DbImporter implements FkCacheAccessor {
     }
 
 
-
-
     /** with cycles in the FKs we would throw an exception - we can try inserting what we can anyway */
     private boolean ignoreFkCycles = false;
-
-    public DbImporter() {
-        // nothing to do
-    }
-
-
 
     private static List<Map.Entry<String, JsonNode>> getCompositeJsonElements(JsonNode json) {
         Iterable<Map.Entry<String, JsonNode>> iterable = json::fields;
@@ -113,7 +105,7 @@ public class DbImporter implements FkCacheAccessor {
         if (valueToInsert != null &&
                 (typeAsString.equalsIgnoreCase("VARCHAR") || typeAsString.equalsIgnoreCase("TEXT")) &&
                 (valueToInsert instanceof String)) {
-            valueToInsert = valueToInsert == null ? null : getInnerValueToInsert((String)valueToInsert);
+            valueToInsert = getInnerValueToInsert((String)valueToInsert);
         }
         return valueToInsert;
     }
@@ -142,7 +134,7 @@ public class DbImporter implements FkCacheAccessor {
     }
 
     private static Object removeQuotes(Object valueToInsert) {
-        if ((valueToInsert != null) && (valueToInsert instanceof String) && ((String)valueToInsert).startsWith("\"")) {
+        if ((valueToInsert instanceof String) && ((String) valueToInsert).startsWith("\"")) {
             valueToInsert = ((String)valueToInsert).substring(1, ((String)valueToInsert).length() - 1);
         }
         return valueToInsert;
@@ -168,14 +160,14 @@ public class DbImporter implements FkCacheAccessor {
             JdbcHelpers.assertTableExists(connection, rootTable);
         }
 
-        Record record = new Record(rootTable, null);
+        Record dbRecord = new Record(rootTable, null);
 
         DatabaseMetaData metadata = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable, metadataCache);
         List<String> pks = JdbcHelpers.getPrimaryKeys(metadata, rootTable, pkCache);
 
-        record.setPkName(pks.get(0));
-        record.setColumnMetadata(columns);
+        dbRecord.setPkName(pks.get(0));
+        dbRecord.setColumnMetadata(columns);
 
         List<String> jsonFieldNames = getJsonFieldNames(json);
         // fields must both be in json AND in db metadata, remove those missing in db metadata
@@ -196,64 +188,60 @@ public class DbImporter implements FkCacheAccessor {
             }
 
             Record.FieldAndValue d = new Record.FieldAndValue(currentFieldName, columns.get(currentFieldName), valueToInsert);
-            record.getContent().add(d);
+            dbRecord.getContent().add(d);
         }
-        record.setPkValue(primaryKeyValues);
+        dbRecord.setPkValue(primaryKeyValues);
 
-        // convert subrecords
-
+        // treat subtables
         if (getCompositeJsonElements(json).isEmpty()) {
-            return record;
+            return dbRecord;
+        }
+        for (Fk fk : getFksOfTable(connection, rootTable, fkCache)) {
+            treatOneFk(connection, json, dbRecord, metadata, fk);
         }
 
-        for (Fk fk : getFksOfTable(connection, rootTable, fkCache)) {
+        return dbRecord;
+    }
 
-            String[] elementPkName = fk.inverted ? fk.fkcolumn : fk.pkcolumn;
-            List<Record.FieldAndValue> elementsWithName = Stream.of(elementPkName).map(record::findElementWithName).map(Optional::ofNullable)
-                    .flatMap(Optional::stream).collect(toList());
+    private void treatOneFk(Connection connection, JsonNode json, Record dbRecord, DatabaseMetaData metadata, Fk fk) throws SQLException {
+        String[] elementPkName = fk.inverted ? fk.fkcolumn : fk.pkcolumn;
+        List<Record.FieldAndValue> elementsWithName = Stream.of(elementPkName).map(dbRecord::findElementWithName).map(Optional::ofNullable)
+                .flatMap(Optional::stream).collect(toList());
 
-            if (!elementsWithName.isEmpty()) {
-                String databaseProductName = metadata.getDatabaseProductName();
+        if (!elementsWithName.isEmpty()) {
+            String subTableName = Fk.getSubtableName(fk, metadata.getDatabaseProductName());
 
-                String subTableName;
-                if (databaseProductName.equals("MySQL")) {
-                    subTableName = fk.inverted ? fk.pktable : fk.fktable;
-                } else {
-                    subTableName = (fk.inverted ? fk.pktable : fk.fktable).toLowerCase();
-                }
+            JsonNode subJsonNode = json.get(elementsWithName.get(0).getName().toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
+            ArrayList<Record> records = new ArrayList<>();
 
-                JsonNode subJsonNode = json.get(elementsWithName.get(0).getName().toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
-                ArrayList<Record> records = new ArrayList<>();
+            if (fk.inverted) {
+                dbRecord.getOptionalFks().add(fk);
+            }
 
-                if (fk.inverted) {
-                    record.getOptionalFks().add(fk);
-                }
+            if (subJsonNode != null) {
+                if (subJsonNode.isArray()) {
+                    Iterator<JsonNode> elements = subJsonNode.elements();
 
-                if (subJsonNode != null) {
-                    if (subJsonNode.isArray()) {
-                        Iterator<JsonNode> elements = subJsonNode.elements();
-
-                        while (elements.hasNext()) {
-                            Record subrecord = this.jsonToRecord(connection, subTableName, elements.next());
-                            records.add(subrecord);
-                        }
-                    } else if (subJsonNode.isObject()) {
-                        records.add(this.jsonToRecord(connection, subTableName, subJsonNode));
+                    while (elements.hasNext()) {
+                        Record subrecord = this.jsonToRecord(connection, subTableName, elements.next());
+                        records.add(subrecord);
                     }
-                }
-
-                if (!fk.inverted) {
-                    records.forEach(r -> r.getOptionalFks().add(fk));
-                }
-
-                if (!records.isEmpty()) {
-                    elementsWithName.get(0).getSubRow().put(subTableName, records);
+                } else if (subJsonNode.isObject()) {
+                    records.add(this.jsonToRecord(connection, subTableName, subJsonNode));
                 }
             }
-        }
 
-        return record;
+            if (!fk.inverted) {
+                records.forEach(r -> r.getOptionalFks().add(fk));
+            }
+
+            if (!records.isEmpty()) {
+                elementsWithName.get(0).getSubRow().put(subTableName, records);
+            }
+        }
     }
+
+
 
     private Object getJavaTypeOfJsonNode(JsonNode json, String fieldName) {
         JsonNode jsonNode = json.get(fieldName);
@@ -279,17 +267,17 @@ public class DbImporter implements FkCacheAccessor {
      * CAVEAT: it cannot handle cycles in the db tables!
      * Will insert just partial data (the first tables without cycles).
      */
-    public Map<RowLink, Object> insertRecords(Connection connection, Record record) throws Exception {
+    public Map<RowLink, Object> insertRecords(Connection connection, Record dbRecord) throws Exception {
         Map<RowLink, Object> newKeys = new HashMap<>();
 
-        return insertRecords(connection, record, newKeys);
+        return insertRecords(connection, dbRecord, newKeys);
     }
 
     /** Alternative to {@link #insertRecords(Connection, Record)} that allows to remap certain elements (e.g. if you want to connect
      *    some nodes of the JSON tree to an existing RowLink)
      *     E.g. insert a blog entry at another person that the one in the Record. Refer to the test org.oser.tools.jdbc.DbExporterBasicTests#blog()
      *     CAVEAT: newKeys must be a mutable map (it will add all the other remappings also) */
-    public Map<RowLink, Object> insertRecords(Connection connection, Record record, Map<RowLink, Object> newKeys) throws Exception {
+    public Map<RowLink, Object> insertRecords(Connection connection, Record dbRecord, Map<RowLink, Object> newKeys) throws Exception {
         Set<RowLink> rowLinksNotToInsert = newKeys.keySet();
 
         CheckedFunction<Record, Void> insertOneRecord = (Record r) -> {
@@ -298,25 +286,25 @@ public class DbImporter implements FkCacheAccessor {
             }
             return null; // strange that we need this hack
         };
-        record.visitRecordsInInsertionOrder(connection, insertOneRecord, !ignoreFkCycles, fkCache);
+        dbRecord.visitRecordsInInsertionOrder(connection, insertOneRecord, !ignoreFkCycles, fkCache);
 
         return newKeys;
     }
 
-    private void insertOneRecord(Connection connection, Record record, Map<RowLink, Object> newKeys) throws SQLException {
+    private void insertOneRecord(Connection connection, Record dbRecord, Map<RowLink, Object> newKeys) throws SQLException {
         DatabaseMetaData metadata = connection.getMetaData();
-        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metadata, record.getRowLink().getTableName(), pkCache);
+        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metadata, dbRecord.getRowLink().getTableName(), pkCache);
 
         // todo : bug sometimes the optionalFk is not correct on record (e.g. on node)
         //  so for now, we get it from the cache:
-        List<Fk> fksOfTable = getFksOfTable(connection, record.getRowLink().getTableName(), fkCache);
+        List<Fk> fksOfTable = getFksOfTable(connection, dbRecord.getRowLink().getTableName(), fkCache);
 
         Map<String, List<Fk>> fksByColumnName = Fk.fksByColumnName(fksOfTable);
         List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
 
-        List<Object> pkValues = remapPrimaryKeyValues(record, newKeys, primaryKeys, fksByColumnName, isFreePk);
+        List<Object> pkValues = remapPrimaryKeyValues(dbRecord, newKeys, primaryKeys, fksByColumnName, isFreePk);
 
-        boolean entryExists = JdbcHelpers.doesRowWithPrimaryKeysExist(connection, record.getRowLink().getTableName(), primaryKeys, pkValues, record.getColumnMetadata());
+        boolean entryExists = JdbcHelpers.doesRowWithPrimaryKeysExist(connection, dbRecord.getRowLink().getTableName(), primaryKeys, pkValues, dbRecord.getColumnMetadata());
         boolean isInsert = forceInsert || !entryExists;
 
         Object candidatePk;
@@ -325,10 +313,10 @@ public class DbImporter implements FkCacheAccessor {
 
             for (int i = 0; i < primaryKeys.size(); i++) {
                 if (isFreePk.get(i)) {
-                    Record.FieldAndValue elementWithName = record.findElementWithName(primaryKeys.get(i));
+                    Record.FieldAndValue elementWithName = dbRecord.findElementWithName(primaryKeys.get(i));
 
-                    candidatePk = getCandidatePk(connection, record.getRowLink().getTableName(), elementWithName.getMetadata().type, primaryKeys.get(i));
-                    RowLink key = new RowLink(record.getRowLink().getTableName(), record.findElementWithName(record.getPkName()).getValue());
+                    candidatePk = getCandidatePk(connection, dbRecord.getRowLink().getTableName(), elementWithName.getMetadata().type, primaryKeys.get(i));
+                    RowLink key = new RowLink(dbRecord.getRowLink().getTableName(), dbRecord.findElementWithName(dbRecord.getPkName()).getValue());
                     newKeys.put(key, candidatePk);
 
                     pkValues.set(i, candidatePk); // maybe not needed (catched by later remapping?)
@@ -337,10 +325,10 @@ public class DbImporter implements FkCacheAccessor {
             }
         }
 
-        List<String> fieldNames = record.getFieldNames();
+        List<String> fieldNames = dbRecord.getFieldNames();
 
         // fields must both be in json AND in db metadata, remove those missing in db metadata
-        Set<String> columnsDbNames = record.getContent().stream().map(e -> e.getName()).collect(Collectors.toSet());
+        Set<String> columnsDbNames = dbRecord.getContent().stream().map(e -> e.getName()).collect(Collectors.toSet());
         fieldNames.removeIf(e -> !columnsDbNames.contains(e));
         // todo log if there is a delta between the 2 sets, ok for those who map subrows !
 
@@ -349,15 +337,15 @@ public class DbImporter implements FkCacheAccessor {
             return;
         }
 
-        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = record.getColumnMetadata();
-        JdbcHelpers.SqlChangeStatement sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(record.getRowLink().getTableName(), fieldNames, record.getPkName(), isInsert, columnMetadata);
+        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = dbRecord.getColumnMetadata();
+        JdbcHelpers.SqlChangeStatement sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(dbRecord.getRowLink().getTableName(), fieldNames, dbRecord.getPkName(), isInsert, columnMetadata);
         PreparedStatement savedStatement = null;
         Map<String, Object> insertedValues = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement(sqlStatement.getStatement())) {
             final Object[] valueToInsert = {"-"};
 
             for (String currentFieldName : fieldNames) {
-                Record.FieldAndValue currentElement = record.findElementWithName(currentFieldName);
+                Record.FieldAndValue currentElement = dbRecord.findElementWithName(currentFieldName);
                 valueToInsert[0] = prepareStringTypeToInsert(currentElement.getMetadata().type, currentElement.getValue());
 
                 boolean fieldIsPk = primaryKeys.stream().map(String::toLowerCase).anyMatch(e -> currentFieldName.toLowerCase().equals(e));
@@ -379,11 +367,11 @@ public class DbImporter implements FkCacheAccessor {
 
                 valueToInsert[0] = removeQuotes(valueToInsert[0]);
 
-                FieldImporter fieldImporter = getFieldImporter(record.getRowLink().getTableName(), currentFieldName);
+                FieldImporter fieldImporter = getFieldImporter(dbRecord.getRowLink().getTableName(), currentFieldName);
                 boolean bypassNormalInsertion = false;
                 insertedValues.put(currentElement.getName(), valueToInsert[0]);
                 if (fieldImporter != null) {
-                    bypassNormalInsertion = fieldImporter.importField(record.getRowLink().getTableName(), currentElement.getMetadata(), statement, statementPosition, valueToInsert[0]);
+                    bypassNormalInsertion = fieldImporter.importField(dbRecord.getRowLink().getTableName(), currentElement.getMetadata(), statement, statementPosition, valueToInsert[0]);
                 }
                 if (!bypassNormalInsertion) {
                     JdbcHelpers.innerSetStatementField(statement, statementPosition, currentElement.getMetadata(), valueToInsert[0], typeFieldImporters);
@@ -409,7 +397,7 @@ public class DbImporter implements FkCacheAccessor {
      * @return the primary key values that are remapped if needed (if e.g. another inserted row has a pk that was remapped before)
      *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
      * */
-    static List<Object> remapPrimaryKeyValues(Record record,
+    static List<Object> remapPrimaryKeyValues(Record dbRecord,
                                               Map<RowLink, Object> newKeys,
                                               List<String> primaryKeys,
                                               Map<String, List<Fk>> fksByColumnName,
@@ -417,15 +405,13 @@ public class DbImporter implements FkCacheAccessor {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
 
         for (String primaryKey : primaryKeys) {
-            Record.FieldAndValue elementWithName = record.findElementWithName(primaryKey);
+            Record.FieldAndValue elementWithName = dbRecord.findElementWithName(primaryKey);
 
             // do the remapping from the newKeys
             Object[] potentialValueToInsert = {null};
             if (fksByColumnName.containsKey(primaryKey.toLowerCase())) {
                 List<Fk> fks = fksByColumnName.get(primaryKey.toLowerCase());
-                fks.forEach(fk -> {
-                    potentialValueToInsert[0] = newKeys.get(new RowLink(fk.pktable, elementWithName.getValue()));
-                });
+                fks.forEach(fk -> potentialValueToInsert[0] = newKeys.get(new RowLink(fk.pktable, elementWithName.getValue())));
             }
             // if it is remapped, it is a fk from somewhere else -> so we cannot set it freely
             isFreePk.add(potentialValueToInsert[0] == null);
@@ -491,7 +477,7 @@ public class DbImporter implements FkCacheAccessor {
 
         // find best match
         Map<String, FieldImporter> fieldMatch = fieldImporters.get(fieldName);
-        FieldImporter match = null;
+        FieldImporter match;
         if (fieldMatch != null) {
             match = fieldMatch.get(tableName);
 

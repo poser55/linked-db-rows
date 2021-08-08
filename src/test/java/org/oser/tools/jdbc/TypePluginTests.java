@@ -133,8 +133,8 @@ class TypePluginTests {
     }
 
 
-    @Test
     /** test BYTEA type plugin (only for postgresql), again is now a std plugin */
+    @Test
     void postgresTest() throws Exception {
         Connection connection = TestHelpers.getConnection("demo");
 

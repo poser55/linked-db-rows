@@ -98,7 +98,10 @@ public final class JdbcHelpers {
             stillToTreat.removeAll(treatedThisTime);
 
             if (treatedThisTime.isEmpty()) {
-                LOGGER.warn("Not a layered organization of dependencies - excluding entries with cycles: {}", dependencyGraph);
+                String dependencyGraphAsString = dependencyGraph.toString();
+                // limiting the length of the message
+                String shortDependencyGraph = dependencyGraphAsString.substring(0, Math.min(dependencyGraphAsString.length(), 10000));
+                LOGGER.warn("Not a layered organization of dependencies - excluding entries with cycles: {}", shortDependencyGraph);
                 if (exceptionWithCycles) {
                     // this is just for debugging
                     if (treated.iterator().next().getClass().equals(Record.class)){
@@ -106,9 +109,7 @@ public final class JdbcHelpers {
                         LOGGER.warn("rowlink deps: {}", collect);
                     }
 
-                    // limiting the length of the error message
-                    String s = dependencyGraph.toString();
-                    throw new IllegalStateException("Cyclic sql dependencies - aborting " + s.substring(0, Math.min(s.length(), 10000)));
+                    throw new IllegalStateException("Cyclic sql dependencies - aborting " + shortDependencyGraph);
                 }
                 break; // returning a partial ordered list
             }

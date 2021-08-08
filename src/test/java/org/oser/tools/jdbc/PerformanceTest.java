@@ -29,8 +29,7 @@ public class PerformanceTest {
     }
 
     private Record export1(Connection demoConnection, DbExporter dbExporter) throws SQLException {
-        Record book = dbExporter.contentAsTree(demoConnection, "Nodes", "1");
-        return book;
+        return dbExporter.contentAsTree(demoConnection, "Nodes", "1");
     }
 
     @Test
