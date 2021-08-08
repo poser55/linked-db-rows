@@ -1,5 +1,7 @@
 package org.oser.tools.jdbc;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -61,10 +63,14 @@ class FkTest {
     @Test
     void link2self() throws SQLException, IOException, ClassNotFoundException {
         Connection demo = TestHelpers.getConnection("demo");
-        List<Fk> fks = Fk.getFksOfTable(demo, "link2self");
+        Cache<String, List<Fk>> cache = Caffeine.newBuilder().maximumSize(10_000).build();
+        Fk.initFkCacheForMysql_LogException(demo, cache);
+        List<Fk> fks = Fk.getFksOfTable(demo, "link2self", cache);
         System.out.println(fks);
         assertEquals(3, fks.size());
-        List<Fk> link2self = fks.stream().filter(e -> e.getFkName().toLowerCase().equals("link2self")).collect(Collectors.toList());
+        List<Fk> link2self = fks.stream().filter(e -> e.getFkName().toLowerCase().equals("link2self_self") ||
+                /* extra naming for mysql :-( */
+                e.getFkName().toLowerCase().equals("link2self_selfinv")).collect(Collectors.toList());
         assertEquals(2, link2self.size());
         assertEquals(link2self.get(0).getFktable(), link2self.get(0).getPktable());
         assertEquals(link2self.get(1).getFktable(), link2self.get(1).getPktable());

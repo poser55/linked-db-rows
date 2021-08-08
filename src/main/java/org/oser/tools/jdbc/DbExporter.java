@@ -38,6 +38,7 @@ public class DbExporter implements FkCacheAccessor {
     // configuration settings:
     private final Set<String> stopTablesExcluded = new HashSet<>();
     private final Set<String> stopTablesIncluded = new HashSet<>();
+    private final Set<String> stopTablesIncludeOne = new HashSet<>();
 
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
             .maximumSize(1000).build();
@@ -77,8 +78,6 @@ public class DbExporter implements FkCacheAccessor {
 
     /** experimental feature to order results by first pk when exporting */
     private boolean orderResults = true;
-
-    public DbExporter() {}
 
     /**
      * Main method: recursively read a tree of linked db rows and return it
@@ -208,7 +207,7 @@ public class DbExporter implements FkCacheAccessor {
     List<Record> readLinkedRecords(Connection connection, String tableName, String[] fkNames, Object[] fkValues, ExportContext context) throws SQLException {
         List<Record> listOfRows = new ArrayList<>();
 
-        if (stopTablesExcluded.contains(tableName)) {
+        if (stopTablesExcluded.contains(tableName) || stopAfterFirstInstance(tableName, context)) {
             return listOfRows;
         }
 
@@ -367,13 +366,13 @@ public class DbExporter implements FkCacheAccessor {
      *   @throws SQLException or an IllegalStateException if there is a problem during deletion
      * @return the record that was deleted */
     public Record deleteRecursively(Connection connection, String tableName, Object... pkValue) throws Exception {
-        Record record = contentAsTree(connection, tableName, pkValue);
+        Record dbRecord = contentAsTree(connection, tableName, pkValue);
 
-        List<String> deleteStatements = getDeleteStatements(connection, record);
+        List<String> deleteStatements = getDeleteStatements(connection, dbRecord);
 
         doDeletionWithException(connection, deleteStatements);
 
-        return record;
+        return dbRecord;
     }
 
     public void doDeletionWithException(Connection connection, List<String> deleteStatements) throws SQLException {
@@ -391,12 +390,26 @@ public class DbExporter implements FkCacheAccessor {
 
     //endregion delete
 
+    boolean stopAfterFirstInstance(String tableName, ExportContext context) {
+        return (stopTablesIncludeOne.contains(tableName) &&
+                context.visitedNodes.keySet().stream().map(RowLink::getTableName).collect(Collectors.toSet()).contains(tableName));
+    }
+
+    /** If one these tables occurs in collecting the graph, we stop before collecting them. */
     public Set<String> getStopTablesExcluded() {
         return stopTablesExcluded;
     }
 
+    /** If one these tables occurs in collecting the graph, we stop right <em>after</em> collecting them. */
     public Set<String> getStopTablesIncluded() {
         return stopTablesIncluded;
+    }
+
+    /** If one these tables occurs in collecting the graph (with depth first search), we stop before we collect the 2nd instance.
+     *  The goal is to follow the FKs of these stop tables as well (but not collect subsequent instances).
+     *  This is experimental */
+    public Set<String> getStopTablesIncludeOne() {
+        return stopTablesIncludeOne;
     }
 
     public Cache<String, List<Fk>> getFkCache() {

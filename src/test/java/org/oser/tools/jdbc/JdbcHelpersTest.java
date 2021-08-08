@@ -8,8 +8,11 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -126,5 +129,20 @@ class JdbcHelpersTest {
         assertTrue(numberElementsInEachTable.size() > 0);
     }
 
+    @Test
+    void topologicalSort() {
+        Set<String> entries = Set.of("1", "2", "3");
+        Map<String, Set<String>> dependencies = new HashMap<>(Map.of("1", new HashSet<>(Set.of("2")), "2", new HashSet<>(Set.of("3"))));
+        List<String> ordered = JdbcHelpers.topologicalSort(dependencies, entries, true);
+        System.out.println(ordered +" "+entries);
+        assertEquals(3, ordered.size());
+        assertEquals(List.of("3","2","1"), ordered);
+
+        Map<String, Set<String>> dependencies2 = new HashMap<>(Map.of("1", new HashSet<>(Set.of("2")), "2", new HashSet<>(Set.of("1"))));
+        List<String> ordered2 = JdbcHelpers.topologicalSort(dependencies2, entries, false);
+        System.out.println(ordered2 +" "+entries);
+        assertEquals("3", ordered2.get(0));
+        assertEquals(1, ordered2.size());
+    }
 
 }

@@ -21,7 +21,7 @@ CREATE TABLE link2self(
             id INTEGER NOT NULL,
             peer integer,
             link_id integer,
-            constraint link2self foreign key (peer) references link2self(id),
+            constraint link2self_self foreign key (peer) references link2self(id),
             constraint link2self_peer foreign key (link_id) references link(id),
             PRIMARY KEY (id)
 );

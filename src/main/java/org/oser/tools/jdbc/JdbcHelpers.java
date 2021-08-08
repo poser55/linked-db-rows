@@ -22,6 +22,7 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
@@ -57,37 +58,76 @@ public final class JdbcHelpers {
      * @throws IllegalStateException if there is a cycle and exceptionWithCycles is true
      * @throws SQLException if there is an issue with SQL metadata queries <p>
      *
-     *  todo: could we all separate non cyclic parts of the graph? Would that help?
      *  */
     public static List<String> determineOrder(Connection connection, String rootTable, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws SQLException {
+        return determineOrderWithDetails(connection, rootTable,exceptionWithCycles, cache).getLeft();
+    }
+
+    /** Similar to {@link #determineOrder(Connection, String, boolean, Cache)} but return also all tables as set (in case there was a cycle) */
+    public static Pair<List<String>, Set<String>> determineOrderWithDetails(Connection connection, String rootTable, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws SQLException {
         Set<String> treated = new HashSet<>();
 
-        Map<String, Set<String>> dependencyGraph = calculateDependencyGraph(rootTable, treated, connection, cache);
-        List<String> orderedTables = new ArrayList<>();
+        Map<String, Set<String>> dependencyGraph = initDependencyGraph(rootTable, treated, connection, cache);
+        List<String> strings = topologicalSort(dependencyGraph, treated, exceptionWithCycles);
+        return new Pair<>(strings, treated);
+    }
 
-        Set<String> stillToTreat = new HashSet<>(treated);
+    @Getter
+    @AllArgsConstructor
+    public static class Pair<A,B> {
+        private final A left;
+        private final B right;
+    }
+
+    /**
+     * @param dependencyGraph the dependencies to sort. Put them like a requires b ( a->{b}) so that b is ordered before a.
+     * @param treated init treated to Set with all entries
+     * @param exceptionWithCycles whether we should throw an exception if there are cycles
+     * @return the sorted list of entries
+     * */
+    public static <T> List<T> topologicalSort(Map<T, Set<T>> dependencyGraph, Set<T> treated, boolean exceptionWithCycles) {
+        List<T> orderedTables = new ArrayList<>();
+
+        Set<T> stillToTreat = new HashSet<>(treated);
         while (!stillToTreat.isEmpty()) {
             // remove all for which we have a constraint
-            Set<String> treatedThisTime = new HashSet<>(stillToTreat);
+            Set<T> treatedThisTime = new HashSet<>(stillToTreat);
             treatedThisTime.removeAll(dependencyGraph.keySet());
 
             orderedTables.addAll(treatedThisTime);
             stillToTreat.removeAll(treatedThisTime);
 
             if (treatedThisTime.isEmpty()) {
-                LOGGER.warn("Not a layered organization of table dependencies - excluding connected tables: {}", dependencyGraph);
-                if (exceptionWithCycles)
-                    throw new IllegalStateException("cyclic sql dependencies - aborting "+dependencyGraph);
-                break; // returning a partial list
+                LOGGER.warn("Not a layered organization of dependencies - excluding entries with cycles: {}", dependencyGraph);
+                if (exceptionWithCycles) {
+                    // this is just for debugging
+                    if (treated.iterator().next().getClass().equals(Record.class)){
+                        List<AbstractMap.SimpleEntry<RowLink, Set<RowLink>>> collect = getDbRecordDependencyGraph(dependencyGraph);
+                        LOGGER.warn("rowlink deps: {}", collect);
+                    }
+
+                    throw new IllegalStateException("Cyclic sql dependencies - aborting " + dependencyGraph);
+                }
+                break; // returning a partial ordered list
             }
 
             // remove the constraints that get eliminated by treating those
             dependencyGraph.keySet().forEach(key -> dependencyGraph.get(key).removeAll(treatedThisTime));
             dependencyGraph.entrySet().removeIf(e -> e.getValue().isEmpty());
         }
-
         return orderedTables;
     }
+
+    public static <T> List<AbstractMap.SimpleEntry<RowLink, Set<RowLink>>> getDbRecordDependencyGraph(Map<T, Set<T>> dependencyGraph) {
+        return  dependencyGraph.entrySet().stream().map(e ->
+                new AbstractMap.SimpleEntry<>(((Record) e.getKey()).getRowLink(),
+                dbRecordSetToRowLinkSet((Set<Record>)e.getValue()))).collect(Collectors.toList());
+    }
+
+    static Set<RowLink> dbRecordSetToRowLinkSet(Set<Record> dbRecords) {
+        return dbRecords.stream().map(Record::getRowLink).collect(Collectors.toSet());
+    }
+
 
     /**
      *  Determine all "Y requires X" relationships between the tables of the db, starting from rootTable
@@ -98,7 +138,7 @@ public final class JdbcHelpers {
      * @return constraints in the form Map<X, Y> :  X is used in all Y (X is the key, Y are the values (Y is a set of all values),
      * all tables are lower case
      */
-    private static Map<String, Set<String>> calculateDependencyGraph(String rootTable, Set<String> treated, Connection connection, Cache<String, List<Fk>> cache) throws SQLException {
+    private static Map<String, Set<String>> initDependencyGraph(String rootTable, Set<String> treated, Connection connection, Cache<String, List<Fk>> cache) throws SQLException {
         rootTable = rootTable.toLowerCase();
         Set<String> tablesToTreat = new HashSet<>();
         tablesToTreat.add(rootTable);
@@ -244,9 +284,9 @@ public final class JdbcHelpers {
         try (ResultSet rs = metadata.getColumns(null, table.getSchema(), table.getTableName(), null)) {
 
             while (rs.next()) {
-                String column_name = rs.getString("COLUMN_NAME").toLowerCase();
-                result.put(column_name,
-                        new ColumnMetadata(column_name,
+                String columnName = rs.getString("COLUMN_NAME").toLowerCase();
+                result.put(columnName,
+                        new ColumnMetadata(columnName,
                                 rs.getString("TYPE_NAME"),
                                 rs.getInt("DATA_TYPE"),
                                 rs.getInt("SOURCE_DATA_TYPE"),
@@ -500,18 +540,6 @@ public final class JdbcHelpers {
         return "SELECT * from " + tableName + " where  " + whereClause;
     }
 
-    private static void setPksStatementFields(PreparedStatement pkSelectionStatement, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata, List<Object> values) throws SQLException {
-        int i = 0;
-        for (String pkName : primaryKeys) {
-            JdbcHelpers.ColumnMetadata fieldMetadata = columnMetadata.get(pkName.toLowerCase());
-            if (fieldMetadata == null) {
-                throw new IllegalArgumentException("Issue with metadata " + columnMetadata);
-            }
-            JdbcHelpers.innerSetStatementField(pkSelectionStatement, i + 1, fieldMetadata, Objects.toString(values.get(i)), null);
-            i++;
-        }
-    }
-
     /** not yet very optimized <br/>
      *
      *   takes the current default schema */
@@ -530,9 +558,7 @@ public final class JdbcHelpers {
 
             String schemaPrefix = getSchemaPrefix(connection, schema);
 
-            elements.entrySet().forEach( e -> {
-                combined.put(schemaPrefix + e.getKey(), e.getValue());
-            });
+            elements.forEach((key, value) -> combined.put(schemaPrefix + key, value));
         }
 
         return combined;
@@ -544,15 +570,16 @@ public final class JdbcHelpers {
         schema = adaptCaseForDb(schema, connection.getMetaData().getDatabaseProductName());
 
         for (String tableName : getAllTableNames(connection, schema)) {
-            Statement statement = connection.createStatement();
-            String schemaPrefix = getSchemaPrefix(connection, schema);
+            try (Statement statement = connection.createStatement()) {
+                String schemaPrefix = getSchemaPrefix(connection, schema);
 
-            // mysql wants a quote around mixedcase table names
-            String optionalQuote = connection.getMetaData().getDatabaseProductName().equals("MySQL") ? "\"" : "";
-            try (ResultSet resultSet = statement.executeQuery("select count(*) from " +optionalQuote + schemaPrefix + tableName + optionalQuote)) {
+                // mysql wants a quote around mixedcase table names
+                String optionalQuote = connection.getMetaData().getDatabaseProductName().equals("MySQL") ? "\"" : "";
+                try (ResultSet resultSet = statement.executeQuery("select count(*) from " + optionalQuote + schemaPrefix + tableName + optionalQuote)) {
 
-                while (resultSet.next()) {
-                    result.put(tableName, resultSet.getInt(1));
+                    while (resultSet.next()) {
+                        result.put(tableName, resultSet.getInt(1));
+                    }
                 }
             }
         }

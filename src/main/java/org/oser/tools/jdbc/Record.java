@@ -20,10 +20,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -33,12 +34,13 @@ import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
 
 /**
- * Contains full data of 1 record= 1 row of a database table. A RowLink identifies the root of such a record.
+ * Contains full data of 1 db record= 1 row of a database table. A RowLink identifies the root of such a record.
  * Can hold nested sub-records (those that were linked to this RowLink via foreign keys) - but this is optional.
  * Organizes data as a <em>tree</em>.
  */
@@ -50,8 +52,8 @@ public class Record {
     @Setter
     private String pkName;
 
-    @Setter
     /**  the fks from here to other tables */
+    @Setter
     private List<Fk> optionalFks = new ArrayList<>();
 
     Map<RecordMetadata, Object> optionalMetadata = new EnumMap<>(RecordMetadata.class);
@@ -77,9 +79,9 @@ public class Record {
 
     /** JsonNode representation  */
     public JsonNode asJsonNode() {
-        ObjectNode record = mapper.createObjectNode();
-        content.forEach(field -> field.addToJsonNode(record));
-        return record;
+        ObjectNode dbRecord = mapper.createObjectNode();
+        content.forEach(field -> field.addToJsonNode(dbRecord));
+        return dbRecord;
     }
 
     /**
@@ -103,6 +105,11 @@ public class Record {
         }
         return null;
     }
+
+    public String getTableName(){
+        return getRowLink().getTableName();
+    }
+
 
     /** is 1-based */
     public Integer findElementPositionWithName(String columnName) {
@@ -150,8 +157,8 @@ public class Record {
 
         // not fully implemented via streams (as nested streams use more stack levels)
         List<Record> subRecords = content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).collect(toList());
-        for (Record record : subRecords) {
-            result.addAll(record.getAllNodes());
+        for (Record dbRecord : subRecords) {
+            result.addAll(dbRecord.getAllNodes());
         }
         return result;
     }
@@ -163,8 +170,8 @@ public class Record {
 
         // not fully implemented via streams (as nested streams use more stack levels)
         List<Record> subRecords = content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).collect(toList());
-        for (Record record : subRecords) {
-            result.addAll(record.getAllRecords());
+        for (Record dbRecord : subRecords) {
+            result.addAll(dbRecord.getAllRecords());
         }
         return result;
     }
@@ -187,7 +194,7 @@ public class Record {
 
     /** visit all Records in insertion order */
     public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws Exception {
-        List<String> insertionOrder = JdbcHelpers.determineOrder(connection, rowLink.getTableName(), exceptionWithCycles, cache);
+        JdbcHelpers.Pair<List<String>, Set<String>> insertionOrder = JdbcHelpers.determineOrderWithDetails(connection, rowLink.getTableName(), exceptionWithCycles, cache);
 
         Map<String, List<Record>> tableToRecords = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         visitRecords(r -> {
@@ -197,51 +204,68 @@ public class Record {
             tableToRecords.get(r.rowLink.getTableName()).add(r);
         });
 
-        for (String tableName : insertionOrder) {
+        for (String tableName : insertionOrder.getLeft()) {
             List<Record> records = tableToRecords.get(tableName);
             if (records != null) {
                 List<Fk> fksOfTable = Fk.getFksOfTable(connection, tableName, cache);
                 if (Fk.hasSelfLink(fksOfTable)) {
-                    orderRecordsForInsertion(records, fksOfTable);
+                    records = orderRecordsForInsertion(connection, records, cache);
                 }
-                for (Record record : records) {
-                    visitor.apply(record);
+                for (Record dbRecord : records) {
+                    visitor.apply(dbRecord);
                 }
             }
         }
+        
+        // todo treat entries that exist in cycles (they are not in the insertionOrder list)
     }
 
-    /** If a table has self-links the insertion can fail if tables inserted earlier refer to later tables */
+
+    /** order record instances given their concrete FK constraints */
     //@VisibleForTesting
-    static void orderRecordsForInsertion(List<Record> records, List<Fk> fksOfTable) {
-        List<Fk> selfLinkFks = fksOfTable.stream().filter(e -> Fk.hasSelfLink(e)).collect(toList());
+    static List<Record> orderRecordsForInsertion(Connection connection, List<Record> records, Cache<String, List<Fk>> cache) throws SQLException {
+        Map<String, List<Record>> tableToRecord = records.stream().collect(Collectors.groupingBy(r -> r.getRowLink().getTableName(), mapping(r -> r, toList())));
+        Map<Record, Set<Record>> dependencies = new HashMap<>();
+        for (Record left : records) {
+            List<Fk> fks = Fk.getFksOfTable(connection, left.getRowLink().getTableName(), cache);
+            for (Fk fk : fks) {
+                if (!fk.isInverted()){
+                    continue;
+                }
 
-        // todo: this is an imperfect algo that just works for special cases
-        Fk fk = selfLinkFks.get(0);
-        String fkColumn = fk.getFkcolumn()[0];
-        Comparator<? super Record> compareRecords = (a, b)-> {
-            Object right = b.findElementWithName(fkColumn).getValue();
-            Object left = a.findElementWithName(fkColumn).getValue();
+                String rightTableName = (fk.getPktable().toLowerCase().equals(left.getTableName()) ? fk.getFktable() : fk.getPktable()).toLowerCase();
+                List<Record> potentialTargetRecords = tableToRecord.get(rightTableName);
 
-            if (right == null || left == null){
-                return a.nullCompare(left, right);
-            } else {
-                Comparator<Object> c = Comparator.comparing(Objects::toString);
-                return c.compare(left, right);
+                if (potentialTargetRecords != null) {
+                    for (Record potentialMatch : potentialTargetRecords) {
+                        if (match(fk, left, potentialMatch)) {
+                            dependencies.computeIfAbsent(potentialMatch, r -> new HashSet<>());
+                            dependencies.get(potentialMatch).add(left);
+                        }
+                    }
+                }
             }
-        };
+        }
 
-        records.sort(compareRecords);
+        Set<Record> allRecords = new HashSet<>(records);
+        return JdbcHelpers.topologicalSort(dependencies, allRecords, true);
     }
 
-    private int nullCompare(Object a, Object b) {
-        if (a == null) {
-            return (b == null) ? 0 : -1;
-        } else if (b == null) {
-            return 1;
+    /** if left has a concrete fk to potentialMatch */
+    private static boolean match(Fk fk, Record left, Record right) {
+        boolean direct = fk.getPktable().toLowerCase().equals(left.getTableName());
+        String[] leftFieldNames = direct ? fk.getPkcolumn() : fk.getFkcolumn();
+        List<FieldAndValue> leftValues = Arrays.stream(leftFieldNames).map(fieldName -> left.findElementWithName(fieldName)).collect(toList());
+
+        String[] rightFieldNames = direct ?  fk.getFkcolumn() : fk.getPkcolumn();
+        List<FieldAndValue> rightValues = Arrays.stream(rightFieldNames).map(fieldName -> right.findElementWithName(fieldName)).collect(toList());
+
+        for (int i = 0; i < leftValues.size(); i++) {
+            if (!Objects.equals(leftValues.get(i).getValue(), rightValues.get(i).getValue())){
+                return false;
+            }
         }
-        // should not happen
-        return 0;
+        return true;
     }
 
     /** count number of each table */
@@ -349,7 +373,7 @@ public class Record {
                     return date != null ? date : value;
                 case "BLOB":
                 case "BYTEA":
-                    byte[] decodedBytes = new byte[0];
+                    byte[] decodedBytes;
                     if (value instanceof String) { // todo unsure this is ok in all cases (why is this sometimes a string?)
                         try {
                             decodedBytes = Base64.getDecoder().decode((String) value);
@@ -498,8 +522,8 @@ public class Record {
         private String listOfData2jsonString(List<Record> lists) {
             // splitting the stream in 2 steps (to be more stack friendly)
             List<String> records = new ArrayList<>();
-            for (Record record : lists) {
-                records.add(row2json(record));
+            for (Record dbRecord : lists) {
+                records.add(row2json(dbRecord));
             }
 
             return String.join(",", records);

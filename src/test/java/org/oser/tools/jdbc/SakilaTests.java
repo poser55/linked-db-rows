@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @DisabledIfSystemProperty(named = "sakila", matches = "false")
-public class SakilaTests {
+class SakilaTests {
 
     @BeforeAll
     public static void init() {
@@ -40,7 +40,7 @@ public class SakilaTests {
         Set<RowLink> allNodes = actor199.getAllNodes();
         System.out.println(asString +" \nnumberNodes:"+ allNodes.size());
 
-        System.out.println("classified:"+Record.classifyNodes(allNodes));
+        System.out.println("classified:"+ Record.classifyNodes(allNodes));
 
         DbImporter dbImporter = new DbImporter();
         dbImporter.setIgnoreFkCycles(true);
@@ -81,7 +81,7 @@ public class SakilaTests {
                 }, null, remapping, "actor", 199, 31, false
         );
 
-        System.out.println("classified:"+Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
+        System.out.println("classified:"+ Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
 
         System.out.println("\n canonicalized:"+basicChecksResult.getAsRecord().asJsonNode());
     }
@@ -101,7 +101,7 @@ public class SakilaTests {
                 }, "actor", 199, 12671
         );
 
-        System.out.println("classified:"+Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
+        System.out.println("classified:"+ Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
     }
 
     @Test
