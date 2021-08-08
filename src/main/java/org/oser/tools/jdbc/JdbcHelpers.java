@@ -106,7 +106,9 @@ public final class JdbcHelpers {
                         LOGGER.warn("rowlink deps: {}", collect);
                     }
 
-                    throw new IllegalStateException("Cyclic sql dependencies - aborting " + dependencyGraph);
+                    // limiting the length of the error message
+                    String s = dependencyGraph.toString();
+                    throw new IllegalStateException("Cyclic sql dependencies - aborting " + s.substring(0, Math.min(s.length(), 10000)));
                 }
                 break; // returning a partial ordered list
             }

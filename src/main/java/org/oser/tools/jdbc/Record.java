@@ -216,8 +216,15 @@ public class Record {
                 }
             }
         }
-        
-        // todo treat entries that exist in cycles (they are not in the insertionOrder list)
+
+        // treat entries that exist in cycles (they are not in the insertionOrder list)
+        HashSet<String> treatedTables = new HashSet<>(insertionOrder.getLeft());
+        List<Record> untreated = this.getAllRecords().stream().filter(r -> !treatedTables.contains(r.getTableName())).collect(toList());
+
+        untreated = orderRecordsForInsertion(connection, untreated, cache);
+        for (Record dbRecord:untreated) {
+            visitor.apply(dbRecord);
+        }
     }
 
 
