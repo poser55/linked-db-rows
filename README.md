@@ -12,6 +12,9 @@ JsonNode json = new DbExporter().contentAsTree(dbConnection, "book", "1").asJson
 ```
 * The representation is a tree (starting from the chosen row), but all the relationships are preserved in the export.
 
+(Command line: `jbang db-export-json@poser55  -t book -p 1 -db postgres  \
+  -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin > blogpost3.json`)
+
 
 Example export:
 ```JSON
@@ -33,6 +36,7 @@ Example export:
   DbImporter dbImporter = new DbImporter();
   dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book", json));
 ```
+(Command line:   'jbang db-import-json@poser55 -j blogpost3.json -t book -db postgres -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin` )
 
 Maven dependency:
 ```XML
@@ -52,7 +56,7 @@ What purpose does this have?
 * Initialize the database
 * Testing (with canonicalization of primary keys)
 * For general data import/ export
-* To replay a prod database setup in development 
+* To use a prod database setup in development 
 * To compare 2 database situations
 * Maybe as a simpler high-level database access abstraction?
 
@@ -60,8 +64,7 @@ What purpose does this have?
 Additional features
 ---------------------
 * By default, when inserting it can *remap* the primary keys of inserted rows in order to not clash with existing primary keys. 
-(So if in the JSON there is a book with primary key 7 (book/7) and in the db also, it looks for another PK to insert the entry, 
-  and then it remaps all other links to the book/7.)
+(So if in the JSON there is a book with primary key 7 (book/7) and in the db also, it looks for another PK to insert the entry, and then it remaps all other links to the book/7 in the JSON.)
 * Determine the order in which tables can be inserted (taking care of their dependencies).
 * Various other helpers for JDBC, refer to JdbHelpers for more details.
 * Optional canonicalization of primary keys in exported data (to more easily compare data).
@@ -73,7 +76,7 @@ Limitations
 * Most tested on postgres for now, starts to work with h2, sqlserver and oracle (mysql with limitations)
 * Test coverage can be improved
 * It solves a problem I have - quite hacky in many ways
-* Cycles in FKs of the database schema (DDL) are not treated for insertion (refer to Sakila and `ignoreFkCycles`)
+* Treatment of cycles in FKs of the database schema (DDL) is a new feature (refer to Sakila and `ignoreFkCycles`)
 * Arrays (as e.g. Postgresql supports them) and other advanced constructs are currently not supported
 
 License
@@ -122,6 +125,22 @@ to be the same even if the primary keys vary).
 Id orders are determined based on the original order in the database (so assuming integer primary keys this
 should be stable for equality). We do not use any data in the records to determine the order. 
 Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
+
+#### Scripts to export/ import via command line
+* Exports a db row and all linked rows as JSON (you can choose a supported db via a short name, it downloads the needed jdbc driver if needed)
+  It requires installing https://www.jbang.dev/
+* Examples:
+    * `jbang JsonExport.java  -t blogpost -p 3 --stopTablesExcluded="user_table"  -db postgres  \
+      -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin -fks 'user_table(id)-preferences(user_id)' > blogpost3.json`
+        * This exports the data of the table blogpost with primary key 3 to the file blogpost3.json
+        * It defines also a virtual foreign key
+        * You can replace `jbang JsonExport.java` with `jbang db-export-json@poser55`  (the latter does not need code locally)
+    * `jbang JsonImport.java -j blogpost3.json -t blogpost -db postgres -u "jdbc:postgresql://localhost/demo" -l oracle -pw admin --log=CHANGE`
+        * This imports the JSON file blogpost3.json into the local postgres "demo" db
+        * You can replace `jbang JsonImport.java` with `jbang db-import-json@poser55`
+
+* Help about options:  `jbang db-import-json@poser55 -h` or `jbang db-export-json@poser55 -h`
+
 
 #### Logging SQL statements
 We use SLF4j/ Logback. There is a convenience method to enable some loggers, example use:
@@ -177,23 +196,6 @@ Object result = session.doReturningWork(new ReturningWork<Object>() {
 
 ```
 
-#### Sakila database example
-The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
-
-#### Scripts to export/ import via command line
- * Exports a db row and all linked rows as JSON (you can choose a supported db via a short name, it downloads the needed jdbc driver if needed)
-   It requires installing https://www.jbang.dev/
- * Examples:
-     * `jbang JsonExport.java  -t blogpost -p 3 --stopTablesExcluded="user_table"  -db postgres  
-       -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin -fks 'user_table(id)-preferences(user_id)' > blogpost3.json`
-         * This exports the data of the table blogpost with primary key 3 to the file blogpost3.json
-         * It defines also a virtual foreign key 
-     * `jbang JsonImport.java -j blogpost3.json -t blogpost -db postgres -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin --log=CHANGE`
-        * This imports the JSON file blogpost3.json into the local postgres "demo" db 
-    
- * Help about options:  `jbang JsonExport.java -h`
- 
-
 How to run the tests
 ---------------------
 The basic tests run (without configuration) for h2 (they run directly via `mvn clean install`).
@@ -203,6 +205,10 @@ Test support for alternative databases is available via the `ACTIVE_DB` environm
 
 The script `./launchTests.sh` launches tests for all the db systems where the tests run (db systems other than Postgresql and h2
 are launched automatically via testcontainer).  
+
+#### Sakila database example
+The Sakila demo database https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila is used in tests (the arrays fields are disabled for inserts)
+
 
 Deploying
 --------------

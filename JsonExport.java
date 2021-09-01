@@ -48,7 +48,7 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"--canon"}, description = "Should we canonicalize the primary keys of the output? (default: false)")
     private boolean doCanonicalize = false;
 
-    @Option(names = {"-db"}, description = "What jdbc driver to use? (default:postgres) ")
+    @Option(names = {"-db"}, description = "What jdbc driver to use? (options: postgres, h2, hsqldb, mysql, sqlserver, oracle) ")
     private String  databaseShortName = "postgres";
 
     @Option(names = {"-fks"}, description = "Virtual foreign key configurations. " +
@@ -57,7 +57,7 @@ public class JsonExport implements Callable<Integer> {
             "user_id is the FK id in preferences. Use ';' to separate multiple FKs.")
     private String fks;
 
-    @Option(names = {"--log"}, description = "What to log (change,select,delete,all)")
+    @Option(names = {"--log"}, description = "What to log (change, select, delete, all)")
     private List<String> logs;
 
 

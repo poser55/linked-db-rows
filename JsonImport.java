@@ -41,7 +41,7 @@ public class JsonImport implements Callable<Integer> {
     @Option(names = {"-j","--jsonFile"}, required = true, description = "Name of the file with the JSON content.")
     private String jsonFile;
 
-    @Option(names = {"-db"}, description = "What jdbc driver to use? (default:postgres) ")
+    @Option(names = {"-db"}, description = "What jdbc driver to use? (options: postgres, h2, hsqldb, mysql, sqlserver, oracle) ")
     private String  databaseShortName = "postgres";
 
     @Option(names = {"-e","--exclude-fields"}, required = false, description = "Name of fields to be excluded.")
@@ -53,7 +53,7 @@ public class JsonImport implements Callable<Integer> {
             "user_id is the FK id in preferences. Use ';' to separate multiple FKs;")
     private String fks;
 
-    @Option(names = {"--log"}, description = "What to log (change,select,delete,all)")
+    @Option(names = {"--log"}, description = "What to log (change, select, delete, all)")
     private List<String> logs;
 
     public static void main(String... args) throws SQLException, ClassNotFoundException {
