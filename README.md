@@ -12,8 +12,7 @@ JsonNode json = new DbExporter().contentAsTree(dbConnection, "book", "1").asJson
 ```
 * The representation is a tree (starting from the chosen row), but all the relationships are preserved in the export.
 
-(Command line: `jbang db-export-json@poser55  -t book -p 1 -db postgres  \
-  -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin > blogpost3.json`)
+(Command line: `jbang db-export-json@poser55  -t book -p 1 -db postgres  -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin > blogpost3.json`)
 
 
 Example export:
@@ -36,7 +35,7 @@ Example export:
   DbImporter dbImporter = new DbImporter();
   dbImporter.insertRecords(dbConnection, dbImporter.jsonToRecord(dbConnection, "book", json));
 ```
-(Command line:   'jbang db-import-json@poser55 -j blogpost3.json -t book -db postgres -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin` )
+(Command line:   `jbang db-import-json@poser55 -j blogpost3.json -t book -db postgres -u "jdbc:postgresql://localhost/demo" -l postgres -pw admin` )
 
 Maven dependency:
 ```XML
