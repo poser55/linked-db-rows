@@ -200,7 +200,7 @@ How to run the tests
 The basic tests run (without configuration) for h2 (they run directly via `mvn clean install`).
 For the complete test set, it expects a local postgresql database with the name "demo" that is initialized with the *.sql files.
 It also expects a "sakila" database that contains the Sakila database tables and content: https://github.com/jOOQ/jOOQ/tree/main/jOOQ-examples/Sakila
-Test support for alternative databases is available via the `ACTIVE_DB` environment variable (default: postgres). 
+Test support for alternative databases is available via the `ACTIVE_DB` environment variable (default: postgres). These other dbs are run with testcontainer (so they need a local docker installation).
 
 The script `./launchTests.sh` launches tests for all the db systems where the tests run (db systems other than Postgresql and h2
 are launched automatically via testcontainer).  

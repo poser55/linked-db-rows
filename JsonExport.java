@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.7
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.8
 //DEPS info.picocli:picocli:4.5.0
 //DEPS ch.qos.logback:logback-classic:1.2.3
 import static java.lang.System.*;
@@ -45,6 +45,10 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"--stopTablesIncluded"}, description = "Stop tables included, comma-separated")
     private List<String> stopTablesIncluded;
 
+    @Option(names = {"--oneStopTablesIncluded"}, description = "If one these tables occurs in collecting the graph (with depth first search), we stop before we collect the 2nd instance.\n" +
+            "The goal is to follow the FKs of these stop tables as well (but not collect subsequent instances). This is experimental")
+    private List<String> stopTablesIncludeOne;
+
     @Option(names = {"--canon"}, description = "Should we canonicalize the primary keys of the output? (default: false)")
     private boolean doCanonicalize = false;
 
@@ -77,6 +81,11 @@ public class JsonExport implements Callable<Integer> {
         if (stopTablesIncluded != null){
             err.println("stopTablesIncluded:"+stopTablesIncluded);
             dbExporter.getStopTablesIncluded().addAll(stopTablesIncluded);
+        }
+
+        if (stopTablesIncludeOne != null){
+            err.println("stopTablesIncludeOne:"+stopTablesIncludeOne);
+            dbExporter.getStopTablesIncludeOne().addAll(stopTablesIncludeOne);
         }
 
         Connection connection = DynJarLoader.getConnection(databaseShortName, url, username, password, this.getClass().getClassLoader());

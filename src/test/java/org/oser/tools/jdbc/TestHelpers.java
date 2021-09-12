@@ -51,15 +51,19 @@ public class TestHelpers {
             .acceptLicense();
 
     static {
-        String active_db = Objects.toString(System.getenv("ACTIVE_DB"), "h2");
-        if (active_db.equals("oracle")){
-            oracleContainer.start();
-        }
-        if (active_db.equals("mysql")){
-            mysql.start();
-        }
-        if (active_db.equals("sqlserver")){
-            mssqlserver.start();
+        try {
+            String active_db = Objects.toString(System.getenv("ACTIVE_DB"), "h2");
+            if (active_db.equals("oracle")){
+                oracleContainer.start();
+            }
+            if (active_db.equals("mysql")){
+                mysql.start();
+            }
+            if (active_db.equals("sqlserver")){
+                mssqlserver.start();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
