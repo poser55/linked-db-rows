@@ -24,13 +24,19 @@ create table special_datatypes (
     -- clob is text in postgres
     ${sqlserver_exclude_start}
     ${mysql_exclude_start}
+    ${postgres_exclude_start}
      additional_text clob,
+    ${postgres_exclude_end}
     ${mysql_exclude_end}
     ${sqlserver_exclude_end}
 
     ${sqlserver_include_start}
      additional_text varchar(200),
     ${sqlserver_include_end}
+
+    ${postgres_include_start}
+     additional_text text,
+    ${postgres_include_end}
 
     ${mysql_include_start}
      additional_text varchar(200),
@@ -64,6 +70,7 @@ CREATE TABLE postgres_test (
 
 -- sets file to null
 insert into postgres_test values (  1, 'xxx', 'ea0e2ebc-ff0b-4ce4-863f-be70222a7084' );
+insert into postgres_test values (  13, 'yyyy', 'ddea0e2ebc-ff0b-4ce4-863f-be70222a7084' );
 
 INSERT INTO postgres_test (id, file) VALUES (10, decode('013d7d16d7ad4fefb61bd95b765c8ceb', 'hex'))
 

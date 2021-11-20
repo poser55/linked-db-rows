@@ -72,8 +72,14 @@ public class TestHelpers {
             List.of(
                     new DbConfig("h2", "org.h2.Driver",
                             ()-> "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false")),
-                    new DbConfig("postgres", "org.postgresql.Driver",
+
+                    // old local postgres
+                    new DbConfig("postgres_local", "org.postgresql.Driver",
                             ()-> "jdbc:postgresql://localhost/","postgres", "admin", false, Collections.EMPTY_MAP),
+
+                    new DbConfig("postgres", "org.testcontainers.jdbc.ContainerDatabaseDriver",
+                            ()-> "jdbc:tc:postgresql:14.1:///","postgres", "admin", true, Collections.EMPTY_MAP),
+
                     new DbConfig("oracle", "oracle.jdbc.driver.OracleDriver",
                             ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true,
                             Map.of("sakila","false")).disableAppendDbName(),
