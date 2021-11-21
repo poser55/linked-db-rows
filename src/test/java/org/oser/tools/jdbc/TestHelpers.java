@@ -10,23 +10,15 @@ import lombok.ToString;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
 import org.h2.tools.Server;
+import org.oser.tools.jdbc.cli.ExecuteDbScriptFiles;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.MSSQLServerContainer;
-import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.OracleContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -42,7 +34,7 @@ public class TestHelpers {
 
 
     public static OracleContainer oracleContainer = new OracleContainer("oracleinanutshell/oracle-xe-11g");
-    public static MySQLContainer mysql = new MySQLContainer( DockerImageName.parse("mysql:5.7.22"));
+
         // the following should make mysql - on linux - not case sensitive for table names, but the container cannot be started
         // (whether a mysql db is case sensitive or not is usually dependent on the operating system it runs on!)
         //.withConfigurationOverride("mysqlconfig/mysql.cnf");
@@ -55,9 +47,6 @@ public class TestHelpers {
             String active_db = Objects.toString(System.getenv("ACTIVE_DB"), "h2");
             if (active_db.equals("oracle")){
                 oracleContainer.start();
-            }
-            if (active_db.equals("mysql")){
-                mysql.start();
             }
             if (active_db.equals("sqlserver")){
                 mssqlserver.start();
@@ -83,8 +72,8 @@ public class TestHelpers {
                     new DbConfig("oracle", "oracle.jdbc.driver.OracleDriver",
                             ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true,
                             Map.of("sakila","false")).disableAppendDbName(),
-                    new DbConfig("mysql", mysql.getDriverClassName(),
-                            ()-> mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword(), true,
+                    new DbConfig("mysql", "org.testcontainers.jdbc.ContainerDatabaseDriver",
+                            ()-> "jdbc:tc:mysql:5.7.34://localhost/demo", "user", "passswd", true,
                             Map.of("sakila","false", "sequences", "false","mixedCaseTableNames", "false")).disableAppendDbName(),
                     new DbConfig("sqlserver", mssqlserver.getDriverClassName(),
                             ()-> mssqlserver.getJdbcUrl(), mssqlserver.getUsername(), mssqlserver.getPassword(), true,

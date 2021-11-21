@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.8
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.9-SNAPSHOT
 //DEPS info.picocli:picocli:4.5.0
 //DEPS ch.qos.logback:logback-classic:1.2.3
 import static java.lang.System.*;
@@ -10,9 +10,11 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine;
 import org.oser.tools.jdbc.*;
 import org.oser.tools.jdbc.cli.DynJarLoader;
+import org.oser.tools.jdbc.cli.ExecuteDbScriptFiles;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashMap;
 import static picocli.CommandLine.*;
 
 import java.util.List;
@@ -64,6 +66,9 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"--log"}, description = "What to log (change, select, delete, all)")
     private List<String> logs;
 
+    @Option(names = {"--sqlScript"}, description = "SQL file name to execute before exporting (useful for tests)")
+    private String sqlScriptFileName;
+
 
     public static void main(String... args) throws SQLException, ClassNotFoundException {
 		int exitCode = new CommandLine(new JsonExport()).execute(args);
@@ -98,6 +103,8 @@ public class JsonExport implements Callable<Integer> {
             Loggers.enableLoggers(Loggers.stringListToLoggerSet(logs));
         }
 
+        optionalInitDb(connection, sqlScriptFileName);
+
         if (fks != null) {
             System.err.println("Virtual foreign keys:"+fks);
             Fk.addVirtualForeignKeyAsString(connection, dbExporter, fks);
@@ -115,5 +122,18 @@ public class JsonExport implements Callable<Integer> {
 		out.println(asString);
 		return 0;
 	}
+
+    void optionalInitDb(Connection connection, String sqlScriptFileName) throws Exception {
+        if (sqlScriptFileName == null) {
+            return;
+        }
+        err.println("Initializing Database with SQL script:"+sqlScriptFileName);
+        try {
+            ExecuteDbScriptFiles.executeSqlFile(connection, sqlScriptFileName, new HashMap());
+        } catch (Exception e) {
+            err.println("Error when initializing the script:");
+            e.printStackTrace(); // ignore errors
+        }
+    }
 
 }

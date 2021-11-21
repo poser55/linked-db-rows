@@ -1,4 +1,8 @@
 -- we lack permissions to create schemas in our oracle and mysql test container; sqlserver somehow does not like our schema commands
+${postgres_include_start}
+SET search_path TO public, doc;
+${postgres_include_end}
+
 ${oracle_exclude_start}
 ${sqlserver_exclude_start}
 ${mysql_exclude_start}
@@ -8,9 +12,6 @@ ${postgres_exclude_start}
 SET SCHEMA doc;
 ${postgres_exclude_end}
 
-${postgres_include_start}
-SET search_path TO public, doc;
-${postgres_include_end}
 
 -- the following does not work in the test container (missing permission)
 -- ${oracle_include_start}

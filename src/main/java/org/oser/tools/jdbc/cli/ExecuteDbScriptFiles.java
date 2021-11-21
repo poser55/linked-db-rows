@@ -1,4 +1,4 @@
-package org.oser.tools.jdbc;
+package org.oser.tools.jdbc.cli;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -39,9 +39,9 @@ public class ExecuteDbScriptFiles {
         try (Statement stmt = connection.createStatement()) {
             String sql = new String(Files.readAllBytes(Paths.get(fileName)));
 
-            String sqlRaw = replacePlaceholders(sql, placeholders);
+            String sqlRaw = removeSqlComments(sql);
 
-            sqlRaw = removeSqlComments(sqlRaw);
+            sqlRaw = replacePlaceholders(sqlRaw, placeholders);
 
             sqlRaw = removeComments(sqlRaw);
 
@@ -56,7 +56,7 @@ public class ExecuteDbScriptFiles {
             }).collect(toList());
 
             List<?> issues = optionalIssues.stream().flatMap(Optional::stream).collect(toList());
-            System.out.println("executed: "+fileName+" #lines:"+optionalIssues.size()+" #issues: "+ issues.size() +((issues.size() > 0)?(" \n Issues:\n"+issues):""));
+            System.err.println("executed: "+fileName+" #lines:"+optionalIssues.size()+" #issues: "+ issues.size() +((issues.size() > 0)?(" \n Issues:\n"+issues):""));
             if (issues.size() > 0) {
                 throw ((SQLException) issues.get(0));
             }
