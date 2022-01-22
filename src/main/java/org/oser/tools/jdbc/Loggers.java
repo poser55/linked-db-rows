@@ -35,7 +35,7 @@ public enum Loggers {
 
     static final Set<Loggers> CONCRETE_LOGGERS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE, Loggers.WARNING,  Loggers.INFO);
     static final Set<Loggers> CONCRETE_DB_OPERATIONS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE);
-    static final Set<Loggers> ALL_LOGGERS = EnumSet.allOf(Loggers.class);
+    static final Set<Loggers> ALL_LOGGERS = CONCRETE_LOGGERS;
 
     public static final Logger LOGGER_SELECT = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.SELECT.name());
     static final Logger LOGGER_CHANGE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.CHANGE.name());

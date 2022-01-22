@@ -12,4 +12,10 @@ public class TestLoggers {
     void testStringToLoggers() {
         Assertions.assertEquals(EnumSet.of(Loggers.INFO, Loggers.CHANGE, Loggers.SELECT), Loggers.stringListToLoggerSet(List.of("info", "change", "select", "bla")));
     }
+
+    @Test
+    void logAll() {
+        // fix this stackoverflow error
+        Loggers.enableLoggers(Loggers.ALL);
+    }
 }
