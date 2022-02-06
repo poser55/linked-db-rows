@@ -1,9 +1,8 @@
 package org.oser.tools.jdbc;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.LoggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -17,7 +16,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Global logging convenience abstraction (to globally enable certain details in logs, such as all select statements or all insert/update statements).
- *  Just uses Log4j. */
+ *  Just uses Slf4j. In case logback is configured, sets the log levels in logback (users of other log implementations need to set their log levels themselves). */
 public enum Loggers {
 
         /** SQL select statements */
@@ -36,13 +35,15 @@ public enum Loggers {
 
     static final Set<Loggers> CONCRETE_LOGGERS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE, Loggers.WARNING,  Loggers.INFO);
     static final Set<Loggers> CONCRETE_DB_OPERATIONS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE);
-    static final Set<Loggers> ALL_LOGGERS = EnumSet.allOf(Loggers.class);
+    static final Set<Loggers> ALL_LOGGERS = CONCRETE_LOGGERS;
 
     public static final Logger LOGGER_SELECT = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.SELECT.name());
     static final Logger LOGGER_CHANGE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.CHANGE.name());
     static final Logger LOGGER_DELETE = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.DELETE.name());
     static final Logger LOGGER_WARNING = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.WARNING.name());
     static final Logger LOGGER_INFO = LoggerFactory.getLogger(Loggers.class.getName() + "." + Loggers.INFO.name());
+
+    static boolean missingLoggerSignalled = false;
 
     /** Convenience method to enable what you would like to see in the logs */
     public static void enableLoggers(Set<Loggers> loggers) {
@@ -54,17 +55,27 @@ public enum Loggers {
         setLoggerLevel(new HashSet(Arrays.asList(loggers)), Level.INFO);
     }
 
-    static void setLoggerLevel(Set<Loggers> loggers, ch.qos.logback.classic.Level newLevel) {
-        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
+    static void setLoggerLevel(Set<Loggers> loggers, Level newLevel) {
         for (Loggers logger : loggers) {
             if (logger.equals(Loggers.DB_OPERATIONS)) {
                 setLoggerLevel(CONCRETE_DB_OPERATIONS, newLevel);
             } else if (logger.equals(Loggers.ALL)) {
                 setLoggerLevel(ALL_LOGGERS, newLevel);
             } else {
-                ch.qos.logback.classic.Logger rootLogger = lc.getLogger(Loggers.class.getName() + "." + logger.name());
-                if (rootLogger != null) {
-                    rootLogger.setLevel(newLevel);
+
+                // log with logback in case it exists
+                try {
+                    ch.qos.logback.classic.Logger concreteLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Loggers.class.getName() + "." + logger.name());
+
+                    ch.qos.logback.classic.Level logbackLevel = ch.qos.logback.classic.Level.valueOf(newLevel.name());
+                    if (concreteLogger != null) {
+                        concreteLogger.setLevel(logbackLevel);
+                    }
+                } catch (Exception e) {
+                    if (!missingLoggerSignalled) {
+                        System.out.println("Logback is missing:" + e);
+                        missingLoggerSignalled = true;
+                    }
                 }
             }
         }

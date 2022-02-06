@@ -135,6 +135,10 @@ public class DbExporter implements FkCacheAccessor {
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName, metadataCache);
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName, pkCache);
 
+        if (primaryKeys.size() == 0) {
+            throw new IllegalStateException("Primary keys of " + tableName + " not found.");
+        }
+
         data.setColumnMetadata(columns);
 
         String selectPk = selectStatementByPks(tableName, primaryKeys, false);

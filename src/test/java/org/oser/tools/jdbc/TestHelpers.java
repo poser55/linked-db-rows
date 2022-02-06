@@ -7,7 +7,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
 import lombok.ToString;
-import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.jdbc.DriverDataSource;
 import org.h2.tools.Server;
 import org.oser.tools.jdbc.cli.ExecuteDbScriptFiles;
@@ -18,7 +17,14 @@ import org.testcontainers.containers.OracleContainer;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -187,10 +193,10 @@ public class TestHelpers {
         return Objects.requireNonNullElse(DB_CONFIGS.get(activeDB), DB_CONFIG_LIST.get(0));
     }
 
-    public static void initWithFlyway(DbConfig baseConfig, DriverDataSource ds, Map<String, String> placeholdersMap) {
-        Flyway flyway = Flyway.configure().placeholders(placeholdersMap).dataSource(ds).load();
-        flyway.migrate();
-    }
+//    public static void initWithFlyway(DbConfig baseConfig, DriverDataSource ds, Map<String, String> placeholdersMap) {
+//        Flyway flyway = Flyway.configure().placeholders(placeholdersMap).dataSource(ds).load();
+//        flyway.migrate();
+//    }
 
     @Getter
     @ToString
