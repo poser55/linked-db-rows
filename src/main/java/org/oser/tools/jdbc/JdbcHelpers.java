@@ -154,8 +154,8 @@ public final class JdbcHelpers {
 
             List<Fk> fks = getFksOfTable(connection, next, cache);
             for (Fk fk : fks) {
-                String tableToAdd = fk.pktable.toLowerCase();
-                String otherTable = fk.fktable.toLowerCase();
+                String tableToAdd = fk.getPktable().toLowerCase();
+                String otherTable = fk.getFktable().toLowerCase();
 
                 addToTreat(tablesToTreat, treated, tableToAdd);
                 addToTreat(tablesToTreat, treated, otherTable);

@@ -268,7 +268,7 @@ public class DbExporter implements FkCacheAccessor {
         for (Fk fk : fks) {
             context.treatedFks.add(fk);
 
-            String[] elementPkName = fk.inverted ? fk.fkcolumn : fk.pkcolumn;
+            String[] elementPkName = fk.isInverted() ? fk.getFkcolumn() : fk.getPkcolumn();
             List<Record.FieldAndValue> elementsWithName = Stream.of(elementPkName).map(s -> data.findElementWithName(s)).map(Optional::ofNullable)
                     .flatMap(Optional::stream).collect(toList());
             boolean anyElementNull = elementsWithName.stream().map(Record.FieldAndValue::getValue).anyMatch(x -> x == null);
@@ -276,7 +276,7 @@ public class DbExporter implements FkCacheAccessor {
             if (!anyElementNull) {
                 String subTableName = Fk.getSubtableName(fk, context.metaData.getDatabaseProductName());
 
-                String[] subFkNames =    (fk.inverted ? fk.pkcolumn : fk.fkcolumn);
+                String[] subFkNames =    (fk.isInverted() ? fk.getPkcolumn() : fk.getFkcolumn());
                 for (int i = 0; i < subFkNames.length; i++) {
                     subFkNames[i] = subFkNames[i].toLowerCase();
                 }

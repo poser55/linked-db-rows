@@ -104,7 +104,7 @@ public class RecordCanonicalizer {
             if (fksByColumnName.containsKey(primaryKey.toLowerCase())) {
                 List<Fk> fks = fksByColumnName.get(primaryKey.toLowerCase());
                 fks.forEach(fk -> {
-                    RowLink rowLinkToFind = new RowLink(fk.pktable, elementWithName.getValue());
+                    RowLink rowLinkToFind = new RowLink(fk.getPktable(), elementWithName.getValue());
                     potentialValueToInsert[0] = newKeys.get(rowLinkToFind);
                 });
             }
@@ -148,7 +148,7 @@ public class RecordCanonicalizer {
             List<Fk> fks = fksByColumnName.get(fieldName);
 
             fks.forEach(fk -> {
-                List<Object> potentialNewValue = newKeys.get(new RowLink(fk.pktable, r.findElementWithName(fieldName).getValue()));
+                List<Object> potentialNewValue = newKeys.get(new RowLink(fk.getPktable(), r.findElementWithName(fieldName).getValue()));
 
                 if (potentialNewValue != null) {
                     if (potentialNewValue.size() > 1) {

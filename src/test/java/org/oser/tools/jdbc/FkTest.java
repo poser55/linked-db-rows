@@ -33,7 +33,7 @@ class FkTest {
         for (String table : allDemoTables) {
             try {
                 System.out.print("table:"+table);
-                System.out.println(" "+Fk.getFksOfTable(demo, table));
+                System.out.println(" "+ Fk.getFksOfTable(demo, table));
             } catch (SQLException throwables) {
                 throwables.printStackTrace();
             }

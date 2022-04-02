@@ -204,7 +204,7 @@ public class DbImporter implements FkCacheAccessor {
     }
 
     private void treatOneFk(Connection connection, JsonNode json, Record dbRecord, DatabaseMetaData metadata, Fk fk) throws SQLException {
-        String[] elementPkName = fk.inverted ? fk.fkcolumn : fk.pkcolumn;
+        String[] elementPkName = fk.isInverted() ? fk.getFkcolumn() : fk.getPkcolumn();
         List<Record.FieldAndValue> elementsWithName = Stream.of(elementPkName).map(dbRecord::findElementWithName).map(Optional::ofNullable)
                 .flatMap(Optional::stream).collect(toList());
 
@@ -214,7 +214,7 @@ public class DbImporter implements FkCacheAccessor {
             JsonNode subJsonNode = json.get(elementsWithName.get(0).getName().toLowerCase() + JSON_SUBTABLE_SUFFIX  + subTableName + JSON_SUBTABLE_SUFFIX);
             ArrayList<Record> records = new ArrayList<>();
 
-            if (fk.inverted) {
+            if (fk.isInverted()) {
                 dbRecord.getOptionalFks().add(fk);
             }
 
@@ -231,7 +231,7 @@ public class DbImporter implements FkCacheAccessor {
                 }
             }
 
-            if (!fk.inverted) {
+            if (!fk.isInverted()) {
                 records.forEach(r -> r.getOptionalFks().add(fk));
             }
 
@@ -358,7 +358,7 @@ public class DbImporter implements FkCacheAccessor {
 
                     Object earlierIntendedFk = valueToInsert[0];
                     fks.forEach(fk -> {
-                        Object potentialNewValue = newKeys.get(new RowLink(fk.pktable, earlierIntendedFk));
+                        Object potentialNewValue = newKeys.get(new RowLink(fk.getPktable(), earlierIntendedFk));
                         valueToInsert[0] = potentialNewValue != null ? Objects.toString(potentialNewValue) : valueToInsert[0];
                     });
                 }
@@ -411,7 +411,7 @@ public class DbImporter implements FkCacheAccessor {
             Object[] potentialValueToInsert = {null};
             if (fksByColumnName.containsKey(primaryKey.toLowerCase())) {
                 List<Fk> fks = fksByColumnName.get(primaryKey.toLowerCase());
-                fks.forEach(fk -> potentialValueToInsert[0] = newKeys.get(new RowLink(fk.pktable, elementWithName.getValue())));
+                fks.forEach(fk -> potentialValueToInsert[0] = newKeys.get(new RowLink(fk.getPktable(), elementWithName.getValue())));
             }
             // if it is remapped, it is a fk from somewhere else -> so we cannot set it freely
             isFreePk.add(potentialValueToInsert[0] == null);

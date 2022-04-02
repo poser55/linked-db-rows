@@ -27,18 +27,23 @@ import static org.oser.tools.jdbc.JdbcHelpers.adaptCaseForDb;
  *   table 1 to table 2 and vice versa. One of the 2 constraints is <em>reverted</em>.  */
 @Getter
 public class Fk {
-    public String pktable;
+    private String pktable;
     @Setter
-    public String[] pkcolumn;
+    private String[] pkcolumn;
 
-    public String fktable;
+    private String fktable;
     @Setter
-    public String[] fkcolumn;
+    private String[] fkcolumn;
 
     private final String keySeq;
     private final String fkName;
     /** excluded in equals! */
-    public boolean inverted;
+    private boolean inverted;
+
+    public Fk(){ // todo rm again
+        keySeq = "";
+        fkName = "";
+    }
 
 
     /** Constructor taking single values only */
