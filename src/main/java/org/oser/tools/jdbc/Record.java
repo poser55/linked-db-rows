@@ -12,25 +12,12 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.InputStream;
 import java.math.BigDecimal;
-import java.sql.Blob;
-import java.sql.Connection;
+import java.sql.*;
 import java.sql.Date;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -77,11 +64,41 @@ public class Record {
         return privateMapper;
     }
 
-    /** JsonNode representation  */
+    /** JsonNode representation, with metadata by default  */
     public JsonNode asJsonNode() {
+       return asJsonNode(true);
+    }
+
+    /** JsonNode representation  */
+    public JsonNode asJsonNode(boolean withMetadata) {
         ObjectNode dbRecord = mapper.createObjectNode();
         content.forEach(field -> field.addToJsonNode(dbRecord));
+        if (withMetadata) {
+            addMetadata(dbRecord);
+        }
         return dbRecord;
+    }
+
+    private void addMetadata(ObjectNode dbRecord) {
+        ObjectNode metadata = mapper.createObjectNode();
+        metadata.put("version", getGitVersion());
+        metadata.put("rootTable", getTableName());
+        ArrayNode primaryKeys = metadata.putArray("primaryKeys");
+        Arrays.stream(getRowLink().getPks()).forEach(e -> primaryKeys.add(e.toString()));
+        dbRecord.put("_metadata", metadata);
+    }
+
+    String getGitVersion() {
+        try {
+            InputStream inputStream = this.getClass().getResourceAsStream("/git.properties");
+
+            Properties properties = new Properties();
+            properties.load(inputStream);
+
+            return properties.getProperty("git.build.version", "undef");
+        } catch (Exception e){
+            return "undef";
+        }
     }
 
     /**

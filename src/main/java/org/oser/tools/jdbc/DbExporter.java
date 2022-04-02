@@ -53,7 +53,7 @@ public class DbExporter implements FkCacheAccessor {
      */
     private final Map<String, FieldExporter> typeFieldExporters = new HashMap<>();
 
-    {
+    { // init field exporters
         FieldExporter clobExporter = (tableName, fieldName, metadata, resultSet) -> {
             Clob clob = resultSet.getClob(fieldName);
             return new Record.FieldAndValue(fieldName, metadata, clob == null ? null : clob.getSubString(1, (int) clob.length()));
