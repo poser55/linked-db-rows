@@ -24,6 +24,12 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
+
+
+
 /** Json export via script, needs https://www.jbang.dev/
  *  call 'jbang JsonExport.java -h' for help */
 @Command(name = "JsonExport", mixinStandardHelpOptions = true, version = "JsonExport 0.7",
@@ -124,7 +130,11 @@ public class JsonExport implements Callable<Integer> {
         }
 
         if (optionalPngDiagramName != null) {
+            // disable log of graphviz integration
+            disableGraphvizLogging();
+
             RecordAsGraph asGraph = new RecordAsGraph();
+            System.err.println("Saving graph of export:"+optionalPngDiagramName);
             MutableGraph graph = asGraph.recordAsGraph(connection, asRecord);
             asGraph.renderGraph(graph, 900, new File( optionalPngDiagramName));
         }
@@ -135,6 +145,14 @@ public class JsonExport implements Callable<Integer> {
 		out.println(asString);
 		return 0;
 	}
+
+    private void disableGraphvizLogging() {
+        ch.qos.logback.classic.Logger concreteLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("guru.nidi.graphviz");
+        ch.qos.logback.classic.Level logbackLevel = ch.qos.logback.classic.Level.valueOf("WARN");
+        if (concreteLogger != null) {
+            concreteLogger.setLevel(logbackLevel);
+        }
+    }
 
     void optionalInitDb(Connection connection, String sqlScriptFileName) throws Exception {
         if (sqlScriptFileName == null) {
