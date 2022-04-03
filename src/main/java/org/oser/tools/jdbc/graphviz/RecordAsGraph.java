@@ -21,7 +21,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static guru.nidi.graphviz.model.Factory.mutGraph;
 import static guru.nidi.graphviz.model.Factory.mutNode;
@@ -31,7 +33,7 @@ import static guru.nidi.graphviz.model.Factory.mutNode;
  *   Requires the optional (maven) dependency to https://github.com/nidi3/graphviz-java <br/>
  *
  *   Format: <br/>
- *     * the name of a node is the string representation of its {@link RowLink }  <br/>
+ *     * the name of a node is the string representation of its {@link RowLink}  <br/>
  *     * we add some details to nodes (such as the name attribute in case it exists)
  */
 public class RecordAsGraph implements FkCacheAccessor {
@@ -42,16 +44,37 @@ public class RecordAsGraph implements FkCacheAccessor {
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder().maximumSize(10_000).build();
 
     public MutableGraph recordAsGraph(Connection connection, Record r) throws SQLException {
+        return recordAsGraph(connection, r, TableToFieldMapper.DEFAULT_TABLE_TO_FIELD_MAPPER);
+    }
+
+    public MutableGraph recordAsGraph(Connection connection, Record r, TableToFieldMapper mapper) throws SQLException {
+        if (mapper == null) {
+            mapper = TableToFieldMapper.DEFAULT_TABLE_TO_FIELD_MAPPER;
+        }
         Map<Record, MutableNode> nodes = new HashMap();
-        r.getAllRecords().forEach(record -> nodes.put(record, recordAsNode(record)));
+        TableToFieldMapper finalMapper = mapper;
+        r.getAllRecords().forEach(record -> nodes.put(record, recordAsNode(record, finalMapper)));
         MutableNode[] nodesAsArray = nodes.values().toArray(new MutableNode[0]);
 
         Map<Record, Set<Record>> fkLinks = Record.determineRowDependencies(connection, new ArrayList<>(r.getAllRecords()), fkCache);
         addFkLinksToNodes(fkLinks, nodes);
 
-        MutableGraph g = mutGraph().setDirected(true).add(nodesAsArray);
+        return mutGraph().setDirected(true).add(nodesAsArray);
+    }
 
-        return g;
+    private MutableNode recordAsNode(Record r, TableToFieldMapper mapper) {
+        String rowlinkAsString = r.getRowLink().toString();
+        return mutNode(rowlinkAsString).add(Label.html("<b>"+rowlinkAsString+"</b>"+ getOptionalFieldNameValues(r, mapper)));
+    }
+
+    //@VisibleForTesting
+    static String getOptionalFieldNameValues(Record r, TableToFieldMapper mapper) {
+        List<String> fieldsToShow = mapper.fieldsToShowPerTable(r.getTableName());
+        return  fieldsToShow.stream()
+                .map(f -> Optional.ofNullable(r.findElementWithName(f)))
+                .flatMap(Optional::stream)
+                .map(e -> Objects.toString(e.getValue()))
+                .collect(Collectors.joining(" <br/>", "<br/>", ""));
     }
 
     private void addFkLinksToNodes(Map<Record, Set<Record>> fkLinks, Map<Record, MutableNode> nodes) {
@@ -62,15 +85,6 @@ public class RecordAsGraph implements FkCacheAccessor {
         }
     }
 
-    private MutableNode recordAsNode(Record record) {
-        String rowlinkAsString = record.getRowLink().toString();
-        return mutNode(rowlinkAsString).add(Label.html("<b>"+rowlinkAsString+"</b>"+getDisplayContentForRecord(record)));
-    }
-
-    private String getDisplayContentForRecord(Record record) {
-        Record.FieldAndValue optionalName = record.findElementWithName("name");
-        return optionalName != null ? ("<br/>"+ Objects.toString(optionalName.getValue())) : "";
-    }
 
     /** Render file as png file */
     public void renderGraph(MutableGraph g, int width, File f) throws IOException {

@@ -125,7 +125,7 @@ Id orders are determined based on the original order in the database (so assumin
 should be stable for equality). We do not use any data in the records to determine the order. 
 Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
 
-#### Scripts to export/ import via command line
+#### JBang scripts to export/ import via command line
 * Exports a db row and all linked rows as JSON (you can choose a supported db via a short name, it downloads the needed jdbc driver if needed)
   It requires installing https://www.jbang.dev/
 * Examples:
@@ -170,6 +170,21 @@ duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTe
   * Blobs are serialized as BASE64 encoded Strings. 
   * Subtables are added after the field that links to them (via the foreign key). Subtables are always in sub-arrays.
     They are behind a JSON entry of the name  `NAME_OF_FK_COLUMN*NAME_OF_SUBTABLE*`, example: `author_id*author*`.
+
+#### Show an exported graph of records as Graphviz graph (experimental)
+  * Example output is here:
+    ![Alt text](resources/exampleGraph.png?raw=true "Example Graphviz graph")
+  * Prerequisite: Requires the optional (maven) dependency to https://github.com/nidi3/graphviz-java <br/>
+  * Sample code:
+```Java
+   DbExporter exporter = new DbExporter();
+   Record records = exporter.contentAsTree(demo, "Nodes", 1);
+
+   RecordAsGraph asGraph = new RecordAsGraph();
+   MutableGraph graph = asGraph.recordAsGraph(demo, records);
+   asGraph.renderGraph(graph, 900, new File( "graph.png"));
+```
+  * You can optionally choose what attributes to display for each table (use the optional 3rd argument of `RecordAsGraph#recordAsGraph()`) 
 
 #### Transactions
 The library participates in the current transaction setting: it supports both auto-commit or manual 

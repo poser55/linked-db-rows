@@ -2,6 +2,7 @@
 //DEPS org.oser.tools.jdbc:linked-db-rows:0.9-SNAPSHOT
 //DEPS info.picocli:picocli:4.5.0
 //DEPS ch.qos.logback:logback-classic:1.2.3
+//DEPS guru.nidi:graphviz-java:0.18.1
 import static java.lang.System.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -11,11 +12,14 @@ import picocli.CommandLine;
 import org.oser.tools.jdbc.*;
 import org.oser.tools.jdbc.cli.DynJarLoader;
 import org.oser.tools.jdbc.cli.ExecuteDbScriptFiles;
+import org.oser.tools.jdbc.graphviz.RecordAsGraph;
+import guru.nidi.graphviz.model.MutableGraph;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
 import static picocli.CommandLine.*;
+import java.io.File;
 
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -69,6 +73,9 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"--sqlScript"}, description = "SQL file name to execute before exporting (useful for tests)")
     private String sqlScriptFileName;
 
+    @Option(names = {"--diagram"}, description = "Generate a graphviz png diagram from the exported graph.")
+    private String optionalPngDiagramName;
+
 
     public static void main(String... args) throws SQLException, ClassNotFoundException {
 		int exitCode = new CommandLine(new JsonExport()).execute(args);
@@ -114,6 +121,12 @@ public class JsonExport implements Callable<Integer> {
 
         if (doCanonicalize) {
             RecordCanonicalizer.canonicalizeIds(connection, asRecord, dbExporter.getFkCache(), dbExporter.getPkCache());
+        }
+
+        if (optionalPngDiagramName != null) {
+            RecordAsGraph asGraph = new RecordAsGraph();
+            MutableGraph graph = asGraph.recordAsGraph(connection, asRecord);
+            asGraph.renderGraph(graph, 900, new File( optionalPngDiagramName));
         }
 
         ObjectMapper mapper = Record.getObjectMapper();
