@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.9-SNAPSHOT
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.9
 //DEPS info.picocli:picocli:4.5.0
 //DEPS ch.qos.logback:logback-classic:1.2.3
 //DEPS guru.nidi:graphviz-java:0.18.1
