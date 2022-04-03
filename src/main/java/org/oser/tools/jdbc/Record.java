@@ -19,6 +19,7 @@ import java.sql.Date;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.mapping;
@@ -85,13 +86,16 @@ public class Record {
         metadata.put("rootTable", getTableName());
         ArrayNode primaryKeys = metadata.putArray("primaryKeys");
         Arrays.stream(getRowLink().getPks()).forEach(e -> primaryKeys.add(e.toString()));
-        dbRecord.put("_metadata", metadata);
+        dbRecord.set("_metadata", metadata);
     }
 
     String getGitVersion() {
+        String version = findPathInJarFile();
+        if (version != null) {
+            return version;
+        }
         try {
             InputStream inputStream = this.getClass().getResourceAsStream("/git.properties");
-
             Properties properties = new Properties();
             properties.load(inputStream);
 
@@ -99,6 +103,27 @@ public class Record {
         } catch (Exception e){
             return "undef";
         }
+    }
+
+    private String findPathInJarFile() {
+        try {
+            Class theClass = DbExporter.class;
+            String classPath = theClass.getResource(theClass.getSimpleName() + ".class").toString();
+            String libPath = classPath.substring(10, classPath.lastIndexOf("!"));
+
+            Properties properties = new Properties();
+            JarFile jarFile = new JarFile(libPath);
+            InputStream inputStream =
+                    jarFile.getInputStream(jarFile.getEntry("META-INF/maven/org.oser.tools.jdbc/linked-db-rows/pom.properties"));
+
+            properties.load(inputStream);
+
+            String version = properties.getProperty("version");
+            return version;
+        } catch (Exception e){
+            // ignore
+        }
+        return null;
     }
 
     /**
