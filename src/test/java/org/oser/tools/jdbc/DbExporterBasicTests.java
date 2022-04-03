@@ -1,10 +1,13 @@
 package org.oser.tools.jdbc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import guru.nidi.graphviz.model.MutableGraph;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
+import org.oser.tools.jdbc.graphviz.RecordAsGraph;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
@@ -177,6 +180,25 @@ public class DbExporterBasicTests {
         dbExporter.deleteRecursively(demo, "Nodes", newPk);
 
         assertThrows(IllegalArgumentException.class, () -> dbExporter.deleteRecursively(demo, "Nodes", newPk));
+    }
+
+    @Test
+    @DisabledIfSystemProperty(named = "mixedCaseTableNames", matches = "false")
+    void testGraph_getStopTableIncluded() throws Exception {
+        Connection demo = TestHelpers.getConnection("demo");
+
+        DbExporter dbExporter = new DbExporter();
+        dbExporter.getStopTablesIncluded().add("nodes");
+
+        Record nodes1 = dbExporter.contentAsTree(demo, "Nodes", 1);
+
+        assertEquals(4, nodes1.getAllNodes().size());
+
+        System.out.printf("nodes: " + nodes1.getAllNodes());
+
+        RecordAsGraph asGraph = new RecordAsGraph();
+        MutableGraph graph = asGraph.recordAsGraph(demo, nodes1);
+        asGraph.renderGraph(graph, 900, new File( "graph_exported.png"));
     }
 
 

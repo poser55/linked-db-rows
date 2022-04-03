@@ -248,6 +248,14 @@ public class Record {
     /** order record instances given their concrete FK constraints */
     //@VisibleForTesting
     static List<Record> orderRecordsForInsertion(Connection connection, List<Record> records, Cache<String, List<Fk>> cache) throws SQLException {
+        Map<Record, Set<Record>> dependencies = determineRowDependencies(connection, records, cache);
+
+        Set<Record> allRecords = new HashSet<>(records);
+        return JdbcHelpers.topologicalSort(dependencies, allRecords, true);
+    }
+
+    /** what FK dependencies are there between a list of records ? */
+    public static Map<Record, Set<Record>> determineRowDependencies(Connection connection, List<Record> records, Cache<String, List<Fk>> cache) throws SQLException {
         Map<String, List<Record>> tableToRecord = records.stream().collect(Collectors.groupingBy(r -> r.getRowLink().getTableName(), mapping(r -> r, toList())));
         Map<Record, Set<Record>> dependencies = new HashMap<>();
         for (Record left : records) {
@@ -270,9 +278,7 @@ public class Record {
                 }
             }
         }
-
-        Set<Record> allRecords = new HashSet<>(records);
-        return JdbcHelpers.topologicalSort(dependencies, allRecords, true);
+        return dependencies;
     }
 
     /** if left has a concrete fk to potentialMatch */

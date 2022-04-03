@@ -11,7 +11,10 @@ import java.util.stream.Stream;
 /**
  * A table and a list of concrete primary keys  (uniquely identifies a row in a db)<p>
  *  What is the order of the pks?  As we get it from the database metadata.
- *    E.g. via {@link JdbcHelpers#getPrimaryKeys(DatabaseMetaData, String)}
+ *    E.g. via {@link JdbcHelpers#getPrimaryKeys(DatabaseMetaData, String)} <br/>
+ *
+ *  The String representation of a row link is &lt;nameOfTable&gt;/&lt;firstPrimaryKey&gt;/&lt;secondPrimaryKey&gt;/... <br/>
+ *   Example: <em>edge/1/6</em>
  */
 @Getter
 public class RowLink {

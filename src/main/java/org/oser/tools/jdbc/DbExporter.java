@@ -126,6 +126,10 @@ public class DbExporter implements FkCacheAccessor {
             return visitedNodes.containsKey(new RowLink(tableName.toLowerCase(), pk));
         }
 
+        public boolean containsTable(String tableName){
+            return visitedNodes.keySet().stream().map(RowLink::getTableName).anyMatch(table -> tableName.equals(table));
+        }
+
     }
 
     Record readOneRecord(Connection connection, String tableName, Object[] pkValues, ExportContext context) throws SQLException {
@@ -211,7 +215,8 @@ public class DbExporter implements FkCacheAccessor {
     List<Record> readLinkedRecords(Connection connection, String tableName, String[] fkNames, Object[] fkValues, ExportContext context) throws SQLException {
         List<Record> listOfRows = new ArrayList<>();
 
-        if (stopTablesExcluded.contains(tableName) || stopAfterFirstInstance(tableName, context)) {
+        if (stopTablesExcluded.contains(tableName) || stopAfterFirstInstance(tableName, context)  ||
+                (stopTablesIncluded.contains(tableName) && context.containsTable(tableName) ))  {
             return listOfRows;
         }
 
@@ -408,6 +413,7 @@ public class DbExporter implements FkCacheAccessor {
         return stopTablesIncludeOne;
     }
 
+    @Override
     public Cache<String, List<Fk>> getFkCache() {
         return fkCache;
     }
