@@ -2,11 +2,11 @@ package org.oser.tools.jdbc.graphviz;
 
 import guru.nidi.graphviz.model.MutableGraph;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.oser.tools.jdbc.DbExporter;
 import org.oser.tools.jdbc.JdbcHelpers;
 import org.oser.tools.jdbc.Record;
 import org.oser.tools.jdbc.TestHelpers;
-
 
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class RecordAsGraphTest {
 
     @Test
+    @EnabledIfSystemProperty(named = "h2", matches = "true")  // these test take a while
     void simple() throws SQLException, IOException, ClassNotFoundException {
         Connection demo = TestHelpers.getConnection("demo");
 

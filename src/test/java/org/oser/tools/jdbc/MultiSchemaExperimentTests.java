@@ -34,7 +34,7 @@ public class MultiSchemaExperimentTests {
         Statement statement = demo.createStatement();
 
         // remove duplication of entries with  dms_id that disturb the count of inserts in the test
-        int i = statement.executeUpdate(" delete from book where dms_id = 2 and id <> 3");
+        int i = statement.executeUpdate(" DELETE FROM book WHERE dms_id = 2 AND id <> 3");
 
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
                         dbExporter -> {

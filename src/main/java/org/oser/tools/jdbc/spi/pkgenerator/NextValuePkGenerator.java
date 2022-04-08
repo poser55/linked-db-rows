@@ -24,7 +24,7 @@ public class NextValuePkGenerator implements PkGenerator {
     }
 
     public static long getMaxUsedIntPk(Connection connection, String tableName, String pkName) throws SQLException {
-        String selectPk = "SELECT max(" + pkName + ") from " + tableName;
+        String selectPk = "SELECT max(" + pkName + ") FROM " + tableName;
 
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(selectPk)) { // NOSONAR: unchecked values all via prepared statement
 

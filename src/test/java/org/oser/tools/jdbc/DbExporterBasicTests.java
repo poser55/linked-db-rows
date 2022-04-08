@@ -76,6 +76,20 @@ public class DbExporterBasicTests {
     }
 
     @Test
+    @DisabledIfSystemProperty(named = "mixedCaseTableNames", matches = "false") // mysql returns null as schema name
+    void blog_withSchemaPrefix() throws Exception {
+        Connection demo = TestHelpers.getConnection("demo");
+        TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
+                dbExporter -> {
+                    Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
+                },
+                dbImporter -> {
+                    Fk.initFkCacheForMysql_LogException(demo, dbImporter.getFkCache());
+                },
+                demo.getSchema()+".blogpost", 2, 3);
+    }
+
+    @Test
     void blog_artificialFk() throws Exception {
         Connection demo = TestHelpers.getConnection("demo");
         AtomicReference<DbImporter> importer = new AtomicReference<>(new DbImporter());

@@ -46,7 +46,7 @@ public class SequencePkGenerator implements PkGenerator {
         }
 
         DatabaseMetaData dm = connection.getMetaData();
-        String nextSequenceValue = dm.getDatabaseProductName().toLowerCase().equals("oracle") ? "select "+sequenceName+".nextval from DUAL" : "SELECT nextval('"+sequenceName+"')";
+        String nextSequenceValue = dm.getDatabaseProductName().toLowerCase().equals("oracle") ? "SELECT "+sequenceName+".nextval FROM DUAL" : "SELECT nextval('"+sequenceName+"')";
         try (PreparedStatement pkSelectionStatement = connection.prepareStatement(nextSequenceValue)) { // NOSONAR
 
             try (ResultSet rs = pkSelectionStatement.executeQuery()) {

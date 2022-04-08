@@ -197,11 +197,11 @@ public final class JdbcHelpers {
 
             String questionsMarks = metadataInCurrentTableAndInsert.values().stream().sorted(Comparator.comparing(ColumnMetadata::getOrdinalPos))
                     .map(JdbcHelpers::questionMarkOrTypeCasting).collect(Collectors.joining(", "));
-            statement = "insert into " + tableName + " (" + concatenatedFields + ") values (" + questionsMarks + ")";
+            statement = "INSERT INTO " + tableName + " (" + concatenatedFields + ") VALUES (" + questionsMarks + ")";
         } else {
             concatenatedFields += " = ? ";
             individualFields.add(pkName.toLowerCase());
-            statement = "update " + tableName + " set " + concatenatedFields + " where " + pkName + " = ?";
+            statement = "UPDATE " + tableName + " SET " + concatenatedFields + " WHERE " + pkName + " = ?";
         }
 
         // sanity check (the columnDef settings are a bit magic)
@@ -543,8 +543,8 @@ public final class JdbcHelpers {
 
     private static String selectStatementByPks(String tableName, List<String> primaryKeys, Map<String, JdbcHelpers.ColumnMetadata> columnMetadata) {
         String whereClause = primaryKeys.stream().map(e -> e + " = " + questionMarkOrTypeCasting(columnMetadata.get(e.toLowerCase())))
-                .collect(Collectors.joining(" and "));
-        return "SELECT * from " + tableName + " where  " + whereClause;
+                .collect(Collectors.joining(" AND "));
+        return "SELECT * FROM " + tableName + " WHERE  " + whereClause;
     }
 
     /** not yet very optimized <br/>
@@ -582,7 +582,7 @@ public final class JdbcHelpers {
 
                 // mysql wants a quote around mixedcase table names
                 String optionalQuote = connection.getMetaData().getDatabaseProductName().equals("MySQL") ? "\"" : "";
-                try (ResultSet resultSet = statement.executeQuery("select count(*) from " + optionalQuote + schemaPrefix + tableName + optionalQuote)) {
+                try (ResultSet resultSet = statement.executeQuery("SELECT count(*) FROM " + optionalQuote + schemaPrefix + tableName + optionalQuote)) {
 
                     while (resultSet.next()) {
                         result.put(tableName, resultSet.getInt(1));

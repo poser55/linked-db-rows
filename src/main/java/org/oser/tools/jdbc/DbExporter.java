@@ -207,9 +207,9 @@ public class DbExporter implements FkCacheAccessor {
 
 
     private String selectStatementByPks(String tableName, List<String> fkNames, boolean orderResult) {
-        String whereClause = fkNames.stream().collect(Collectors.joining(" = ? and ", "", " = ?"));
-        return  "SELECT * from " + tableName + " where  " + whereClause +
-                (orderResult ? (" order by "+fkNames.get(0)+" asc " ) : "");
+        String whereClause = fkNames.stream().collect(Collectors.joining(" = ? AND ", "", " = ?"));
+        return  "SELECT * FROM " + tableName + " WHERE  " + whereClause +
+                (orderResult ? (" ORDER BY "+fkNames.get(0)+" asc " ) : "");
     }
 
     List<Record> readLinkedRecords(Connection connection, String tableName, String[] fkNames, Object[] fkValues, ExportContext context) throws SQLException {
@@ -352,13 +352,13 @@ public class DbExporter implements FkCacheAccessor {
             JdbcHelpers.ColumnMetadata columnMetadata = r.getColumnMetadata().get(primaryKeys.get(i));
             String optionalQuote = columnMetadata.needsQuoting() ? "'" : "";
             String pk = optionalQuote + r.getRowLink().getPks()[i].toString() + optionalQuote;
-            whereClause += primaryKeys.get(i) + "=" + pk + " and ";
+            whereClause += primaryKeys.get(i) + "=" + pk + " AND ";
         }
         // remove last "and"
         whereClause = whereClause.isEmpty() ? whereClause : whereClause.substring(0, whereClause.length() - 4);
 
         try (Formatter formatter = new Formatter()){
-            return formatter.format("delete from %s where %s", r.getRowLink().getTableName(), whereClause).toString();
+            return formatter.format("DELETE FROM %s WHERE %s", r.getRowLink().getTableName(), whereClause).toString();
         }
     }
 

@@ -66,7 +66,7 @@ public class TestHelpers {
     static List<DbConfig> DB_CONFIG_LIST =
             List.of(
                     new DbConfig("h2", "org.h2.Driver",
-                            ()-> "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false")),
+                            ()-> "jdbc:h2:mem:","sa", "", true, Map.of("sakila","false", "h2", "true")),
 
                     // old local postgres
                     new DbConfig("postgres_local", "org.postgresql.Driver",
