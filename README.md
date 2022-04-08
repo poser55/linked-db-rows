@@ -138,6 +138,8 @@ Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
         * This imports the JSON file blogpost3.json into the local postgres "demo" db
         * You can replace `jbang JsonImport.java` with `jbang db-import-json@poser55`
 
+* Specialty: it downloads the needed JDBC driver. It currently supports postgres, h2, hsqldb, mysql, sqlserver, oracle. 
+  For now it only supports one (hardcoded) version of each.
 * Help about options:  `jbang db-import-json@poser55 -h` or `jbang db-export-json@poser55 -h`
 
 
@@ -162,27 +164,27 @@ duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTe
 (with the blogpost, its comments and with the link to its user) and adds it to *another* user.
 
 #### JSON format
-  * Numbers, Booleans, Strings are directly usable. 
+  * Numbers, Booleans, Strings are native in JSON. 
   * Date-Types are mapped to Strings. We use [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) dates by default for timestamps,
      example: `2019-01-01T12:19:11`, the `T` character can be replaced by a blank, as the normal toString() of
-    java.sql.Timestamp. Dates (without a time) are in the form of 2019-01-01.  
+    java.sql.Timestamp. Dates (without a time) are in the form of 2019-12-31 (the 2nd entry is the month).  
     (Some DBs need a config to default to this format, refer to tests.)
   * Blobs are serialized as BASE64 encoded Strings. 
-  * Subtables are added after the field that links to them (via the foreign key). Subtables are always in sub-arrays.
-    They are behind a JSON entry of the name  `NAME_OF_FK_COLUMN*NAME_OF_SUBTABLE*`, example: `author_id*author*`.
+  * Subtables are added after the field that links to them (via the foreign key). Subtables are always in sub-arrays (even if .
+    there is only one entry in the DDL). They are behind a JSON entry of the name  `NAME_OF_FK_COLUMN*NAME_OF_SUBTABLE*`, example: `author_id*author*`.
 
 #### Show an exported graph of records as Graphviz graph (experimental)
-  * Example output is here:
+  * Example output looks like this:
     ![Alt text](resources/exampleGraph.png?raw=true "Example Graphviz graph")
   * Prerequisite: Requires the optional (maven) dependency to https://github.com/nidi3/graphviz-java <br/>
   * Sample code:
 ```Java
    DbExporter exporter = new DbExporter();
-   Record records = exporter.contentAsTree(demo, "Nodes", 1);
+   Record records = exporter.contentAsTree(connection, "Nodes", 1);
 
    RecordAsGraph asGraph = new RecordAsGraph();
-   MutableGraph graph = asGraph.recordAsGraph(demo, records);
-   asGraph.renderGraph(graph, 900, new File( "graph.png"));
+   MutableGraph graph = asGraph.recordAsGraph(connection, records);
+   asGraph.renderGraph(graph, new File( "graph.png"));
 ```
   * You can optionally choose what attributes to display for each table (use the optional 3rd argument of `RecordAsGraph#recordAsGraph()`) 
 
