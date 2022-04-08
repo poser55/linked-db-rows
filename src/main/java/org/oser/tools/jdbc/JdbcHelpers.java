@@ -342,8 +342,12 @@ public final class JdbcHelpers {
         private String tableName;
         private String schema;
 
+        /** indicates whether this Table has a schema prefix */
+        private boolean hasSchemaPrefix;
+
         public Table(Connection connection, String expression) throws SQLException {
-           if (expression.contains(".")){
+            hasSchemaPrefix = expression.contains(".");
+            if (hasSchemaPrefix){
                int i = expression.indexOf(".");
                schema = expression.substring(0, i);
                tableName = expression.substring(i + 1);

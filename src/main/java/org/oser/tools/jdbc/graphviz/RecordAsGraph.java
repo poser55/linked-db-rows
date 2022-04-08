@@ -3,6 +3,7 @@ package org.oser.tools.jdbc.graphviz;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import guru.nidi.graphviz.attribute.Label;
+import guru.nidi.graphviz.engine.Engine;
 import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
 import guru.nidi.graphviz.model.MutableGraph;
@@ -85,13 +86,22 @@ public class RecordAsGraph implements FkCacheAccessor {
         }
     }
 
-
-    /** Render file as png file */
-    public void renderGraph(MutableGraph g, int width, File f) throws IOException {
+    /** Render graph as png file */
+    public void renderGraph(MutableGraph g, File f) throws IOException {
         // to debug text output:
         //System.out.println("file:"+ Graphviz.fromGraph(g).width(width).render(Format.PLAIN).toString());
 
-        Graphviz.fromGraph(g).width(width).render(Format.PNG).toFile(f);
+        Graphviz.fromGraph(g).engine(Engine.FDP).render(Format.PNG).toFile(f);
+    }
+
+    /** Render graph as png file */
+    public void renderGraph(MutableGraph g, int width, File f) throws IOException {
+        Graphviz.fromGraph(g).width(width).engine(Engine.FDP).render(Format.PNG).toFile(f);
+    }
+
+    /** Get raw dot file */
+    public String renderGraphAsDotFile(MutableGraph g) throws IOException {
+        return Graphviz.fromGraph(g).render(Format.DOT).toString();
     }
 
     @Override

@@ -1,8 +1,9 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.9
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.10-SNAPSHOT
 //DEPS info.picocli:picocli:4.5.0
 //DEPS ch.qos.logback:logback-classic:1.2.3
 //DEPS guru.nidi:graphviz-java:0.18.1
+//DEPS org.postgresql:postgresql:42.2.6
 import static java.lang.System.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -79,7 +80,7 @@ public class JsonExport implements Callable<Integer> {
     @Option(names = {"--sqlScript"}, description = "SQL file name to execute before exporting (useful for tests)")
     private String sqlScriptFileName;
 
-    @Option(names = {"--diagram"}, description = "Generate a graphviz png diagram from the exported graph.")
+    @Option(names = {"--diagram"}, description = "Generate a graphviz png diagram from the exported graph with this name (show generated output if no .png suffix). ")
     private String optionalPngDiagramName;
 
 
@@ -134,11 +135,15 @@ public class JsonExport implements Callable<Integer> {
             disableGraphvizLogging();
 
             RecordAsGraph asGraph = new RecordAsGraph();
-            System.err.println("Saving graph of export:"+optionalPngDiagramName);
+            System.err.println("Saving graph of export:" + optionalPngDiagramName);
             MutableGraph graph = asGraph.recordAsGraph(connection, asRecord);
-            asGraph.renderGraph(graph, 900, new File( optionalPngDiagramName));
-        }
 
+            if (optionalPngDiagramName.endsWith(".png")) {
+                asGraph.renderGraph(graph, new File(optionalPngDiagramName));
+            } else {
+                System.err.println("Dotfile:\n" + asGraph.renderGraphAsDotFile(graph));
+            }
+        }
         ObjectMapper mapper = Record.getObjectMapper();
         String asString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode());
 		err.println("Data: \n");

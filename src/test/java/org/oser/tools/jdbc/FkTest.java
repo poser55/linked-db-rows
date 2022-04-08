@@ -41,6 +41,17 @@ class FkTest {
     }
 
     @Test
+    void testFks_withSchema() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo = TestHelpers.getConnection("demo");
+        try {
+            List<Fk> fksOfTable = Fk.getFksOfTable(demo, demo.getSchema()+".Edge");
+            assertEquals(2, fksOfTable.size());
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+    }
+
+    @Test
     void matchFkStrings() {
         Fk.FkMatchedFields parsed = new Fk.FkMatchedFields("a(b)-c(d)").parse();
         assertEquals("a", parsed.getTable1());

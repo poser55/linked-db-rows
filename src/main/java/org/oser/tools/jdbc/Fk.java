@@ -84,19 +84,24 @@ public class Fk {
 
     /**
      * get FK metadata of one table (both direction of metadata, exported and imported FKs)
+     *
+     * If the tableName has a schema prefix (e.g. mySchema.) it adds it to the table names
+     *  of the returned FKs.
      */
-    public static List<Fk> getFksOfTable(Connection connection, String table) throws SQLException {
+    public static List<Fk> getFksOfTable(Connection connection, String tableName) throws SQLException {
         List<Fk> fks = new CopyOnWriteArrayList<>();
         DatabaseMetaData dm = connection.getMetaData();
 
-        String adaptedTableName = adaptCaseForDb(table, dm.getDatabaseProductName());
+        String adaptedTableName = adaptCaseForDb(tableName, dm.getDatabaseProductName());
 
-        try (ResultSet rs = dm.getExportedKeys(null, connection.getSchema(), adaptedTableName)) {
-            addFks(fks, rs, false);
+        JdbcHelpers.Table table = new JdbcHelpers.Table(connection, adaptedTableName);
+
+        try (ResultSet rs = dm.getExportedKeys(null, table.getSchema(), table.getTableName())) {
+            addFks(fks, rs, false, table);
         }
 
-        try (ResultSet rs = dm.getImportedKeys(null, connection.getSchema(), adaptedTableName)) {
-            addFks(fks, rs, true);
+        try (ResultSet rs = dm.getImportedKeys(null, table.getSchema(), table.getTableName())) {
+            addFks(fks, rs, true, table);
         }
 
         fks.sort(Comparator.comparing(Fk::getFktable).thenComparing(fk -> fk.getFkcolumn()[0]));
@@ -128,11 +133,12 @@ public class Fk {
         return e.getFktable().equals(e.getPktable());
     }
 
-    private static void addFks(List<Fk> fks, ResultSet rs, boolean inverted) throws SQLException {
+    private static void addFks(List<Fk> fks, ResultSet rs, boolean inverted, JdbcHelpers.Table table) throws SQLException {
+        String optionalPrefix = table.isHasSchemaPrefix() ? table.getSchema() + "." : "";
         while (rs.next()) {
-            Fk fk = new Fk(getStringFromResultSet(rs,"pktable_name"),
+            Fk fk = new Fk(optionalPrefix + getStringFromResultSet(rs,"pktable_name"),
                     getStringFromResultSet(rs,"pkcolumn_name"),
-                    getStringFromResultSet(rs,"fktable_name"),
+                    optionalPrefix + getStringFromResultSet(rs,"fktable_name"),
                     getStringFromResultSet(rs,"fkcolumn_name"),
                     getStringFromResultSet(rs, "KEY_SEQ"),
                     getStringFromResultSet(rs, "fk_name"), inverted);
