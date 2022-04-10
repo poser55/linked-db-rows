@@ -50,7 +50,7 @@ public final class JdbcHelpers {
                 .maximumSize(10_000).build());
     }
 
-    /** If one would like to import the tree starting at rootTable, what order should one insert the tables?
+    /** If one would like to import the tree starting at rootTable, in what order should one insert the tables?
      *  @return a List<String> with the table names in the order in which to insert them, the table names are converted to
      *   lower case
      *  CAVEAT: may return a partial list (in case there are cycles/ there is no layering in the table dependencies)
