@@ -42,7 +42,7 @@ Maven dependency:
 <dependency>
   <groupId>org.oser.tools.jdbc</groupId>
   <artifactId>linked-db-rows</artifactId>
-  <version>0.10</version>
+  <version>0.11</version>
 </dependency>
 ```
 

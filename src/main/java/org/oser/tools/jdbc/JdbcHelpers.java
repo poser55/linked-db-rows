@@ -449,7 +449,7 @@ public final class JdbcHelpers {
                     preparedStatement.setNull(statementIndex, Types.TIMESTAMP);
                 } else {
 
-                    // todo: we convert date types to string do the conversion here
+                    // todo: we convert date types to string to do the conversion here
                     //  we should find a better approach
                     String valueAsString = Objects.toString(valueToInsert);
 
