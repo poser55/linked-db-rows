@@ -406,13 +406,6 @@ public final class JdbcHelpers {
             case "INT8":
             case "FLOAT4":
             case "FLOAT8":
-                if (isEmpty) {
-                    preparedStatement.setNull(statementIndex, Types.NUMERIC);
-                } else {
-                    preparedStatement.setLong(statementIndex,
-                            valueToInsert instanceof String ? Long.parseLong(((String)valueToInsert).trim()) : (Long)valueToInsert);
-                }
-                break;
             case "NUMERIC":
             case "DECIMAL":
                 if (isEmpty) {
@@ -420,8 +413,16 @@ public final class JdbcHelpers {
                 } else {
                     if (valueToInsert instanceof String) {
                         preparedStatement.setDouble(statementIndex, Double.parseDouble(((String)valueToInsert).trim()));
+                    } else  if (valueToInsert instanceof Number) {
+                        if ((valueToInsert instanceof Double) || (valueToInsert instanceof Float)) {
+                            preparedStatement.setDouble(statementIndex, ((Number)valueToInsert).doubleValue());
+                        } else if (valueToInsert instanceof BigDecimal) {
+                            preparedStatement.setBigDecimal(statementIndex, (BigDecimal)valueToInsert);
+                        } else {
+                            preparedStatement.setLong(statementIndex, ((Number)valueToInsert).longValue());
+                        }
                     } else {
-                        preparedStatement.setBigDecimal(statementIndex, (BigDecimal)valueToInsert);
+                        throw new IllegalStateException("Issue with type mapping: " + preparedStatement + " " + statementIndex + " " + valueToInsert);
                     }
                 }
                 break;

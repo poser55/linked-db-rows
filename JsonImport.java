@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.10
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.11
 //DEPS info.picocli:picocli:4.5.0
 //DEPS ch.qos.logback:logback-classic:1.2.3
 import static java.lang.System.*;

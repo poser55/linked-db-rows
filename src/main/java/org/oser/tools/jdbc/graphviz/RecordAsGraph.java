@@ -39,7 +39,7 @@ import static guru.nidi.graphviz.model.Factory.mutNode;
  */
 public class RecordAsGraph implements FkCacheAccessor {
 
-    // todo add helper methods to control the displaying of the graph
+    // todo: add helper methods to control the displaying of the graph
     //  allow to add other attributes to the node
 
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder().maximumSize(10_000).build();
