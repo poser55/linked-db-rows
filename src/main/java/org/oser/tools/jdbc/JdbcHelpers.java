@@ -183,15 +183,13 @@ public final class JdbcHelpers {
 
     /**
      * generate insert or update statement to insert columnNames into tableName
-     * // todo: this only works for updating with 1 primary key fields
      * @return a pair (sqlstatement, list of all occurring fields)
      */
-    public static SqlChangeStatement getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, String pkName, boolean isInsert, Map<String, ColumnMetadata> columnMetadata) {
-        String statement;
-        List<String> individualFields = columnNames.stream().filter(name -> (isInsert || !name.equalsIgnoreCase(pkName))).collect(Collectors.toList());
-        // todo clean up
-        String concatenatedFields = columnNames.stream().filter(name -> (isInsert || !name.equalsIgnoreCase(pkName))).collect(Collectors.joining(isInsert ? ", " : " = ?, "));
+    public static SqlChangeStatement getSqlInsertOrUpdateStatement(String tableName, List<String> columnNames, List<String> pkNames, boolean isInsert, Map<String, ColumnMetadata> columnMetadata) {
+        List<String> individualFields = columnNames.stream().filter(fieldName -> (isInsert || isNoPrimaryKeyName(fieldName, pkNames))).collect(Collectors.toList());
+        String concatenatedFields = String.join(isInsert ? ", " : " = ?, ", individualFields);
 
+        String statement;
         if (isInsert) {
             Map<String, ColumnMetadata> metadataInCurrentTableAndInsert = columnMetadata.entrySet().stream().filter(e -> columnNames.contains(e.getKey().toLowerCase())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
@@ -200,8 +198,12 @@ public final class JdbcHelpers {
             statement = "INSERT INTO " + tableName + " (" + concatenatedFields + ") VALUES (" + questionsMarks + ")";
         } else {
             concatenatedFields += " = ? ";
-            individualFields.add(pkName.toLowerCase());
-            statement = "UPDATE " + tableName + " SET " + concatenatedFields + " WHERE " + pkName + " = ?";
+
+            statement = "UPDATE " + tableName + " SET " + concatenatedFields + " WHERE ";
+            for (int i = 0; i < pkNames.size(); i++)  {
+                individualFields.add(pkNames.get(i).toLowerCase());
+                statement +=  pkNames.get(i) + " = ?" + ((i != (pkNames.size() - 1))? " AND ":"");
+            }
         }
 
         // sanity check (the columnDef settings are a bit magic)
@@ -213,8 +215,13 @@ public final class JdbcHelpers {
         return new SqlChangeStatement(statement, individualFields);
     }
 
+    private static boolean isNoPrimaryKeyName(String fieldName, List<String> pkNames) {
+        return !pkNames.stream().anyMatch(fieldName::equalsIgnoreCase);
+    }
+
     @Getter
     @AllArgsConstructor
+    @ToString
     public static class SqlChangeStatement {
         private final String statement;
         private final List<String> fields;

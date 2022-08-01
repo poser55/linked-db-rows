@@ -29,3 +29,30 @@ CREATE TABLE link2self(
 insert into link2self  values (1, null, null);
 insert into link2self  values (2, 1, 1);
 insert into link2self  values (3, 2, 1);
+
+-- testing special remappings for inserts
+
+CREATE TABLE triplet(
+    a INTEGER NOT NULL,
+    b INTEGER NOT NULL,
+    c INTEGER NOT NULL,
+    CONSTRAINT triplet_pkey PRIMARY KEY (a, b, c)
+);
+
+CREATE TABLE link_triplet(
+    id INTEGER NOT NULL,
+    a INTEGER NOT NULL,
+    b INTEGER NOT NULL,
+    c INTEGER NOT NULL,
+    foreign key (a, b, c) references triplet(a, b, c),
+    PRIMARY KEY (id)
+);
+
+insert into triplet values (1, 2, 3);
+insert into triplet values (1, 3, 5);
+
+insert into triplet values (2, 2, 3);
+insert into triplet values (3, 2, 3);
+
+insert into link_triplet values (1, 1, 2, 3);
+insert into link_triplet values (2, 1, 3, 5);

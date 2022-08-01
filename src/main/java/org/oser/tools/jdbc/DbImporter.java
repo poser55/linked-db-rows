@@ -166,7 +166,7 @@ public class DbImporter implements FkCacheAccessor {
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metadata, rootTable, metadataCache);
         List<String> pks = JdbcHelpers.getPrimaryKeys(metadata, rootTable, pkCache);
 
-        dbRecord.setPkName(pks.get(0));
+        dbRecord.setPkNames(pks);
         dbRecord.setColumnMetadata(columns);
 
         List<String> jsonFieldNames = getJsonFieldNames(json);
@@ -292,8 +292,7 @@ public class DbImporter implements FkCacheAccessor {
     }
 
     private void insertOneRecord(Connection connection, Record dbRecord, Map<RowLink, Object> newKeys) throws SQLException {
-        DatabaseMetaData metadata = connection.getMetaData();
-        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metadata, dbRecord.getRowLink().getTableName(), pkCache);
+        List<String> primaryKeys = dbRecord.getPkNames();
 
         // todo : bug sometimes the optionalFk is not correct on record (e.g. on node)
         //  so for now, we get it from the cache:
@@ -316,7 +315,10 @@ public class DbImporter implements FkCacheAccessor {
                     Record.FieldAndValue elementWithName = dbRecord.findElementWithName(primaryKeys.get(i));
 
                     candidatePk = getCandidatePk(connection, dbRecord.getRowLink().getTableName(), elementWithName.getMetadata().type, primaryKeys.get(i));
-                    RowLink key = new RowLink(dbRecord.getRowLink().getTableName(), dbRecord.findElementWithName(dbRecord.getPkName()).getValue());
+
+                    // TODO : fix this (.get(0)  in next line): With multiple pks, does this work in all cases? The
+                    //  RowLink has just the first "free" pk (is missing the others)
+                    RowLink key = new RowLink(dbRecord.getRowLink().getTableName(), dbRecord.findElementWithName(dbRecord.getPkNames().get(0)).getValue());
                     newKeys.put(key, candidatePk);
 
                     pkValues.set(i, candidatePk); // maybe not needed (catched by later remapping?)
@@ -338,7 +340,7 @@ public class DbImporter implements FkCacheAccessor {
         }
 
         Map<String, JdbcHelpers.ColumnMetadata> columnMetadata = dbRecord.getColumnMetadata();
-        JdbcHelpers.SqlChangeStatement sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(dbRecord.getRowLink().getTableName(), fieldNames, dbRecord.getPkName(), isInsert, columnMetadata);
+        JdbcHelpers.SqlChangeStatement sqlStatement = JdbcHelpers.getSqlInsertOrUpdateStatement(dbRecord.getRowLink().getTableName(), fieldNames, dbRecord.getPkNames(), isInsert, columnMetadata);
         PreparedStatement savedStatement = null;
         Map<String, Object> insertedValues = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement(sqlStatement.getStatement())) {
@@ -396,6 +398,8 @@ public class DbImporter implements FkCacheAccessor {
     /**
      * @return the primary key values that are remapped if needed (if e.g. another inserted row has a pk that was remapped before)
      *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
+     *
+     *         A free PK is one that has no FK from somewhere else and is not remapped there => so we can assign it freely
      * */
     static List<Object> remapPrimaryKeyValues(Record dbRecord,
                                               Map<RowLink, Object> newKeys,
@@ -405,18 +409,19 @@ public class DbImporter implements FkCacheAccessor {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
 
         for (String primaryKey : primaryKeys) {
-            Record.FieldAndValue elementWithName = dbRecord.findElementWithName(primaryKey);
+            Record.FieldAndValue pkFieldWithValue = dbRecord.findElementWithName(primaryKey);
 
             // do the remapping from the newKeys
             Object[] potentialValueToInsert = {null};
             if (fksByColumnName.containsKey(primaryKey.toLowerCase())) {
                 List<Fk> fks = fksByColumnName.get(primaryKey.toLowerCase());
-                fks.forEach(fk -> potentialValueToInsert[0] = newKeys.get(new RowLink(fk.getPktable(), elementWithName.getValue())));
+                // todo: fix next line: rowlink is wrong if more than 1 primary key?
+                fks.forEach(fk -> potentialValueToInsert[0] = newKeys.get(new RowLink(fk.getPktable(), pkFieldWithValue.getValue())));
             }
             // if it is remapped, it is a fk from somewhere else -> so we cannot set it freely
             isFreePk.add(potentialValueToInsert[0] == null);
 
-            pkValues.add(potentialValueToInsert[0] != null ? potentialValueToInsert[0]: elementWithName.getValue());
+            pkValues.add(potentialValueToInsert[0] != null ? potentialValueToInsert[0]: pkFieldWithValue.getValue());
         }
         return pkValues;
     }

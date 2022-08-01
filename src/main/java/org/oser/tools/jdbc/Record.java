@@ -37,8 +37,9 @@ public class Record {
     private final RowLink rowLink;
     private final List<FieldAndValue> content = new ArrayList<>();
 
+    @Getter
     @Setter
-    private String pkName;
+    private List<String> pkNames;
 
     /**  the fks from here to other tables */
     @Setter

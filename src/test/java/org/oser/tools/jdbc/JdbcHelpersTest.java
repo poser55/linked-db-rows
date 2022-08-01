@@ -145,4 +145,23 @@ class JdbcHelpersTest {
         assertEquals(1, ordered2.size());
     }
 
+    @Test
+    void getSqlInsertOrUpdateStatement() {
+        Map<String, JdbcHelpers.ColumnMetadata> columnMetadata =
+                 Map.of("a", new JdbcHelpers.ColumnMetadata("a", "varchar", 1, 1, 1, "1", 1),
+                        "b", new JdbcHelpers.ColumnMetadata("b", "varchar", 1, 1, 1, "1", 1),
+                        "pk", new JdbcHelpers.ColumnMetadata("pk", "varchar", 1, 1, 1, "1", 1));
+
+        JdbcHelpers.SqlChangeStatement r1 = JdbcHelpers.getSqlInsertOrUpdateStatement("T", List.of("a", "b"), List.of("pk"), false, columnMetadata);
+        compareWithoutWhitespace(r1.getStatement(), "UPDATE T SET a = ?, b = ?  WHERE pk = ?");
+        JdbcHelpers.SqlChangeStatement r2 = JdbcHelpers.getSqlInsertOrUpdateStatement("T", List.of("a", "b"), List.of("pk"), true, columnMetadata);
+        compareWithoutWhitespace(r2.getStatement(), "INSERT INTO T (a, b) VALUES (?, ?)");
+
+        JdbcHelpers.SqlChangeStatement r3 = JdbcHelpers.getSqlInsertOrUpdateStatement("T", List.of("a", "b", "pk1"), List.of("pk1", "pk2"), false, columnMetadata);
+        compareWithoutWhitespace(r3.getStatement(), "UPDATE T SET a = ?, b = ?  WHERE pk1 = ? AND pk2 = ?");
+    }
+
+    private void compareWithoutWhitespace(String r1, String s) {
+        assertEquals(r1.replaceAll("\\s+",""), s.replaceAll("\\s+",""));
+    }
 }

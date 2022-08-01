@@ -138,6 +138,7 @@ public class DbExporter implements FkCacheAccessor {
         DatabaseMetaData metaData = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName, metadataCache);
         List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(metaData, tableName, pkCache);
+        data.setPkNames(primaryKeys);
 
         if (primaryKeys.size() == 0) {
             throw new IllegalStateException("Primary keys of " + tableName + " not found.");
@@ -322,6 +323,9 @@ public class DbExporter implements FkCacheAccessor {
             }
         }
         row.setPkValue(primaryKeyValues);
+
+        row.setPkNames(primaryKeys);
+
         return row;
     }
 
@@ -343,9 +347,7 @@ public class DbExporter implements FkCacheAccessor {
     }
 
     private static String recordEntryToDeleteStatement(DatabaseMetaData m, Record r, Cache<String, List<String>> pkCache) throws SQLException {
-        // todo ensure this is correct in record (so does not need to be gotten again)
-        List<String> primaryKeys = JdbcHelpers.getPrimaryKeys(m, r.getRowLink().getTableName(), pkCache);
-
+        List<String> primaryKeys = r.getPkNames();
 
         String whereClause = "";
         for (int i = 0; i < primaryKeys.size(); i++) {
