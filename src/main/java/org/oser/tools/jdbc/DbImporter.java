@@ -312,16 +312,18 @@ public class DbImporter implements FkCacheAccessor {
 
             for (int i = 0; i < primaryKeys.size(); i++) {
                 if (isFreePk.get(i)) {
-                    Record.FieldAndValue elementWithName = dbRecord.findElementWithName(primaryKeys.get(i));
-
-                    candidatePk = getCandidatePk(connection, dbRecord.getRowLink().getTableName(), elementWithName.getMetadata().type, primaryKeys.get(i));
+                    Record.FieldAndValue pkFieldWithValue = dbRecord.findElementWithName(primaryKeys.get(i));
+                    candidatePk = getCandidatePk(connection, dbRecord.getRowLink().getTableName(), pkFieldWithValue.getMetadata().type, primaryKeys.get(i));
 
                     // TODO : fix this (.get(0)  in next line): With multiple pks, does this work in all cases? The
                     //  RowLink has just the first "free" pk (is missing the others)
                     RowLink key = new RowLink(dbRecord.getRowLink().getTableName(), dbRecord.findElementWithName(dbRecord.getPkNames().get(0)).getValue());
                     newKeys.put(key, candidatePk);
 
-                    pkValues.set(i, candidatePk); // maybe not needed (catched by later remapping?)
+                    // todo: this would be a candidate, but the whole newKeys structure is then wrong, needs to adapt everywhere
+                    //newKeys.put(dbRecord.getRowLink(), candidatePk);
+
+                    pkValues.set(i, candidatePk); // maybe not needed (caught by later remapping?)
                     break;
                 }
             }
