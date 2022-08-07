@@ -49,7 +49,7 @@ class SakilaTests {
 
         dbImporter.insertRecords(sakilaConnection, asRecord);
 
-        //Map<RowLink, Object> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
+        //Map<RowLink, DbImporter.Remap> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
         // System.out.println(actor + " "+actor.size());
     }
 
@@ -60,11 +60,11 @@ class SakilaTests {
         List<String> actorInsertList = JdbcHelpers.determineOrder(connection, "actor", false);
         System.out.println("list:"+actorInsertList +"\n");
 
-        HashMap<RowLink, Object> remapping = new HashMap<>();
+        HashMap<RowLink, DbImporter.Remap> remapping = new HashMap<>();
         // why is this needed? Somehow he does not detect that language (originally =1 for these films) should be remapped
         // and the other test with all entries fails (as he adds the entries inserted here to what he exports in the other test)
         // it is correct: the stop-table avoids that we add (and remap!) the language table
-        remapping.put(new RowLink("language/1"), 7);
+        remapping.put(new RowLink("language/1"), new DbImporter.Remap(7, 0));
 
         // todo: enable checkUpdates again (when we can limit the number of ? in the update statement in f() of the fieldMapper)
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(connection,

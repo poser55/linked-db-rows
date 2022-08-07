@@ -54,7 +54,7 @@ public class PerformanceTest {
     private Record import1(Connection demoConnection, DbImporter dbImporter, String string) throws Exception {
         Record book2 = dbImporter.jsonToRecord(demoConnection, "Nodes", string);
 
-        Map<RowLink, Object> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
+        Map<RowLink, DbImporter.Remap> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
         return book2;
     }
 

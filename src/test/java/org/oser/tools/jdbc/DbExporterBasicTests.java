@@ -68,8 +68,8 @@ public class DbExporterBasicTests {
         // now duplicate this blog post entry to user_table/1 (it is now linked to user_table/2)
 
         DbImporter importer = new DbImporter();
-        Map<RowLink, Object> remapping = new HashMap<>();
-        remapping.put(new RowLink("user_table/2"), 1);
+        Map<RowLink, DbImporter.Remap> remapping = new HashMap<>();
+        remapping.put(new RowLink("user_table/2"), new DbImporter.Remap(1, 0));
         // to make it interesting, adapt the entry
         basicChecksResult.getAsRecordAgain().findElementWithName("title").setValue("new title");
         importer.insertRecords(demo, basicChecksResult.getAsRecordAgain(), remapping);
@@ -130,7 +130,7 @@ public class DbExporterBasicTests {
     void testBookTable_update() throws Exception {
         AtomicReference<Long> pages = new AtomicReference<>(0L);
         AtomicReference<DbExporter> exporter = new AtomicReference<>();
-        Map<RowLink, Object> remapping = new HashMap<>();
+        Map<RowLink, DbImporter.Remap> remapping = new HashMap<>();
         Connection demoConnection = TestHelpers.getConnection("demo");
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(
                 demoConnection,
@@ -164,7 +164,7 @@ public class DbExporterBasicTests {
         DbImporter dbImporter = new DbImporter();
         Record asRecordAgain = dbImporter.jsonToRecord(demo, "book", toInsert);
 
-        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demo, asRecordAgain);
+        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = dbImporter.insertRecords(demo, asRecordAgain);
     }
 
     @Test
@@ -186,7 +186,7 @@ public class DbExporterBasicTests {
         Loggers.disableDefaultLogs();
 
         // test simple deletion
-        Object newPk = basicChecksResult.getRowLinkObjectMap().entrySet().stream().filter(r -> r.getKey().getTableName().equals("nodes")).findFirst().get().getValue();
+        Object newPk = basicChecksResult.getRowLinkObjectMap().entrySet().stream().filter(r -> r.getKey().getTableName().equals("nodes")).findFirst().get().getValue().getPkField();
 
         DbExporter dbExporter = new DbExporter();
         List<String> nodes = dbExporter.getDeleteStatements(demo, dbExporter.contentAsTree(demo, "nodes", newPk));
@@ -256,7 +256,7 @@ public class DbExporterBasicTests {
 
         // as inserts
 
-        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, book2);
+        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = dbImporter.insertRecords(demoConnection, book2);
         System.out.println("\ninserts: " + rowLinkObjectMap.size());
 
         dbExporter.contentAsTree(demoConnection, "book", "1");
@@ -291,7 +291,7 @@ public class DbExporterBasicTests {
         DbImporter dbImporter = new DbImporter();
         Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJsonNode().toString());
 
-        Map<RowLink, Object> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
+        Map<RowLink, DbImporter.Remap> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
         System.out.println("remapped: " + pkAndTableObjectMap.size() + " new book Pk" + pkAndTableObjectMap.keySet().stream()
                 .filter(p -> p.getTableName().equals("book")).map(pkAndTableObjectMap::get).collect(toList()));
 
@@ -345,7 +345,7 @@ public class DbExporterBasicTests {
                 new HashMap<>(),
                 "datatypes", 100, 1, true);
 
-        Long o = (Long) basicChecksResult.getRowLinkObjectMap().values().stream().findFirst().get();
+        Long o = (Long) basicChecksResult.getRowLinkObjectMap().values().stream().findFirst().map(DbImporter.Remap::getPkField).get();
 
         DbExporter dbExporter = new DbExporter();
         Record asRecord = dbExporter.contentAsTree(demoConnection, "datatypes", o);

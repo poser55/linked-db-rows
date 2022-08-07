@@ -231,12 +231,12 @@ public class Record {
     }
 
     /** visit all Records in insertion order */
-    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles) throws Exception {
+    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles) throws SQLException {
         visitRecordsInInsertionOrder(connection, visitor, exceptionWithCycles, Caffeine.newBuilder().maximumSize(10_000).build());
     }
 
     /** visit all Records in insertion order */
-    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws Exception {
+    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws SQLException {
         JdbcHelpers.Pair<List<String>, Set<String>> insertionOrder = JdbcHelpers.determineOrderWithDetails(connection, rowLink.getTableName(), exceptionWithCycles, cache);
 
         Map<String, List<Record>> tableToRecords = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

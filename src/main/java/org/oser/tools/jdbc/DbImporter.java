@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.ToString;
 import org.oser.tools.jdbc.spi.pkgenerator.NextValuePkGenerator;
 
 import java.io.ByteArrayInputStream;
@@ -140,8 +143,6 @@ public class DbImporter implements FkCacheAccessor {
         return valueToInsert;
     }
 
-    ////// code partially from csvToDb
-
     /** Convert jsonString to record */
     public Record jsonToRecord(Connection connection, String rootTable, String jsonString) throws IOException, SQLException {
         if (jsonString == null || jsonString.isEmpty()){
@@ -267,17 +268,27 @@ public class DbImporter implements FkCacheAccessor {
      * CAVEAT: it cannot handle cycles in the db tables!
      * Will insert just partial data (the first tables without cycles).
      */
-    public Map<RowLink, Object> insertRecords(Connection connection, Record dbRecord) throws Exception {
-        Map<RowLink, Object> newKeys = new HashMap<>();
+    public Map<RowLink, Remap> insertRecords(Connection connection, Record dbRecord) throws SQLException {
+        Map<RowLink, Remap> newKeys = new HashMap<>();
 
         return insertRecords(connection, dbRecord, newKeys);
     }
 
+    /** Holds the pkField and the position within the PK (0-based). The latter is important if the PK has multiple fields */
+    @AllArgsConstructor
+    @ToString
+    @Getter
+    public static class Remap {
+        Object pkField;
+        /** 0-based: what is the position of the pkField (in case the PK has a list of PK fields */
+        int position = 0;
+    }
+
     /** Alternative to {@link #insertRecords(Connection, Record)} that allows to remap certain elements (e.g. if you want to connect
-     *    some nodes of the JSON tree to an existing RowLink)
-     *     E.g. insert a blog entry at another person that the one in the Record. Refer to the test org.oser.tools.jdbc.DbExporterBasicTests#blog()
+     *    some nodes of the JSON tree to an existing RowLink). The previously remapped elements (those in newKeys) are NOT inserted. <br/>
+     *     Sample use case: insert a blog entry at another person that the one in the Record. Refer to the test org.oser.tools.jdbc.DbExporterBasicTests#blog()
      *     CAVEAT: newKeys must be a mutable map (it will add all the other remappings also) */
-    public Map<RowLink, Object> insertRecords(Connection connection, Record dbRecord, Map<RowLink, Object> newKeys) throws Exception {
+    public Map<RowLink, Remap> insertRecords(Connection connection, Record dbRecord, Map<RowLink, Remap> newKeys) throws SQLException {
         Set<RowLink> rowLinksNotToInsert = newKeys.keySet();
 
         CheckedFunction<Record, Void> insertOneRecord = (Record r) -> {
@@ -291,7 +302,7 @@ public class DbImporter implements FkCacheAccessor {
         return newKeys;
     }
 
-    private void insertOneRecord(Connection connection, Record dbRecord, Map<RowLink, Object> newKeys) throws SQLException {
+    private void insertOneRecord(Connection connection, Record dbRecord, Map<RowLink, Remap> newKeys) throws SQLException {
         List<String> primaryKeys = dbRecord.getPkNames();
 
         // todo : bug sometimes the optionalFk is not correct on record (e.g. on node)
@@ -301,9 +312,9 @@ public class DbImporter implements FkCacheAccessor {
         Map<String, List<Fk>> fksByColumnName = Fk.fksByColumnName(fksOfTable);
         List<Boolean> isFreePk = new ArrayList<>(primaryKeys.size());
 
-        List<Object> pkValues = remapPrimaryKeyValues(dbRecord, newKeys, primaryKeys, fksByColumnName, isFreePk);
+        List<Object> newPkValues = remapPrimaryKeyValues(dbRecord, newKeys, primaryKeys, fksByColumnName, isFreePk);
 
-        boolean entryExists = JdbcHelpers.doesRowWithPrimaryKeysExist(connection, dbRecord.getRowLink().getTableName(), primaryKeys, pkValues, dbRecord.getColumnMetadata());
+        boolean entryExists = JdbcHelpers.doesRowWithPrimaryKeysExist(connection, dbRecord.getRowLink().getTableName(), primaryKeys, newPkValues, dbRecord.getColumnMetadata());
         boolean isInsert = forceInsert || !entryExists;
 
         Object candidatePk;
@@ -315,15 +326,9 @@ public class DbImporter implements FkCacheAccessor {
                     Record.FieldAndValue pkFieldWithValue = dbRecord.findElementWithName(primaryKeys.get(i));
                     candidatePk = getCandidatePk(connection, dbRecord.getRowLink().getTableName(), pkFieldWithValue.getMetadata().type, primaryKeys.get(i));
 
-                    // TODO : fix this (.get(0)  in next line): With multiple pks, does this work in all cases? The
-                    //  RowLink has just the first "free" pk (is missing the others)
-                    RowLink key = new RowLink(dbRecord.getRowLink().getTableName(), dbRecord.findElementWithName(dbRecord.getPkNames().get(0)).getValue());
-                    newKeys.put(key, candidatePk);
+                    newKeys.put(dbRecord.getRowLink(), new Remap(candidatePk, i));
 
-                    // todo: this would be a candidate, but the whole newKeys structure is then wrong, needs to adapt everywhere
-                    //newKeys.put(dbRecord.getRowLink(), candidatePk);
-
-                    pkValues.set(i, candidatePk); // maybe not needed (caught by later remapping?)
+                    newPkValues.set(i, candidatePk); // maybe not needed (caught by later remapping?)
                     break;
                 }
             }
@@ -355,15 +360,15 @@ public class DbImporter implements FkCacheAccessor {
                 boolean fieldIsPk = primaryKeys.stream().map(String::toLowerCase).anyMatch(e -> currentFieldName.toLowerCase().equals(e));
 
                 if (fieldIsPk) {
-                    valueToInsert[0] = Objects.toString(pkValues.get(JdbcHelpers.getStringIntegerMap(primaryKeys).get(currentFieldName.toLowerCase())));
+                    valueToInsert[0] = Objects.toString(newPkValues.get(JdbcHelpers.getStringIntegerMap(primaryKeys).get(currentFieldName.toLowerCase())));
                 } else if (isInsert && fksByColumnName.containsKey(currentFieldName)) {
                     // remap fks!
                     List<Fk> fks = fksByColumnName.get(currentFieldName);
 
                     Object earlierIntendedFk = valueToInsert[0];
                     fks.forEach(fk -> {
-                        Object potentialNewValue = newKeys.get(new RowLink(fk.getPktable(), earlierIntendedFk));
-                        valueToInsert[0] = potentialNewValue != null ? Objects.toString(potentialNewValue) : valueToInsert[0];
+                        Remap potentialNewValue = newKeys.get(new RowLink(fk.getPktable(), earlierIntendedFk));
+                        valueToInsert[0] = potentialNewValue != null ? Objects.toString(potentialNewValue.getPkField()) : valueToInsert[0];
                     });
                 }
 
@@ -398,13 +403,16 @@ public class DbImporter implements FkCacheAccessor {
 
 
     /**
-     * @return the primary key values that are remapped if needed (if e.g. another inserted row has a pk that was remapped before)
+     * @return the primary key values that can be inserted for this record.
+     *  The primary keys are remapped if needed (if e.g. another inserted row has a pk that was remapped before)
      *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
      *
      *         A free PK is one that has no FK from somewhere else and is not remapped there => so we can assign it freely
+     *
      * */
+    // todo: fix this
     static List<Object> remapPrimaryKeyValues(Record dbRecord,
-                                              Map<RowLink, Object> newKeys,
+                                              Map<RowLink, DbImporter.Remap> newKeys,
                                               List<String> primaryKeys,
                                               Map<String, List<Fk>> fksByColumnName,
                                               List<Boolean> isFreePk) {
@@ -414,7 +422,7 @@ public class DbImporter implements FkCacheAccessor {
             Record.FieldAndValue pkFieldWithValue = dbRecord.findElementWithName(primaryKey);
 
             // do the remapping from the newKeys
-            Object[] potentialValueToInsert = {null};
+            Remap[] potentialValueToInsert = {null};
             if (fksByColumnName.containsKey(primaryKey.toLowerCase())) {
                 List<Fk> fks = fksByColumnName.get(primaryKey.toLowerCase());
                 // todo: fix next line: rowlink is wrong if more than 1 primary key?
@@ -423,7 +431,7 @@ public class DbImporter implements FkCacheAccessor {
             // if it is remapped, it is a fk from somewhere else -> so we cannot set it freely
             isFreePk.add(potentialValueToInsert[0] == null);
 
-            pkValues.add(potentialValueToInsert[0] != null ? potentialValueToInsert[0]: pkFieldWithValue.getValue());
+            pkValues.add(potentialValueToInsert[0] != null ? potentialValueToInsert[0].getPkField(): pkFieldWithValue.getValue());
         }
         return pkValues;
     }

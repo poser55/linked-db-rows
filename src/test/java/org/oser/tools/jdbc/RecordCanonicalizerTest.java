@@ -55,7 +55,7 @@ class RecordCanonicalizerTest {
                 "Nodes", 1, 10);
 
         Record newRecord =
-                localDbExporter[0].contentAsTree(demo, "Nodes", basicChecksResult.getRowLinkObjectMap().get(new RowLink("Nodes", 1)));
+                localDbExporter[0].contentAsTree(demo, "Nodes", basicChecksResult.getRowLinkObjectMap().get(new RowLink("Nodes", 1)).getPkField());
         System.out.println("before:" + newRecord +"\n\n");
 
         RecordCanonicalizer.canonicalizeIds(demo, newRecord, fkCache, pkCache);

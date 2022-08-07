@@ -1,9 +1,11 @@
 package org.oser.tools.jdbc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +29,7 @@ class DoubleFkTest {
 
         System.out.println(Fk.getFksOfTable(demo, "Edge"));
 
+        Loggers.enableLoggers(Loggers.CHANGE);
         TestHelpers.BasicChecksResult basicChecksResult = TestHelpers.testExportImportBasicChecks(demo,
                 dbExporter -> {
                     Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
@@ -40,12 +43,16 @@ class DoubleFkTest {
         System.out.println(new DbExporter().contentAsTree(demo, "combined", 1, 2));
 
         // delete entries again (for other tests)
-        Map<RowLink, Object> rowLinkObjectMap = basicChecksResult.getRowLinkObjectMap();
-        Optional<Object> insertedPks = rowLinkObjectMap.keySet().stream().filter(r -> r.getTableName().equals("link")).map(rowlink -> rowLinkObjectMap.get(rowlink)).findFirst();
+        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = basicChecksResult.getRowLinkObjectMap();
+        Optional<Object> insertedPks = rowLinkObjectMap.keySet().stream().filter(r -> r.getTableName().equals("link")).map(rowlink -> rowLinkObjectMap.get(rowlink)).map(DbImporter.Remap::getPkField).findFirst();
         assertTrue(insertedPks.isPresent());
         DbExporter dbExporter = new DbExporter();
         Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
         Record link = dbExporter.deleteRecursively(demo, "link", insertedPks.get());
+
+        // todo: strange that this is necessary
+        demo.close();
+        TestHelpers.clearCache();
     }
 
     @Test
@@ -60,7 +67,7 @@ class DoubleFkTest {
 
         DbImporter importer = new DbImporter();
 
-        Map<RowLink, Object> rowLinkObjectMap = importer.insertRecords(demo, triplet);
+        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = importer.insertRecords(demo, triplet);
 
         System.out.println("remapping:" + rowLinkObjectMap);
 
@@ -90,7 +97,7 @@ class DoubleFkTest {
 //        System.out.println(new DbExporter().contentAsTree(demo, "link_triplet", 1, 2));
 //
 //        // delete entries again (for other tests)
-//        Map<RowLink, Object> rowLinkObjectMap = basicChecksResult.getRowLinkObjectMap();
+//        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = basicChecksResult.getRowLinkObjectMap();
 //        Optional<Object> insertedPks = rowLinkObjectMap.keySet().stream().filter(r -> r.getTableName().equals("link")).map(rowlink -> rowLinkObjectMap.get(rowlink)).findFirst();
 //        assertTrue(insertedPks.isPresent());
 //        DbExporter dbExporter = new DbExporter();

@@ -17,6 +17,10 @@ class KeycloakTests {
     // docker.exe run --name keycloak -e DB_ADDR=host.docker.internal -e DB_VENDOR=POSTGRES -e DB_DATABASE=marcopolo-dev -e DB_USER=marcopolo-dev -e KEYCLOAK_USER=admin -e DB_PORT=5431 -e KEYCLOAK_PASSWORD=admin -p 8080:8080 jboss/keycloak
     // go to http://localhost:8080/ to go to the console of keycloak
 
+
+    // newer
+    //  docker.exe run --name keycloak -e DB_ADDR=host.docker.internal -e DB_VENDOR=POSTGRES -e DB_DATABASE=postgres -e DB_USER=postgres -e KEYCLOAK_USER=admin -e DB_PORT=5432 -e KEYCLOAK_PASSWORD=admin -e DB_PASSWORD=admin -p 8080:8080 jboss/keycloak
+
     @Test
     @Disabled // needs keycloak setup
     void exportFullUserKeycloak() throws Exception {
@@ -34,7 +38,7 @@ class KeycloakTests {
         Fk.addVirtualForeignKey(con, dbExporter, "user_role_mapping", "role_id", "keycloak_role", "id" );
         // step 2 (remove too much details)
         dbExporter.getStopTablesIncluded().add("keycloak_role");
-        // todo: probably you need to adapt UUID to your environment
+        // todo: you need to adapt UUID to your environment
         Record exportedCase = dbExporter.contentAsTree(con, "user_entity", "98831e8d-898a-4b6c-bc5c-e10ac3911380");
 
         Set<RowLink> allNodes = exportedCase.getAllNodes();

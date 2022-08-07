@@ -108,12 +108,18 @@ public class TestHelpers {
     public static Connection getConnection(String dbName) throws SQLException, ClassNotFoundException, IOException {
         Connection connection = connectionCache.getIfPresent(dbName);
 
-        if (connection == null) {
+        if (connection == null || connection.isClosed()) {
             connection = internalGetConnection(dbName);
             connectionCache.put(dbName, connection);
         }
 
         return connection;
+    }
+
+    static void clearCache(){
+        // todo: we might need to close the connection as well (at least for h2?)
+        connectionCache.invalidateAll();
+        firstTimeForEachDb.clear();
     }
 
     /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
@@ -132,7 +138,9 @@ public class TestHelpers {
             if (baseConfig.isInitDb()) {
                 initDbNow = true;
             }
-            firstTimeForEachDb.add(dbName);
+            if (useCache) {
+                firstTimeForEachDb.add(dbName);
+            }
         }
         if (runningOnOsX()) {
             // strange issue: only in mvn on osx the init cache detection does not seem to work
@@ -242,7 +250,9 @@ public class TestHelpers {
         return testExportImportBasicChecks(demoConnection, null, null, tableName, primaryKeyValue, numberNodes);
     }
 
-    public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, Consumer<DbExporter> optionalExporterConfigurer, Consumer<DbImporter> optionalImporterConfigurer, String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
+    public static BasicChecksResult testExportImportBasicChecks(Connection demoConnection, Consumer<DbExporter> optionalExporterConfigurer,
+                                                                Consumer<DbImporter> optionalImporterConfigurer,
+                                                                String tableName, Object primaryKeyValue, int numberNodes) throws Exception {
         return testExportImportBasicChecks(demoConnection, optionalExporterConfigurer, optionalImporterConfigurer, null, new HashMap<>(), tableName, primaryKeyValue, numberNodes
         ,true);
     }
@@ -253,7 +263,7 @@ public class TestHelpers {
      */
     public static BasicChecksResult testExportImportBasicChecks(Connection connection, Consumer<DbExporter> optionalExporterConfigurer,
                                                                 Consumer<DbImporter> optionalImporterConfigurer, Consumer<Record> optionalRecordChanger,
-                                                                Map<RowLink, Object> remapping, String tableName, Object primaryKeyValue,
+                                                                Map<RowLink, DbImporter.Remap> remapping, String tableName, Object primaryKeyValue,
                                                                 int numberNodes, boolean checkUpdates) throws Exception {
         List<String> testSchemas = getDefaultSchemaPlusDoc(connection);
         Map<String, Integer> before = JdbcHelpers.getNumberElementsInEachTable(connection, testSchemas);
@@ -288,7 +298,7 @@ public class TestHelpers {
         }
 
         // todo: bug: asRecord is missing columnMetadata/ other values
-        Map<RowLink, Object> rowLinkObjectMap = dbImporter.insertRecords(connection, asRecordAgain, remapping);
+        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = dbImporter.insertRecords(connection, asRecordAgain, remapping);
 
         Map<String, Integer> after = JdbcHelpers.getNumberElementsInEachTable(connection, testSchemas);
 
@@ -296,11 +306,9 @@ public class TestHelpers {
             // when updating, the number of inserted db entries does not increase, so we do not check it here
             assertNumberInserts(before, after, numberNodes);
 
-            remapping = new HashMap<>();
-
             // try updating as well
             dbImporter.setForceInsert(false);
-            Map<RowLink, Object> rowLinkObjectMap2 = dbImporter.insertRecords(connection, asRecordAgain, remapping);
+            Map<RowLink, DbImporter.Remap> rowLinkObjectMap2 = dbImporter.insertRecords(connection, asRecordAgain);
 
             // there should be no remappings with forceInsert
             assertEquals(0, rowLinkObjectMap2.size());
@@ -341,14 +349,14 @@ public class TestHelpers {
         private final String asString;
         private final Record asRecordAgain;
         private final String asStringAgain;
-        private final Map<RowLink, Object> rowLinkObjectMap;
+        private final Map<RowLink, DbImporter.Remap> rowLinkObjectMap;
         private Map<RowLink, List<Object>> rowLinkListMap;
 
         public BasicChecksResult(Record asRecord,
                                  String asString,
                                  Record asRecordAgain,
                                  String asStringAgain,
-                                 Map<RowLink, Object> rowLinkObjectMap,
+                                 Map<RowLink, DbImporter.Remap> rowLinkObjectMap,
                                  Map<RowLink, List<Object>> rowLinkListMap) {
             this.asRecord = asRecord;
             this.asString = asString;
