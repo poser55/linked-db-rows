@@ -10,6 +10,7 @@ import guru.nidi.graphviz.model.MutableGraph;
 import guru.nidi.graphviz.model.MutableNode;
 import org.oser.tools.jdbc.Fk;
 import org.oser.tools.jdbc.FkCacheAccessor;
+import org.oser.tools.jdbc.JdbcHelpers;
 import org.oser.tools.jdbc.Record;
 import org.oser.tools.jdbc.RowLink;
 
@@ -19,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -86,22 +88,44 @@ public class RecordAsGraph implements FkCacheAccessor {
         }
     }
 
-    /** Render graph as png file */
-    public void renderGraph(MutableGraph g, File f) throws IOException {
-        // to debug text output:
-        //System.out.println("file:"+ Graphviz.fromGraph(g).width(width).render(Format.PLAIN).toString());
+    /**
+     * Represent the DDL of a tableName (and its linked elements) as a graphviz graph */
+    public MutableGraph ddlGraphAsGraph(Connection connection, String tableName) throws SQLException {
+        Set<String> treated = new HashSet<>();
+        Map<String, Set<String>> dependencyGraph = JdbcHelpers.initDependencyGraph(tableName, treated, connection, fkCache);
 
-        Graphviz.fromGraph(g).engine(Engine.FDP).render(Format.PNG).toFile(f);
+        Map<String, MutableNode> nodes = new HashMap<>();
+        dependencyGraph.entrySet().forEach(entry -> addEntryToNodes(nodes, entry));
+        MutableNode[] nodesAsArray = nodes.values().toArray(new MutableNode[0]);
+
+        return mutGraph().setDirected(true).add(nodesAsArray);
     }
 
-    /** Render graph as png file */
-    public void renderGraph(MutableGraph g, int width, File f) throws IOException {
-        Graphviz.fromGraph(g).width(width).engine(Engine.FDP).render(Format.PNG).toFile(f);
+    private static void addEntryToNodes(Map<String, MutableNode> nodes, Map.Entry<String, Set<String>> entry) {
+        MutableNode sourceNode = findOrCreateNode(nodes, entry.getKey());
+
+        for (String targetDependencyName : entry.getValue()) {
+            MutableNode targetNode = findOrCreateNode(nodes, targetDependencyName);
+            sourceNode.addLink(targetNode);
+        }
     }
 
-    /** Get raw dot file */
-    public String renderGraphAsDotFile(MutableGraph g) throws IOException {
-        return Graphviz.fromGraph(g).render(Format.DOT).toString();
+    private static MutableNode findOrCreateNode(Map<String, MutableNode> nodes, String nodeName) {
+        MutableNode node = nodes.containsKey(nodeName) ?
+                nodes.get(nodeName) :
+                mutNode(nodeName);
+        nodes.put(nodeName, node);
+        return node;
+    }
+
+    /** Render graph as file (with selectable file format) */
+    public void renderGraph(MutableGraph g, int width, Format format, File f) throws IOException {
+        Graphviz.fromGraph(g).width(width).engine(Engine.FDP).render(format).toFile(f);
+    }
+
+    /** Render graph as file (with selectable file format) */
+    public void renderGraph(MutableGraph g, Format format, File f) throws IOException {
+        Graphviz.fromGraph(g).engine(Engine.FDP).render(format).toFile(f);
     }
 
     @Override

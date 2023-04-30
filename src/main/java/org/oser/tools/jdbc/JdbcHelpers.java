@@ -63,7 +63,8 @@ public final class JdbcHelpers {
         return determineOrderWithDetails(connection, rootTable,exceptionWithCycles, cache).getLeft();
     }
 
-    /** Similar to {@link #determineOrder(Connection, String, boolean, Cache)} but return also all tables as set (in case there was a cycle) */
+    /** Similar to {@link #determineOrder(Connection, String, boolean, Cache)} but return also all tables as
+     * set (in case there was a cycle) */
     public static Pair<List<String>, Set<String>> determineOrderWithDetails(Connection connection, String rootTable, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws SQLException {
         Set<String> treated = new HashSet<>();
 
@@ -141,7 +142,7 @@ public final class JdbcHelpers {
      * @return constraints in the form Map<X, Y> :  X is used in all Y (X is the key, Y are the values (Y is a set of all values),
      * all tables are lower case
      */
-    private static Map<String, Set<String>> initDependencyGraph(String rootTable, Set<String> treated, Connection connection, Cache<String, List<Fk>> cache) throws SQLException {
+    public static Map<String, Set<String>> initDependencyGraph(String rootTable, Set<String> treated, Connection connection, Cache<String, List<Fk>> cache) throws SQLException {
         rootTable = rootTable.toLowerCase();
         Set<String> tablesToTreat = new HashSet<>();
         tablesToTreat.add(rootTable);

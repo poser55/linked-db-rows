@@ -1,5 +1,6 @@
 package org.oser.tools.jdbc.graphviz;
 
+import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.model.MutableGraph;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
@@ -29,7 +30,7 @@ public class RecordAsGraphTest {
         RecordAsGraph asGraph = new RecordAsGraph();
         MutableGraph graph = asGraph.recordAsGraph(demo, records, t -> List.of("name", "node_id"));
 
-        asGraph.renderGraph(graph, 900, new File( "graph.png"));
+        asGraph.renderGraph(graph, 900, Format.PNG, new File( "graph.png"));
     }
 
 
@@ -39,5 +40,16 @@ public class RecordAsGraphTest {
         r.getContent().add(new Record.FieldAndValue("name", new JdbcHelpers.ColumnMetadata("name", "1", 1, 1, 1, "COLDEF", 1), 1));
         r.getContent().add(new Record.FieldAndValue("title", new JdbcHelpers.ColumnMetadata("title", "1", 1, 1, 1, "COLDEF", 2), 2));
         assertEquals("<br/>1 <br/>2", RecordAsGraph.getOptionalFieldNameValues(r, TableToFieldMapper.DEFAULT_TABLE_TO_FIELD_MAPPER));
+    }
+
+    @Test
+    void getDDLdependenciesAsGraph() throws Exception {
+        Connection connection = TestHelpers.getConnection("demo");
+
+        RecordAsGraph asGraph = new RecordAsGraph();
+        MutableGraph graph = asGraph.ddlGraphAsGraph(connection, "blogpost");
+        //MutableGraph graph = asGraph.ddlGraphAsGraph(connection, "actor");
+
+        asGraph.renderGraph(graph, Format.SVG_STANDALONE,  new File( "ddl.svg"));
     }
 }

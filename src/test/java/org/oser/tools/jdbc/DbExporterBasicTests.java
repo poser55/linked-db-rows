@@ -1,6 +1,7 @@
 package org.oser.tools.jdbc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.model.MutableGraph;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -212,7 +213,7 @@ public class DbExporterBasicTests {
 
         RecordAsGraph asGraph = new RecordAsGraph();
         MutableGraph graph = asGraph.recordAsGraph(demo, nodes1);
-        asGraph.renderGraph(graph, 900, new File( "graph_exported.png"));
+        asGraph.renderGraph(graph, 900, Format.SVG_STANDALONE, new File( "graph_exported.svg"));
     }
 
 
