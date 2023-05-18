@@ -27,6 +27,7 @@ public class DynJarLoaderTest {
         System.out.println("result:"+result);
     }
 
+    /** loads jar in jarLocation and creates instance of className (with empty arg constructor) */
     void loadJarAndInvoke2(String jarLocation, String className) throws Exception {
 
         Class loadedClass = DynJarLoader.loadClassDynamically(className, DynJarLoader.getUrlClassLoader(jarLocation, this.getClass().getClassLoader()));

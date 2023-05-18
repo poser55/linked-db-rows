@@ -167,7 +167,7 @@ public class JsonExport implements Callable<Integer> {
         try {
             ExecuteDbScriptFiles.executeSqlFile(connection, sqlScriptFileName, new HashMap());
         } catch (Exception e) {
-            err.println("Error when initializing the script:");
+            err.println("Error when initializing the script - ignoring it:");
             e.printStackTrace(); // ignore errors
         }
     }

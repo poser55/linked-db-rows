@@ -44,6 +44,14 @@ public class RecordAsGraph implements FkCacheAccessor {
     // todo: add helper methods to control the displaying of the graph
     //  allow to add other attributes to the node
 
+    /** Simple convenience method to get graph of a record */
+    public static void toSimpleGraph(Connection connection, Record records, String filename) throws SQLException, IOException {
+        RecordAsGraph asGraph = new RecordAsGraph();
+        MutableGraph graph = asGraph.recordAsGraph(connection, records, t -> List.of("name", "node_id"));
+
+        asGraph.renderGraph(graph, 900, Format.PNG, new File(filename));
+    }
+
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder().maximumSize(10_000).build();
 
     public MutableGraph recordAsGraph(Connection connection, Record r) throws SQLException {

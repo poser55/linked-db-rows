@@ -84,6 +84,7 @@ public class TestHelpers {
                     new DbConfig("sqlserver", mssqlserver.getDriverClassName(),
                             ()-> mssqlserver.getJdbcUrl(), mssqlserver.getUsername(), mssqlserver.getPassword(), true,
                             Map.of("sakila","false", "sequences", "false")).disableAppendDbName(),
+
                     new DbConfig("hsqldb", "org.hsqldb.jdbcDriver",
                             ()-> "jdbc:hsqldb:mem:demo", "SA", "", true,
                             Map.of("sakila","false", "sequences", "false")).disableAppendDbName());
@@ -119,7 +120,10 @@ public class TestHelpers {
     static void clearCache(){
         // todo: we might need to close the connection as well (at least for h2?)
         connectionCache.invalidateAll();
-        firstTimeForEachDb.clear();
+
+        if (!(activeDB.equals("oracle") || activeDB.equals("sqlserver"))) {
+            firstTimeForEachDb.clear();
+        }
     }
 
     /** side-effects: inits db if necessary (the first time only, inits all dbNames with all sql scripts - for now) */
@@ -373,6 +377,5 @@ public class TestHelpers {
         rootLogger.setLevel(Level.INFO);
     }
 
-    private static final Cache<String, List<String>> pkCache = Caffeine.newBuilder()
-            .maximumSize(1000).build();
+    private static final Cache<String, List<String>> pkCache = Caffeine.newBuilder().maximumSize(1000).build();
 }

@@ -33,6 +33,13 @@ public class RecordAsGraphTest {
         asGraph.renderGraph(graph, 900, Format.PNG, new File( "graph.png"));
     }
 
+    @Test
+    void simpleWithConvenienceMethod() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo = TestHelpers.getConnection("demo");
+        DbExporter exporter = new DbExporter();
+        Record records = exporter.contentAsTree(demo, "Nodes", 1);
+        RecordAsGraph.toSimpleGraph(demo, records, "bla.png");
+    }
 
     @Test
     void testFieldMapping() {

@@ -1,11 +1,13 @@
 package org.oser.tools.jdbc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Disabled;
+import guru.nidi.graphviz.engine.Format;
+import guru.nidi.graphviz.model.MutableGraph;
 import org.junit.jupiter.api.Test;
+import org.oser.tools.jdbc.graphviz.RecordAsGraph;
 
+import java.io.File;
 import java.sql.Connection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,9 +48,21 @@ class DoubleFkTest {
         Map<RowLink, DbImporter.Remap> rowLinkObjectMap = basicChecksResult.getRowLinkObjectMap();
         Optional<Object> insertedPks = rowLinkObjectMap.keySet().stream().filter(r -> r.getTableName().equals("link")).map(rowlink -> rowLinkObjectMap.get(rowlink)).map(DbImporter.Remap::getPkField).findFirst();
         assertTrue(insertedPks.isPresent());
-        DbExporter dbExporter = new DbExporter();
-        Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
-        Record link = dbExporter.deleteRecursively(demo, "link", insertedPks.get());
+
+
+        DbExporter exporterForDeletion = new DbExporter();
+        Fk.initFkCacheForMysql_LogException(demo, exporterForDeletion.getFkCache());
+        exporterForDeletion.contentAsTree(demo, "link2self", 2);
+
+        // deleting all recursively deletes all entries (as they are all linked in the db, via the combined entry).
+        // we need to remove the link to combined in the export
+        //Record link = dbExporter.deleteRecursively(demo, "link", insertedPks.get());
+
+        exporterForDeletion.getStopTablesExcluded().add("combined");
+        List<String> deleteStatements = exporterForDeletion.getDeleteStatements(demo, exporterForDeletion.contentAsTree(demo, "link", insertedPks.get()));
+        exporterForDeletion.doDeletionWithException(demo, deleteStatements);
+
+        exporterForDeletion.contentAsTree(demo, "link2self", 2);
 
         // todo: strange that this is necessary
         demo.close();
