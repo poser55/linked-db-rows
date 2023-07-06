@@ -600,4 +600,9 @@ public class Record {
     public String toString() {
         return this.asJsonNode().toString();
     }
+
+    /** Return all entries that are subrecords */
+    List<Record.FieldAndValue> getSubRecordFieldAndValues() {
+        return this.getContent().stream().filter(e -> (e.getSubRow() != null)&&(e.getSubRow().size()>0)).collect(Collectors.toList());
+    }
 }

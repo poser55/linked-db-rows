@@ -1,6 +1,7 @@
 package org.oser.tools.jdbc;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -342,4 +344,24 @@ public class Fk {
         }
         return subTableName;
     }
+
+    /** Do the table1 and table2 have a FK relationship? */
+    public static Optional<Fk> getFkOfTwoTables(Connection connection, String table1, String table2, Cache<String, List<Fk>> cache) throws SQLException {
+        List<Fk> fksOfTable = Fk.getFksOfTable(connection, table1, cache);
+
+        for (Fk fk : fksOfTable) {
+            if ((fk.getPktable().equalsIgnoreCase(table1) && fk.getFktable().equalsIgnoreCase(table2)) ||
+                    (fk.getPktable().equalsIgnoreCase(table2) && fk.getFktable().equalsIgnoreCase(table1))){
+                return Optional.of(fk);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Do the table1 and table2 have a FK relationship? */
+    public static Optional<Fk> getFkOfTwoTables(Connection connection, String table1, String table2) throws SQLException {
+        Cache<String, List<Fk>> cache = Caffeine.newBuilder().maximumSize(10_000).build();
+        return getFkOfTwoTables(connection, table1, table2, cache);
+    }
+
 }

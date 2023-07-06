@@ -246,3 +246,18 @@ Further Ideas
 * Extension ideas
     - Do more unification of Datatype handling. E.g. oracle treats DATE different from Postgres (so at the moment
     we need to adapt it in the JSON/ Record). Refer e.g. to DbExporterBasicTests#datatypesTest(). 
+
+Jdbc Helper functions
+----------------------
+* Getting Foreign-Key constraints from the database
+    - List<Fk> fks = Fk.getFksOfTable(connection, "tableName"[, fkCache]);
+        Where fkCache is of type Cache<String, List<Fk>> cache
+    - Fk holds the details of one foreign key in a structured form
+* List<String> orderedTables = JdbcHelper.determineOrder(connection, "rootTable", boolean exceptionWithCycles[, fkCache])
+    - Determine the order in which one could import the table into the db, taking the Fks into account (invert for deletion)
+* Get Fk dependencies of a table and its linked tables
+  Map<String, Set<String>> deps = JdbcHelper.initDependencyGraph("rootTable", treatedTableSet, connection);
+* Get datastructure with column metadate for all columns of a table
+    - SortedMap<String, ColumnMetadata> metadata = JdbcHelper.getColumnMetadata(metadata, tablename);
+* Topological sort JdbcHelper.topologicalSort 
+  

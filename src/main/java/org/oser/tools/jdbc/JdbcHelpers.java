@@ -603,10 +603,10 @@ public final class JdbcHelpers {
         return result;
     }
 
-    // system is default schema in oracle,
-    // dbo is the default schema in sqlserver,
-    // Java-null is the default schema in mysql,
-    // public is the default schema in other dbs
+    /** system is default schema in oracle,
+     dbo is the default schema in sqlserver,
+     Java-null is the default schema in mysql,
+     public is the default schema in other dbs */
     public static String getSchemaPrefix(Connection connection, String schema) throws SQLException {
         String connectionSchema = connection.getSchema();
         return ((connectionSchema == null && schema == null) ||

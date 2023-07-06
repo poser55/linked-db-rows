@@ -11,6 +11,7 @@ import java.sql.Connection;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RecordCanonicalizerTest {
 
@@ -36,6 +37,8 @@ class RecordCanonicalizerTest {
         Record authorRecord = record.findElementWithName("author_id").getSubRow().get("author").get(0);
 
         assertEquals(1L, authorRecord.findElementWithName("id").getValue());
+
+        assertTrue(record.getSubRecordFieldAndValues().size()> 0);
     }
 
     @Test

@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -86,5 +87,19 @@ class FkTest {
         assertEquals(link2self.get(0).getFktable(), link2self.get(0).getPktable());
         assertEquals(link2self.get(1).getFktable(), link2self.get(1).getPktable());
         assertEquals(1, link2self.get(0).getFkcolumn().length);
+    }
+
+    @Test
+    void getFkOfTwoTables() throws SQLException, IOException, ClassNotFoundException {
+        Connection demo = TestHelpers.getConnection("demo");
+        Cache<String, List<Fk>> cache = Caffeine.newBuilder().maximumSize(10_000).build();
+
+        Optional<Fk> fk1 = Fk.getFkOfTwoTables(demo, "book", "author", cache);
+        assertTrue(fk1.isPresent());
+        assertTrue(fk1.get().getFktable().equalsIgnoreCase("book") || fk1.get().getPktable().equalsIgnoreCase("book"));
+        assertTrue(fk1.get().getFktable().equalsIgnoreCase("author") || fk1.get().getPktable().equalsIgnoreCase("author"));
+
+        Optional<Fk> fk2 = Fk.getFkOfTwoTables(demo, "book", "Nodes", cache);
+        assertTrue(fk2.isEmpty());
     }
 }
