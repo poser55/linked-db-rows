@@ -1,6 +1,7 @@
 package org.oser.tools.jdbc;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.sql.DatabaseMetaData;
 import java.util.Arrays;
@@ -9,7 +10,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A table and a list of concrete primary keys  (uniquely identifies a row in a db)<p>
+ * A table and a list of concrete primary keys, which uniquely identify a row in a db.<p>
  *  What is the order of the pks?  As we get it from the database metadata.
  *    E.g. via {@link JdbcHelpers#getPrimaryKeys(DatabaseMetaData, String)} <br/>
  *
@@ -62,6 +63,7 @@ public class RowLink {
     }
 
     private String tableName;
+    @Setter
     private Object[] pks;
 
     @Override
@@ -90,7 +92,4 @@ public class RowLink {
         this.tableName = tableName.toLowerCase();
     }
 
-    public void setPks(Object[] pks) {
-        this.pks = pks;
-    }
 }

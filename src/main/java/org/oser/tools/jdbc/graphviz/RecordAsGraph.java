@@ -33,7 +33,7 @@ import static guru.nidi.graphviz.model.Factory.mutNode;
 
 /**
  * Experimental code to display a Record as a graphviz graph.
- *   Requires the optional (maven) dependency to https://github.com/nidi3/graphviz-java <br/>
+ *   Requires the optional (maven) dependency to <a href="https://github.com/nidi3/graphviz-java">graphviz-java</a> <br/>
  *
  *   Format: <br/>
  *     * the name of a node is the string representation of its {@link RowLink}  <br/>
@@ -49,7 +49,7 @@ public class RecordAsGraph implements FkCacheAccessor {
         RecordAsGraph asGraph = new RecordAsGraph();
         MutableGraph graph = asGraph.recordAsGraph(connection, records, t -> List.of("name", "node_id"));
 
-        asGraph.renderGraph(graph, 900, Format.PNG, new File(filename));
+        renderGraph(graph, 900, Format.PNG, new File(filename));
     }
 
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder().maximumSize(10_000).build();
@@ -62,7 +62,7 @@ public class RecordAsGraph implements FkCacheAccessor {
         if (mapper == null) {
             mapper = TableToFieldMapper.DEFAULT_TABLE_TO_FIELD_MAPPER;
         }
-        Map<DbRecord, MutableNode> nodes = new HashMap();
+        Map<DbRecord, MutableNode> nodes = new HashMap<>();
         TableToFieldMapper finalMapper = mapper;
         r.getAllRecords().forEach(record -> nodes.put(record, recordAsNode(record, finalMapper)));
         MutableNode[] nodesAsArray = nodes.values().toArray(new MutableNode[0]);
@@ -127,12 +127,12 @@ public class RecordAsGraph implements FkCacheAccessor {
     }
 
     /** Render graph as file (with selectable file format) */
-    public void renderGraph(MutableGraph g, int width, Format format, File f) throws IOException {
+    public static void renderGraph(MutableGraph g, int width, Format format, File f) throws IOException {
         Graphviz.fromGraph(g).width(width).engine(Engine.FDP).render(format).toFile(f);
     }
 
     /** Render graph as file (with selectable file format) */
-    public void renderGraph(MutableGraph g, Format format, File f) throws IOException {
+    public static void renderGraph(MutableGraph g, Format format, File f) throws IOException {
         Graphviz.fromGraph(g).engine(Engine.FDP).render(format).toFile(f);
     }
 

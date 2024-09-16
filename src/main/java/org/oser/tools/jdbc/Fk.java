@@ -25,8 +25,14 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toList;
 import static org.oser.tools.jdbc.JdbcHelpers.adaptCaseForDb;
 
-/** Represents one foreign key constraint in JDBC. In JDBC <em>one</em> db constraint between table 1 and table 2 has <em>two</em> representations: the link from
- *   table 1 to table 2 and vice versa. One of the 2 constraints is <em>reverted</em>.  */
+/**
+ * Represents one foreign key constraint in JDBC. <a>
+ * <p>
+ * In JDBC <em>one</em> fk constraint between table 1 and table 2 has <em>two</em> representations: the link from
+ * table 1 to table 2 and vice versa. One of the 2 constraints is <em>inverted</em>, refer to the field <code>inverted</code>.
+ *  <a>
+ *  Supports virtual foreign keys (that do not exist in the db).
+ */
 @Getter
 public class Fk {
     private String pktable;
@@ -39,21 +45,30 @@ public class Fk {
 
     private final String keySeq;
     private final String fkName;
-    /** excluded in equals! */
+
+    /**
+     * The same as JDBC calls exported or imported.  <br/>
+     * inverted = false: the foreign key columns that reference the given table's primary key columns (the foreign keys exported by a table)   <br/>
+     * inverted = true: the primary key columns that are referenced by the given table's foreign key columns (the primary keys imported by a table). <br/>
+     * <p>
+     * Is excluded in equals.
+     */
     private boolean inverted;
 
-    public Fk(){ // todo rm again
+    public Fk() { // todo rm again
         keySeq = "";
         fkName = "";
     }
 
 
-    /** Constructor taking single values only */
+    /**
+     * Constructor taking single values only
+     */
     public Fk(String pktable, String pkcolumn, String fktable, String fkcolumn, String keySeq, String fkName, boolean inverted) {
         this.pktable = pktable;
-        this.pkcolumn = new String[]{ pkcolumn };
+        this.pkcolumn = new String[]{pkcolumn};
         this.fktable = fktable;
-        this.fkcolumn = new String[]{ fkcolumn };
+        this.fkcolumn = new String[]{fkcolumn};
         this.keySeq = keySeq;
         this.fkName = fkName;
         this.inverted = inverted;
@@ -61,19 +76,22 @@ public class Fk {
 
     public Fk(String pktable, String[] pkcolumnArray, String fktable, String[] fkcolumnArray, String keySeq, String fkName, boolean inverted) {
         this.pktable = pktable;
-        this.pkcolumn =  pkcolumnArray ;
+        this.pkcolumn = pkcolumnArray;
         this.fktable = fktable;
-        this.fkcolumn =  fkcolumnArray ;
+        this.fkcolumn = fkcolumnArray;
         this.keySeq = keySeq;
         this.fkName = fkName;
         this.inverted = inverted;
     }
 
 
-
+    /**
+     * Refer to {@link #getFksOfTable(Connection, String)}
+     * Uses a cache.
+     */
     public static List<Fk> getFksOfTable(Connection connection, String table, Cache<String, List<Fk>> cache) throws SQLException {
         List<Fk> result = cache.getIfPresent(table);
-        if (result == null){
+        if (result == null) {
             result = getFksOfTable(connection, table);
         }
         cache.put(table, result);
@@ -85,10 +103,10 @@ public class Fk {
     }
 
     /**
-     * get FK metadata of one table (both direction of metadata, exported and imported FKs)
-     *
+     * Get FK metadata of one table (both direction of metadata, exported and imported FKs)
+     * <p>
      * If the tableName has a schema prefix (e.g. mySchema.) it adds it to the table names
-     *  of the returned FKs.
+     * of the returned FKs.
      */
     public static List<Fk> getFksOfTable(Connection connection, String tableName) throws SQLException {
         List<Fk> fks = new CopyOnWriteArrayList<>();
@@ -111,14 +129,16 @@ public class Fk {
         return unifyFks(fks);
     }
 
-    /** One Fk can contain multiple columns, we need to merge those that form the same fk */
+    /**
+     * One Fk can contain multiple columns, we need to merge those that form the same Fk
+     */
     public static List<Fk> unifyFks(List<Fk> input) {
         Map<String, List<Fk>> fkNameToFk = new HashMap<>();
         input.forEach(f -> fkNameToFk.computeIfAbsent(f.getFkName(), l -> new ArrayList<>()).add(f));
 
         List<Map.Entry<String, List<Fk>>> toMerge =
                 fkNameToFk.entrySet().stream().filter(e -> e.getValue().size() > 1 && !hasSelfLink(e.getValue().get(0))).collect(toList());
-        for (Map.Entry<String, List<Fk>> e : toMerge){
+        for (Map.Entry<String, List<Fk>> e : toMerge) {
             e.getValue().sort(Comparator.comparing(Fk::getKeySeq));
 
             e.getValue().get(0).setFkcolumn(e.getValue().stream().map(fk -> fk.getFkcolumn()[0]).collect(toList()).toArray(new String[]{}));
@@ -130,7 +150,9 @@ public class Fk {
         return input;
     }
 
-    /** check for link to self (e.g. table N having a FK to itself */
+    /**
+     * check for link to self (e.g. table N having a FK to itself
+     */
     public static boolean hasSelfLink(Fk e) {
         return e.getFktable().equals(e.getPktable());
     }
@@ -138,10 +160,10 @@ public class Fk {
     private static void addFks(List<Fk> fks, ResultSet rs, boolean inverted, JdbcHelpers.Table table) throws SQLException {
         String optionalPrefix = table.isHasSchemaPrefix() ? table.getSchema() + "." : "";
         while (rs.next()) {
-            Fk fk = new Fk(optionalPrefix + getStringFromResultSet(rs,"pktable_name"),
-                    getStringFromResultSet(rs,"pkcolumn_name"),
-                    optionalPrefix + getStringFromResultSet(rs,"fktable_name"),
-                    getStringFromResultSet(rs,"fkcolumn_name"),
+            Fk fk = new Fk(optionalPrefix + getStringFromResultSet(rs, "pktable_name"),
+                    getStringFromResultSet(rs, "pkcolumn_name"),
+                    optionalPrefix + getStringFromResultSet(rs, "fktable_name"),
+                    getStringFromResultSet(rs, "fkcolumn_name"),
                     getStringFromResultSet(rs, "KEY_SEQ"),
                     getStringFromResultSet(rs, "fk_name"), inverted);
 
@@ -161,7 +183,7 @@ public class Fk {
 
     // to remove " that mysql puts
     static String removeOptionalQuotes(String string) {
-        if (string != null && string.startsWith("\"") && string.endsWith("\"")){
+        if (string != null && string.startsWith("\"") && string.endsWith("\"")) {
             string = string.substring(1, string.length() - 1);
         }
         return string;
@@ -204,10 +226,10 @@ public class Fk {
 
     /**
      * mysql does not return the indirekt FKs with {@link DatabaseMetaData#getExportedKeys(String, String, String)}
-     *  (it only shows the direct links via {@link DatabaseMetaData#getImportedKeys(String, String, String)})
-     *  - so we fake it here and add these indirect keys to the cache
+     * (it only shows the direct links via {@link DatabaseMetaData#getImportedKeys(String, String, String)})
+     * - so we fake it here and add these indirect keys to the cache
      * (goes through all database tables for this)
-     *
+     * <p>
      * does only take the current schema into account
      */
     public static void initFkCacheForMysql(Cache<String, List<Fk>> fkCache, Connection connection) throws SQLException {
@@ -222,13 +244,15 @@ public class Fk {
                 List<Fk> current = fkCache.getIfPresent(fk.pktable);
                 current = (current == null) ? new CopyOnWriteArrayList<>() : current;
                 // todo: is keyseq ok?
-                current.add(new Fk(fk.pktable, fk.pkcolumn, fk.fktable, fk.fkcolumn, fk.keySeq, fk.fkName +"inv" ,  false));
+                current.add(new Fk(fk.pktable, fk.pkcolumn, fk.fktable, fk.fkcolumn, fk.keySeq, fk.fkName + "inv", false));
                 fkCache.put(fk.pktable, current);
             }
         }
     }
 
-    /** Like  {@link #initFkCacheForMysql(Cache, Connection)} but logs exceptions to stdout */
+    /**
+     * Like  {@link #initFkCacheForMysql(Cache, Connection)} but logs exceptions to stdout
+     */
     public static void initFkCacheForMysql_LogException(Connection demo, Cache<String, List<Fk>> fkCache) {
         try {
             Fk.initFkCacheForMysql(fkCache, demo);
@@ -237,9 +261,11 @@ public class Fk {
         }
     }
 
-    /** Add a virtualForeignKey to the foreign key cache "importerOrExporter".
-     *   (needs to be done once for the DbImporter AND the DbExporter).
-     *   This requires 2 internal foreign keys, one of which is reverted */
+    /**
+     * Add a virtualForeignKey to the foreign key cache contained in "importerOrExporter".
+     * (needs to be done once for the DbImporter AND the DbExporter).
+     * This requires 2 internal foreign keys, one of which is inverted
+     */
     public static void addVirtualForeignKey(Connection dbConnection,
                                             FkCacheAccessor importerOrExporter,
                                             String tableOne,
@@ -258,34 +284,38 @@ public class Fk {
         importerOrExporter.getFkCache().put(tableTwo, fks2);
     }
 
-    /** Add a virtualForeignKey to the foreign key cache "importerOrExporter".
-     *   (needs to be done once for the DbImporter AND the DbExporter).
-     *   This requires 2 internal foreign keys, one of which is reverted */
+    /**
+     * Add a virtualForeignKey to the foreign key cache "importerOrExporter".
+     * (needs to be done once for the DbImporter AND the DbExporter).
+     * This requires 2 internal foreign keys, one of which is reverted
+     */
     public static void addVirtualForeignKey(Connection dbConnection,
                                             FkCacheAccessor importerOrExporter,
                                             String tableOne,
                                             String tableOneColumn,
                                             String tableTwo,
                                             String tableTwoColumn) throws SQLException {
-        addVirtualForeignKey(dbConnection, importerOrExporter, tableOne, new String[] {tableOneColumn},
-                tableTwo, new String[] {tableTwoColumn});
+        addVirtualForeignKey(dbConnection, importerOrExporter, tableOne, new String[]{tableOneColumn},
+                tableTwo, new String[]{tableTwoColumn});
     }
 
-        /// Helper
+    /// Helper
 
     public static Map<String, List<Fk>> fksByColumnName(List<Fk> fksOfTable) {
         Map<String, List<Fk>> fksByColumnName = new HashMap<>();
 
-        for (Fk fk : fksOfTable){
+        for (Fk fk : fksOfTable) {
             String[] names = fk.inverted ? fk.getFkcolumn() : fk.getPkcolumn();
             Stream.of(names).forEach(name -> fksByColumnName.computeIfAbsent(name.toLowerCase(), l -> new ArrayList<>()).add(fk));
         }
         return fksByColumnName;
     }
 
-    /** register virtualFK via String
-     *   experimental string config of a virtual foreing key
-     *    table1(field1,field2)-table2(field3,field4) */
+    /**
+     * register virtualFK via String
+     * experimental string config of a virtual foreing key
+     * table1(field1,field2)-table2(field3,field4)
+     */
     public static void addOneVirtualForeignKeyAsString(Connection dbConnection, FkCacheAccessor importerOrExporter, String asString) throws SQLException {
         FkMatchedFields fkMatchedFields = new FkMatchedFields(asString).parse();
         String table1 = fkMatchedFields.getTable1();
@@ -296,8 +326,11 @@ public class Fk {
         addVirtualForeignKey(dbConnection, importerOrExporter, table1, fields1AsString.split(","), table2, fields2AsString.split(","));
     }
 
+    /**
+     * Same as {@link #addOneVirtualForeignKeyAsString(Connection, FkCacheAccessor, String) } but one can add multiples, separated by ; }
+     */
     public static void addVirtualForeignKeyAsString(Connection dbConnection, FkCacheAccessor importerOrExporter, String asString) throws SQLException {
-        if (asString.contains(";")){
+        if (asString.contains(";")) {
             String[] split = asString.split(";");
             for (String one : split) {
                 addOneVirtualForeignKeyAsString(dbConnection, importerOrExporter, one);
@@ -307,6 +340,7 @@ public class Fk {
         }
     }
 
+    /** To parse String FKs */
     @Getter
     static class FkMatchedFields {
         private String asString;
@@ -323,8 +357,8 @@ public class Fk {
             String regex = "([A-Za-z0-9_.]*)\\(([A-Za-z0-9,_]*)\\)-([A-Za-z0-9_.]*)\\(([A-Za-z0-9,_]*)\\)";
             Pattern pattern = Pattern.compile(regex);
             Matcher matcher = pattern.matcher(asString);
-            if ( !matcher.find()){
-                throw new IllegalArgumentException("Wrong pattern '"+asString+"'. Not matched.");
+            if (!matcher.find()) {
+                throw new IllegalArgumentException("Wrong pattern '" + asString + "'. Not matched.");
             }
 
             table1 = matcher.group(1);
@@ -345,20 +379,24 @@ public class Fk {
         return subTableName;
     }
 
-    /** Do the table1 and table2 have a FK relationship? */
+    /**
+     * Do the table1 and table2 have a FK relationship?
+     */
     public static Optional<Fk> getFkOfTwoTables(Connection connection, String table1, String table2, Cache<String, List<Fk>> cache) throws SQLException {
         List<Fk> fksOfTable = Fk.getFksOfTable(connection, table1, cache);
 
         for (Fk fk : fksOfTable) {
             if ((fk.getPktable().equalsIgnoreCase(table1) && fk.getFktable().equalsIgnoreCase(table2)) ||
-                    (fk.getPktable().equalsIgnoreCase(table2) && fk.getFktable().equalsIgnoreCase(table1))){
+                    (fk.getPktable().equalsIgnoreCase(table2) && fk.getFktable().equalsIgnoreCase(table1))) {
                 return Optional.of(fk);
             }
         }
         return Optional.empty();
     }
 
-    /** Do the table1 and table2 have a FK relationship? */
+    /**
+     * Do the table1 and table2 have a FK relationship?
+     */
     public static Optional<Fk> getFkOfTwoTables(Connection connection, String table1, String table2) throws SQLException {
         Cache<String, List<Fk>> cache = Caffeine.newBuilder().maximumSize(10_000).build();
         return getFkOfTwoTables(connection, table1, table2, cache);
