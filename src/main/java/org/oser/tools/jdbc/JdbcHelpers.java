@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -489,21 +490,23 @@ public final class JdbcHelpers {
      */
     @Getter
     @ToString
+    // for jackson serialization
+    @NoArgsConstructor
     public static class ColumnMetadata {
         private static final Set<Integer> QUOTING_DATATYPES = Set.of(Types.DATE, Types.TIMESTAMP, Types.TIME, Types.TIME_WITH_TIMEZONE, Types.TIMESTAMP_WITH_TIMEZONE,
                 Types.ARRAY, Types.BLOB, Types.CHAR, Types.CLOB, Types.DATALINK, Types.LONGNVARCHAR, Types.VARCHAR, Types.SQLXML, Types.NCHAR);
         String name;
         String type;
         /** {@link java.sql.Types} */
-        private final int dataType; //
+        private int dataType; //
         /** source type of a distinct type or user-generated Ref type, SQL type from java.sql.Types
          * (<code>null</code> if DATA_TYPE  isn't DISTINCT or user-generated REF) */
-        private final int sourceDataType;
+        private int sourceDataType;
 
         private int size;
-        private final String columnDef;
+        private String columnDef;
         // starts at 1
-        private final int ordinalPos;
+        private int ordinalPos;
 
         public ColumnMetadata(String name, String type, int dataType, int sourceDataType, int size, String columnDef, int ordinalPos) {
             this.name = name;

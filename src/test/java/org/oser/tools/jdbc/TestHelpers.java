@@ -39,7 +39,7 @@ public class TestHelpers {
     static ObjectMapper mapper = Record.getObjectMapper();
 
 
-    public static OracleContainer oracleContainer = new OracleContainer("oracleinanutshell/oracle-xe-11g");
+    public static OracleContainer oracleContainer = new OracleContainer();
 
         // the following should make mysql - on linux - not case sensitive for table names, but the container cannot be started
         // (whether a mysql db is case sensitive or not is usually dependent on the operating system it runs on!)

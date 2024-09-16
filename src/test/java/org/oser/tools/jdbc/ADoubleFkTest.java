@@ -1,12 +1,8 @@
 package org.oser.tools.jdbc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import guru.nidi.graphviz.engine.Format;
-import guru.nidi.graphviz.model.MutableGraph;
 import org.junit.jupiter.api.Test;
-import org.oser.tools.jdbc.graphviz.RecordAsGraph;
 
-import java.io.File;
 import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
-class DoubleFkTest {
+// added A in front of the test name as the test fails when some other test runs first (the other test pollutes the db)
+class ADoubleFkTest {
 
     @Test
     void basicDoubleFk() throws Exception {
