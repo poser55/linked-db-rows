@@ -260,4 +260,4 @@ Further Ideas
     - Escaping of table and field names
 * Extension ideas
     - Do more unification of Datatype handling. E.g. oracle treats DATE different from Postgres (so at the moment
-      we need to adapt it in the JSON/ Record). Refer e.g. to DbExporterBasicTests#datatypesTest(). 
+      we need to adapt it in the JSON/ DbRecord). Refer e.g. to DbExporterBasicTests#datatypesTest(). 
