@@ -18,12 +18,11 @@ insert into combined values (1, 3);
 insert into link  values (1, 1, 2);
 
 CREATE TABLE link2self(
-            id INTEGER NOT NULL,
+            id INTEGER NOT NULL PRIMARY KEY,
             peer integer,
             link_id integer,
             constraint link2self_self foreign key (peer) references link2self(id),
-            constraint link2self_peer foreign key (link_id) references link(id),
-            PRIMARY KEY (id)
+            constraint link2self_peer foreign key (link_id) references link(id)
 );
 
 insert into link2self  values (1, null, null);
