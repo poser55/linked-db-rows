@@ -8,10 +8,10 @@ import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
 import guru.nidi.graphviz.model.MutableGraph;
 import guru.nidi.graphviz.model.MutableNode;
+import org.oser.tools.jdbc.DbRecord;
 import org.oser.tools.jdbc.Fk;
 import org.oser.tools.jdbc.FkCacheAccessor;
 import org.oser.tools.jdbc.JdbcHelpers;
-import org.oser.tools.jdbc.Record;
 import org.oser.tools.jdbc.RowLink;
 
 import java.io.File;
@@ -45,7 +45,7 @@ public class RecordAsGraph implements FkCacheAccessor {
     //  allow to add other attributes to the node
 
     /** Simple convenience method to get graph of a record */
-    public static void toSimpleGraph(Connection connection, Record records, String filename) throws SQLException, IOException {
+    public static void toSimpleGraph(Connection connection, DbRecord records, String filename) throws SQLException, IOException {
         RecordAsGraph asGraph = new RecordAsGraph();
         MutableGraph graph = asGraph.recordAsGraph(connection, records, t -> List.of("name", "node_id"));
 
@@ -54,32 +54,32 @@ public class RecordAsGraph implements FkCacheAccessor {
 
     private final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder().maximumSize(10_000).build();
 
-    public MutableGraph recordAsGraph(Connection connection, Record r) throws SQLException {
+    public MutableGraph recordAsGraph(Connection connection, DbRecord r) throws SQLException {
         return recordAsGraph(connection, r, TableToFieldMapper.DEFAULT_TABLE_TO_FIELD_MAPPER);
     }
 
-    public MutableGraph recordAsGraph(Connection connection, Record r, TableToFieldMapper mapper) throws SQLException {
+    public MutableGraph recordAsGraph(Connection connection, DbRecord r, TableToFieldMapper mapper) throws SQLException {
         if (mapper == null) {
             mapper = TableToFieldMapper.DEFAULT_TABLE_TO_FIELD_MAPPER;
         }
-        Map<Record, MutableNode> nodes = new HashMap();
+        Map<DbRecord, MutableNode> nodes = new HashMap();
         TableToFieldMapper finalMapper = mapper;
         r.getAllRecords().forEach(record -> nodes.put(record, recordAsNode(record, finalMapper)));
         MutableNode[] nodesAsArray = nodes.values().toArray(new MutableNode[0]);
 
-        Map<Record, Set<Record>> fkLinks = Record.determineRowDependencies(connection, new ArrayList<>(r.getAllRecords()), fkCache);
+        Map<DbRecord, Set<DbRecord>> fkLinks = DbRecord.determineRowDependencies(connection, new ArrayList<>(r.getAllRecords()), fkCache);
         addFkLinksToNodes(fkLinks, nodes);
 
         return mutGraph().setDirected(true).add(nodesAsArray);
     }
 
-    private MutableNode recordAsNode(Record r, TableToFieldMapper mapper) {
+    private MutableNode recordAsNode(DbRecord r, TableToFieldMapper mapper) {
         String rowlinkAsString = r.getRowLink().toString();
         return mutNode(rowlinkAsString).add(Label.html("<b>"+rowlinkAsString+"</b>"+ getOptionalFieldNameValues(r, mapper)));
     }
 
     //@VisibleForTesting
-    static String getOptionalFieldNameValues(Record r, TableToFieldMapper mapper) {
+    static String getOptionalFieldNameValues(DbRecord r, TableToFieldMapper mapper) {
         List<String> fieldsToShow = mapper.fieldsToShowPerTable(r.getTableName());
         return  fieldsToShow.stream()
                 .map(f -> Optional.ofNullable(r.findElementWithName(f)))
@@ -88,10 +88,10 @@ public class RecordAsGraph implements FkCacheAccessor {
                 .collect(Collectors.joining(" <br/>", "<br/>", ""));
     }
 
-    private void addFkLinksToNodes(Map<Record, Set<Record>> fkLinks, Map<Record, MutableNode> nodes) {
-        for (Map.Entry<Record, Set<Record>> entries : fkLinks.entrySet()) {
-            for (Record targetRecord : entries.getValue()){
-                nodes.get(targetRecord).addLink(nodes.get(entries.getKey()));
+    private void addFkLinksToNodes(Map<DbRecord, Set<DbRecord>> fkLinks, Map<DbRecord, MutableNode> nodes) {
+        for (Map.Entry<DbRecord, Set<DbRecord>> entries : fkLinks.entrySet()) {
+            for (DbRecord targetDbRecord : entries.getValue()){
+                nodes.get(targetDbRecord).addLink(nodes.get(entries.getKey()));
             }
         }
     }
@@ -134,6 +134,11 @@ public class RecordAsGraph implements FkCacheAccessor {
     /** Render graph as file (with selectable file format) */
     public void renderGraph(MutableGraph g, Format format, File f) throws IOException {
         Graphviz.fromGraph(g).engine(Engine.FDP).render(format).toFile(f);
+    }
+
+    /** Get raw dot file */
+    public static String renderGraphAsDotFile(MutableGraph g) throws IOException {
+        return Graphviz.fromGraph(g).render(Format.DOT).toString();
     }
 
     @Override

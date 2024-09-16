@@ -18,7 +18,7 @@ public class DeletionTests {
 
         Fk.initFkCacheForMysql_LogException(demo, dbExporter.getFkCache());
 
-        Record blogpost = dbExporter.contentAsTree(demo, "blogpost", 2);
+        DbRecord blogpost = dbExporter.contentAsTree(demo, "blogpost", 2);
         List<String> deletionStatements = dbExporter.getDeleteStatements(demo, blogpost);
         assertNotNull(deletionStatements);
         assertEquals(3, deletionStatements.size());

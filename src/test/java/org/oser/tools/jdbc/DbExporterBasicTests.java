@@ -47,8 +47,8 @@ public class DbExporterBasicTests {
                         new HashMap<>(),
                         "datatypes", 1, 1, true);
 
-        assertEquals(6, basicChecksResult.getAsRecordAgain().getContent().size());
-        assertEquals(6, basicChecksResult.getAsRecord().getContent().size());
+        assertEquals(6, basicChecksResult.getAsDbRecordAgain().getContent().size());
+        assertEquals(6, basicChecksResult.getAsDbRecord().getContent().size());
     }
 
     @Test
@@ -72,8 +72,8 @@ public class DbExporterBasicTests {
         Map<RowLink, DbImporter.Remap> remapping = new HashMap<>();
         remapping.put(new RowLink("user_table/2"), new DbImporter.Remap(1, 0));
         // to make it interesting, adapt the entry
-        basicChecksResult.getAsRecordAgain().findElementWithName("title").setValue("new title");
-        importer.insertRecords(demo, basicChecksResult.getAsRecordAgain(), remapping);
+        basicChecksResult.getAsDbRecordAgain().findElementWithName("title").setValue("new title");
+        importer.insertRecords(demo, basicChecksResult.getAsDbRecordAgain(), remapping);
     }
 
     @Test
@@ -150,7 +150,7 @@ public class DbExporterBasicTests {
                 remapping,
                 "book", 1, 2, false);
 
-        Record book = exporter.get().contentAsTree(demoConnection, "book", 1);
+        DbRecord book = exporter.get().contentAsTree(demoConnection, "book", 1);
         System.out.println(book);
         assertEquals(pages.get() +"", ""+book.findElementWithName("number_pages").getValue());
     }
@@ -163,9 +163,9 @@ public class DbExporterBasicTests {
         Connection demo = TestHelpers.getConnection("demo");
 
         DbImporter dbImporter = new DbImporter();
-        Record asRecordAgain = dbImporter.jsonToRecord(demo, "book", toInsert);
+        DbRecord asDbRecordAgain = dbImporter.jsonToRecord(demo, "book", toInsert);
 
-        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = dbImporter.insertRecords(demo, asRecordAgain);
+        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = dbImporter.insertRecords(demo, asDbRecordAgain);
     }
 
     @Test
@@ -205,7 +205,7 @@ public class DbExporterBasicTests {
         DbExporter dbExporter = new DbExporter();
         dbExporter.getStopTablesIncluded().add("nodes");
 
-        Record nodes1 = dbExporter.contentAsTree(demo, "Nodes", 1);
+        DbRecord nodes1 = dbExporter.contentAsTree(demo, "Nodes", 1);
 
         assertEquals(4, nodes1.getAllNodes().size());
 
@@ -227,7 +227,7 @@ public class DbExporterBasicTests {
 
         t.printCurrent("-1");
 
-        Record book = dbExporter.contentAsTree(demoConnection, "book", "1");
+        DbRecord book = dbExporter.contentAsTree(demoConnection, "book", "1");
 
         t.printCurrent("-0.5");
 
@@ -236,20 +236,20 @@ public class DbExporterBasicTests {
         t.printCurrent("0");
 
         DbImporter dbImporter = new DbImporter();
-        Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJsonNode().toString());
+        DbRecord book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJsonNode().toString());
 
         System.out.println("book2:" + book2.asJsonNode().toString());
 
         t.printCurrent("1");
 
-        ObjectMapper mapper = Record.getObjectMapper();
+        ObjectMapper mapper = DbRecord.getObjectMapper();
 
         // todo: known issue .jsonToRecord converts json keys to upper case
         assertEquals(mapper.readTree(book.asJsonNode().toString().toLowerCase()), mapper.readTree(book2.asJsonNode().toString().toLowerCase()));
         assertEquals(book.getAllNodes(), book2.getAllNodes());
 
-        Record author1 = dbExporter.contentAsTree(demoConnection, "author", "1");
-        Record author2 = dbImporter.jsonToRecord(demoConnection, "author", author1.asJsonNode().toString());
+        DbRecord author1 = dbExporter.contentAsTree(demoConnection, "author", "1");
+        DbRecord author2 = dbImporter.jsonToRecord(demoConnection, "author", author1.asJsonNode().toString());
 
         t.printCurrent("2");
 
@@ -285,12 +285,12 @@ public class DbExporterBasicTests {
     void testRemapping() throws Exception {
         Connection demoConnection = TestHelpers.getConnection("demo"); // getConnectionTestContainer("demo");
         DbExporter db2Graphdemo = new DbExporter();
-        Record book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
+        DbRecord book = db2Graphdemo.contentAsTree(demoConnection, "book", "1");
 
         System.out.println("book:" + book.asJsonNode().toString());
 
         DbImporter dbImporter = new DbImporter();
-        Record book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJsonNode().toString());
+        DbRecord book2 = dbImporter.jsonToRecord(demoConnection, "book", book.asJsonNode().toString());
 
         Map<RowLink, DbImporter.Remap> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
         System.out.println("remapped: " + pkAndTableObjectMap.size() + " new book Pk" + pkAndTableObjectMap.keySet().stream()
@@ -307,7 +307,7 @@ public class DbExporterBasicTests {
         String json = "{ \"id\":7,\"author_id\":1, \"author_id*author*\":[{\"id\":1,\"last_name\":\"Orwell\"}],\"title\":\"1984_summer\" }";
 
         DbImporter dbImporter = new DbImporter();
-        Record book = dbImporter.jsonToRecord(demoConnection, "book", json);
+        DbRecord book = dbImporter.jsonToRecord(demoConnection, "book", json);
         assertEquals(2, book.getAllNodes().size());
 
         System.out.println(dbImporter.insertRecords(demoConnection, book));
@@ -349,9 +349,9 @@ public class DbExporterBasicTests {
         Long o = (Long) basicChecksResult.getRowLinkObjectMap().values().stream().findFirst().map(DbImporter.Remap::getPkField).get();
 
         DbExporter dbExporter = new DbExporter();
-        Record asRecord = dbExporter.contentAsTree(demoConnection, "datatypes", o);
+        DbRecord asDbRecord = dbExporter.contentAsTree(demoConnection, "datatypes", o);
 
-        assertNull(asRecord.findElementWithName("text_type").getValue());
+        assertNull(asDbRecord.findElementWithName("text_type").getValue());
     }
 
     @Test
@@ -359,7 +359,7 @@ public class DbExporterBasicTests {
         DbExporter dbExporter = new DbExporter();
 
         FieldExporter tfExporter = (tableName, fieldName, metadata, rs) -> {  return null;  };
-        FieldExporter nullFfExporter = (tableName, fieldName, metadata, rs) -> {  return new Record.FieldAndValue("name", null, null);  };
+        FieldExporter nullFfExporter = (tableName, fieldName, metadata, rs) -> {  return new DbRecord.FieldAndValue("name", null, null);  };
         dbExporter.registerFieldExporter("t", "f", tfExporter);
         dbExporter.registerFieldExporter(null, "ff", nullFfExporter);
         assertEquals(tfExporter, dbExporter.getFieldExporter("t", "f"));

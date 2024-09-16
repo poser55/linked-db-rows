@@ -33,7 +33,7 @@ public class RecordCanonicalizer {
      * @return the remapped primary keys (here all the values can be remapped, not just the first free value as in DbImporter)
      */
     public static Map<RowLink, List<Object>> canonicalizeIds(Connection connection,
-                                                             Record dbRecord) throws Exception {
+                                                             DbRecord dbRecord) throws Exception {
         return canonicalizeIds(connection,
                 dbRecord,
                 Caffeine.newBuilder().maximumSize(10_000).build(),
@@ -42,9 +42,9 @@ public class RecordCanonicalizer {
 
 
     /** refer to
-     * {@link RecordCanonicalizer#canonicalizeIds(Connection, Record)} */
+     * {@link RecordCanonicalizer#canonicalizeIds(Connection, DbRecord)} */
     public static Map<RowLink, List<Object>> canonicalizeIds(Connection connection,
-                                                             Record dbRecord,
+                                                             DbRecord dbRecord,
                                                              Cache<String, List<Fk>> fkCache,
                                                              Cache<String, List<String>> pkCache) throws Exception {
         Map<RowLink, List<Object>> newKeys = new HashMap<>();
@@ -52,7 +52,7 @@ public class RecordCanonicalizer {
 
         Map<String, Integer> counterPerTableName = new HashMap<>();
 
-        CheckedFunction<Record, Void> canonicalizeOneRecord = (Record r) -> {
+        CheckedFunction<DbRecord, Void> canonicalizeOneRecord = (DbRecord r) -> {
             canonicalizeOneRecord(connection, r, newKeys, metaData, counterPerTableName, fkCache, pkCache);
             return null; // strange that we need this hack
         };
@@ -64,7 +64,7 @@ public class RecordCanonicalizer {
 
 
     private static void canonicalizeOneRecord(Connection connection,
-                                              Record dbRecord,
+                                              DbRecord dbRecord,
                                               Map<RowLink, List<Object>> newKeys,
                                               DatabaseMetaData metaData,
                                               Map<String, Integer> counterPerTableName,
@@ -89,7 +89,7 @@ public class RecordCanonicalizer {
 
      *         CAVEAT: also updates the isFreePk List (to determine what pk values are "free")
      * */
-    static List<Object> remapPrimaryKeyValuesFull(Record dbRecord,
+    static List<Object> remapPrimaryKeyValuesFull(DbRecord dbRecord,
                                                   Map<RowLink, List<Object>> newKeys,
                                                   List<String> primaryKeys,
                                                   Map<String, List<Fk>> fksByColumnName,
@@ -97,7 +97,7 @@ public class RecordCanonicalizer {
         List<Object> pkValues = new ArrayList<>(primaryKeys.size());
 
         for (String primaryKey : primaryKeys) {
-            Record.FieldAndValue elementWithName = dbRecord.findElementWithName(primaryKey);
+            DbRecord.FieldAndValue elementWithName = dbRecord.findElementWithName(primaryKey);
 
             // find primaryKey values that were remapped before
             Object[] potentialValueToInsert = {null};
@@ -121,7 +121,7 @@ public class RecordCanonicalizer {
     /**
      * 1. determine new keys this record
      * 2. remap foreign key fields that were adapted before */
-    private static void remapKeysAndUpdateNewKeys(Record r,
+    private static void remapKeysAndUpdateNewKeys(DbRecord r,
                                                   Map<String, Integer> counterPerTableName,
                                                   List<String> primaryKeys,
                                                   List<Object> primaryKeyValues,

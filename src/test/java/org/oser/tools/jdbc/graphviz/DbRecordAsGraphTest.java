@@ -5,8 +5,8 @@ import guru.nidi.graphviz.model.MutableGraph;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.oser.tools.jdbc.DbExporter;
+import org.oser.tools.jdbc.DbRecord;
 import org.oser.tools.jdbc.JdbcHelpers;
-import org.oser.tools.jdbc.Record;
 import org.oser.tools.jdbc.TestHelpers;
 
 import java.io.File;
@@ -17,7 +17,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class RecordAsGraphTest {
+public class DbRecordAsGraphTest {
 
     @Test
     @EnabledIfSystemProperty(named = "h2", matches = "true")  // these test take a while
@@ -25,7 +25,7 @@ public class RecordAsGraphTest {
         Connection demo = TestHelpers.getConnection("demo");
 
         DbExporter exporter = new DbExporter();
-        Record records = exporter.contentAsTree(demo, "Nodes", 1);
+        DbRecord records = exporter.contentAsTree(demo, "Nodes", 1);
 
         RecordAsGraph asGraph = new RecordAsGraph();
         MutableGraph graph = asGraph.recordAsGraph(demo, records, t -> List.of("name", "node_id"));
@@ -37,15 +37,15 @@ public class RecordAsGraphTest {
     void simpleWithConvenienceMethod() throws SQLException, IOException, ClassNotFoundException {
         Connection demo = TestHelpers.getConnection("demo");
         DbExporter exporter = new DbExporter();
-        Record records = exporter.contentAsTree(demo, "Nodes", 1);
+        DbRecord records = exporter.contentAsTree(demo, "Nodes", 1);
         RecordAsGraph.toSimpleGraph(demo, records, "bla.png");
     }
 
     @Test
     void testFieldMapping() {
-        Record r = new Record("abc", new Object[] {"1", "2", "3"});
-        r.getContent().add(new Record.FieldAndValue("name", new JdbcHelpers.ColumnMetadata("name", "1", 1, 1, 1, "COLDEF", 1), 1));
-        r.getContent().add(new Record.FieldAndValue("title", new JdbcHelpers.ColumnMetadata("title", "1", 1, 1, 1, "COLDEF", 2), 2));
+        DbRecord r = new DbRecord("abc", new Object[] {"1", "2", "3"});
+        r.getContent().add(new DbRecord.FieldAndValue("name", new JdbcHelpers.ColumnMetadata("name", "1", 1, 1, 1, "COLDEF", 1), 1));
+        r.getContent().add(new DbRecord.FieldAndValue("title", new JdbcHelpers.ColumnMetadata("title", "1", 1, 1, 1, "COLDEF", 2), 2));
         assertEquals("<br/>1 <br/>2", RecordAsGraph.getOptionalFieldNameValues(r, TableToFieldMapper.DEFAULT_TABLE_TO_FIELD_MAPPER));
     }
 

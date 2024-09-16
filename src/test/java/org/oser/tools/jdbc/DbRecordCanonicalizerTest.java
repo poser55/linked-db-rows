@@ -13,7 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class RecordCanonicalizerTest {
+class DbRecordCanonicalizerTest {
 
     private static final Cache<String, List<Fk>> fkCache = Caffeine.newBuilder()
             .maximumSize(10_000).build();
@@ -27,18 +27,18 @@ class RecordCanonicalizerTest {
         String toInsert = "{ \t\"id\": 99, \t\"author_id\": 77, \t\"author_id*author*\": [ \t\t{ \t\t\t\"id\": 77, \t\t\t\"last_name\": \"Huxley22\" \t\t} \t], \"title\": \"Brave new world2\", \"newfield\": \"xxx\"  }";
 
         Connection connection = TestHelpers.getConnection("demo");
-        Record record = new DbImporter().jsonToRecord(connection, "book", toInsert);
-        RecordCanonicalizer.canonicalizeIds(connection, record, fkCache, pkCache);
+        DbRecord dbRecord = new DbImporter().jsonToRecord(connection, "book", toInsert);
+        RecordCanonicalizer.canonicalizeIds(connection, dbRecord, fkCache, pkCache);
 
-        System.out.println(record);
+        System.out.println(dbRecord);
 
-        assertEquals(1L, record.findElementWithName("id").getValue());
-        assertEquals(1L, record.findElementWithName( "author_id").getValue());
-        Record authorRecord = record.findElementWithName("author_id").getSubRow().get("author").get(0);
+        assertEquals(1L, dbRecord.findElementWithName("id").getValue());
+        assertEquals(1L, dbRecord.findElementWithName( "author_id").getValue());
+        DbRecord authorDbRecord = dbRecord.findElementWithName("author_id").getSubRow().get("author").get(0);
 
-        assertEquals(1L, authorRecord.findElementWithName("id").getValue());
+        assertEquals(1L, authorDbRecord.findElementWithName("id").getValue());
 
-        assertTrue(record.getSubRecordFieldAndValues().size()> 0);
+        assertTrue(dbRecord.getSubRecordFieldAndValues().size()> 0);
     }
 
     @Test
@@ -57,19 +57,19 @@ class RecordCanonicalizerTest {
                 },
                 "Nodes", 1, 10);
 
-        Record newRecord =
+        DbRecord newDbRecord =
                 localDbExporter[0].contentAsTree(demo, "Nodes", basicChecksResult.getRowLinkObjectMap().get(new RowLink("Nodes", 1)).getPkField());
-        System.out.println("before:" + newRecord +"\n\n");
+        System.out.println("before:" + newDbRecord +"\n\n");
 
-        RecordCanonicalizer.canonicalizeIds(demo, newRecord, fkCache, pkCache);
-        System.out.println("canonicalized:" + newRecord);
+        RecordCanonicalizer.canonicalizeIds(demo, newDbRecord, fkCache, pkCache);
+        System.out.println("canonicalized:" + newDbRecord);
 
-        RecordCanonicalizer.canonicalizeIds(demo, basicChecksResult.getAsRecord(), fkCache, pkCache);
+        RecordCanonicalizer.canonicalizeIds(demo, basicChecksResult.getAsDbRecord(), fkCache, pkCache);
 
         // now compare the 2 records:
-        ObjectWriter objectWriter = Record.getObjectMapper().writerWithDefaultPrettyPrinter();
-        assertEquals(objectWriter.writeValueAsString(newRecord.asJsonNode()),
-                objectWriter.writeValueAsString(basicChecksResult.getAsRecord().asJsonNode()));
+        ObjectWriter objectWriter = DbRecord.getObjectMapper().writerWithDefaultPrettyPrinter();
+        assertEquals(objectWriter.writeValueAsString(newDbRecord.asJsonNode()),
+                objectWriter.writeValueAsString(basicChecksResult.getAsDbRecord().asJsonNode()));
     }
 
     @Test

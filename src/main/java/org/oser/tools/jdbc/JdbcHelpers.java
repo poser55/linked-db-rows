@@ -106,7 +106,7 @@ public final class JdbcHelpers {
                 LOGGER.warn("Not a layered organization of dependencies - excluding entries with cycles: {}", shortDependencyGraph);
                 if (exceptionWithCycles) {
                     // this is just for debugging
-                    if (treated.iterator().next().getClass().equals(Record.class)){
+                    if (treated.iterator().next().getClass().equals(DbRecord.class)){
                         List<AbstractMap.SimpleEntry<RowLink, Set<RowLink>>> collect = getDbRecordDependencyGraph(dependencyGraph);
                         LOGGER.warn("rowlink deps: {}", collect);
                     }
@@ -125,12 +125,12 @@ public final class JdbcHelpers {
 
     public static <T> List<AbstractMap.SimpleEntry<RowLink, Set<RowLink>>> getDbRecordDependencyGraph(Map<T, Set<T>> dependencyGraph) {
         return  dependencyGraph.entrySet().stream().map(e ->
-                new AbstractMap.SimpleEntry<>(((Record) e.getKey()).getRowLink(),
-                dbRecordSetToRowLinkSet((Set<Record>)e.getValue()))).collect(Collectors.toList());
+                new AbstractMap.SimpleEntry<>(((DbRecord) e.getKey()).getRowLink(),
+                dbRecordSetToRowLinkSet((Set<DbRecord>)e.getValue()))).collect(Collectors.toList());
     }
 
-    static Set<RowLink> dbRecordSetToRowLinkSet(Set<Record> dbRecords) {
-        return dbRecords.stream().map(Record::getRowLink).collect(Collectors.toSet());
+    static Set<RowLink> dbRecordSetToRowLinkSet(Set<DbRecord> dbDbRecords) {
+        return dbDbRecords.stream().map(DbRecord::getRowLink).collect(Collectors.toSet());
     }
 
 

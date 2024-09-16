@@ -1,7 +1,8 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.11
-//DEPS info.picocli:picocli:4.5.0
-//DEPS ch.qos.logback:logback-classic:1.2.3
+//REPOS local=file:///Users/phil/mavenrepo
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.12-SNAPSHOT
+//DEPS info.picocli:picocli:4.7.6
+//DEPS ch.qos.logback:logback-classic:1.5.8
 import static java.lang.System.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;

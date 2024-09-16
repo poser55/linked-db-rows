@@ -4,7 +4,7 @@
 # exit if an error occurs
 set -e
 
-#./smokeTestJbangScripts.sh
+./smokeTestJbangScripts.sh
 
 for databaseName in h2 postgres sqlserver mysql oracle; do
   echo -e "\n\n\n Running tests for ${databaseName}\n"

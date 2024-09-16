@@ -33,7 +33,7 @@ import static org.oser.tools.jdbc.DbImporter.JSON_SUBTABLE_SUFFIX;
  * Organizes data as a <em>tree</em>.
  */
 @Getter
-public class Record {
+public class DbRecord {
     private final RowLink rowLink;
     private final List<FieldAndValue> content = new ArrayList<>();
 
@@ -48,7 +48,7 @@ public class Record {
     Map<RecordMetadata, Object> optionalMetadata = new EnumMap<>(RecordMetadata.class);
     private Map<String, JdbcHelpers.ColumnMetadata> columnMetadata;
 
-    public Record(String tableName, Object[] pks) {
+    public DbRecord(String tableName, Object[] pks) {
         rowLink = new RowLink(tableName, pks);
     }
 
@@ -199,31 +199,31 @@ public class Record {
         result.add(rowLink);
 
         // not fully implemented via streams (as nested streams use more stack levels)
-        List<Record> subRecords = content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).collect(toList());
-        for (Record dbRecord : subRecords) {
+        List<DbRecord> subDbRecords = content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).collect(toList());
+        for (DbRecord dbRecord : subDbRecords) {
             result.addAll(dbRecord.getAllNodes());
         }
         return result;
     }
 
     /** @return all records contained */
-    public Set<Record> getAllRecords(){
-        Set<Record> result = new HashSet<>();
+    public Set<DbRecord> getAllRecords(){
+        Set<DbRecord> result = new HashSet<>();
         result.add(this);
 
         // not fully implemented via streams (as nested streams use more stack levels)
-        List<Record> subRecords = content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).collect(toList());
-        for (Record dbRecord : subRecords) {
+        List<DbRecord> subDbRecords = content.stream().filter(e -> !e.subRow.isEmpty()).flatMap(e -> e.subRow.values().stream()).flatMap(Collection::stream).collect(toList());
+        for (DbRecord dbRecord : subDbRecords) {
             result.addAll(dbRecord.getAllRecords());
         }
         return result;
     }
 
     /** visit all Records (breath first search). You can ignore the result of this method (used internally). */
-    public Set<Record> visitRecords(Consumer<Record> visitor){
+    public Set<DbRecord> visitRecords(Consumer<DbRecord> visitor){
         visitor.accept(this);
 
-        List<Record> toVisit = content.stream().filter(e -> !e.subRow.isEmpty())
+        List<DbRecord> toVisit = content.stream().filter(e -> !e.subRow.isEmpty())
                 .flatMap(e -> e.subRow.values().stream())
                 .flatMap(Collection::stream).collect(toList());
 
@@ -231,15 +231,15 @@ public class Record {
     }
 
     /** visit all Records in insertion order */
-    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles) throws SQLException {
+    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<DbRecord, Void> visitor, boolean exceptionWithCycles) throws SQLException {
         visitRecordsInInsertionOrder(connection, visitor, exceptionWithCycles, Caffeine.newBuilder().maximumSize(10_000).build());
     }
 
     /** visit all Records in insertion order */
-    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<Record, Void> visitor, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws SQLException {
+    public void visitRecordsInInsertionOrder(Connection connection, CheckedFunction<DbRecord, Void> visitor, boolean exceptionWithCycles, Cache<String, List<Fk>> cache) throws SQLException {
         JdbcHelpers.Pair<List<String>, Set<String>> insertionOrder = JdbcHelpers.determineOrderWithDetails(connection, rowLink.getTableName(), exceptionWithCycles, cache);
 
-        Map<String, List<Record>> tableToRecords = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        Map<String, List<DbRecord>> tableToRecords = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         visitRecords(r -> {
             if (!tableToRecords.containsKey(r.rowLink.getTableName())) {
                 tableToRecords.put(r.rowLink.getTableName(), new ArrayList<>());
@@ -248,13 +248,13 @@ public class Record {
         });
 
         for (String tableName : insertionOrder.getLeft()) {
-            List<Record> records = tableToRecords.get(tableName);
-            if (records != null) {
+            List<DbRecord> dbRecords = tableToRecords.get(tableName);
+            if (dbRecords != null) {
                 List<Fk> fksOfTable = Fk.getFksOfTable(connection, tableName, cache);
                 if (Fk.hasSelfLink(fksOfTable)) {
-                    records = orderRecordsForInsertion(connection, records, cache);
+                    dbRecords = orderRecordsForInsertion(connection, dbRecords, cache);
                 }
-                for (Record dbRecord : records) {
+                for (DbRecord dbRecord : dbRecords) {
                     visitor.apply(dbRecord);
                 }
             }
@@ -262,10 +262,10 @@ public class Record {
 
         // treat entries that exist in cycles (they are not in the insertionOrder list)
         HashSet<String> treatedTables = new HashSet<>(insertionOrder.getLeft());
-        List<Record> untreated = this.getAllRecords().stream().filter(r -> !treatedTables.contains(r.getTableName())).collect(toList());
+        List<DbRecord> untreated = this.getAllRecords().stream().filter(r -> !treatedTables.contains(r.getTableName())).collect(toList());
 
         untreated = orderRecordsForInsertion(connection, untreated, cache);
-        for (Record dbRecord:untreated) {
+        for (DbRecord dbRecord:untreated) {
             visitor.apply(dbRecord);
         }
     }
@@ -273,18 +273,18 @@ public class Record {
 
     /** order record instances given their concrete FK constraints */
     //@VisibleForTesting
-    static List<Record> orderRecordsForInsertion(Connection connection, List<Record> records, Cache<String, List<Fk>> cache) throws SQLException {
-        Map<Record, Set<Record>> dependencies = determineRowDependencies(connection, records, cache);
+    static List<DbRecord> orderRecordsForInsertion(Connection connection, List<DbRecord> dbRecords, Cache<String, List<Fk>> cache) throws SQLException {
+        Map<DbRecord, Set<DbRecord>> dependencies = determineRowDependencies(connection, dbRecords, cache);
 
-        Set<Record> allRecords = new HashSet<>(records);
-        return JdbcHelpers.topologicalSort(dependencies, allRecords, true);
+        Set<DbRecord> allDbRecords = new HashSet<>(dbRecords);
+        return JdbcHelpers.topologicalSort(dependencies, allDbRecords, true);
     }
 
     /** what FK dependencies are there between a list of records ? */
-    public static Map<Record, Set<Record>> determineRowDependencies(Connection connection, List<Record> records, Cache<String, List<Fk>> cache) throws SQLException {
-        Map<String, List<Record>> tableToRecord = records.stream().collect(Collectors.groupingBy(r -> r.getRowLink().getTableName(), mapping(r -> r, toList())));
-        Map<Record, Set<Record>> dependencies = new HashMap<>();
-        for (Record left : records) {
+    public static Map<DbRecord, Set<DbRecord>> determineRowDependencies(Connection connection, List<DbRecord> dbRecords, Cache<String, List<Fk>> cache) throws SQLException {
+        Map<String, List<DbRecord>> tableToRecord = dbRecords.stream().collect(Collectors.groupingBy(r -> r.getRowLink().getTableName(), mapping(r -> r, toList())));
+        Map<DbRecord, Set<DbRecord>> dependencies = new HashMap<>();
+        for (DbRecord left : dbRecords) {
             List<Fk> fks = Fk.getFksOfTable(connection, left.getRowLink().getTableName(), cache);
             for (Fk fk : fks) {
                 if (!fk.isInverted()){
@@ -292,10 +292,10 @@ public class Record {
                 }
 
                 String rightTableName = (fk.getPktable().toLowerCase().equals(left.getTableName()) ? fk.getFktable() : fk.getPktable()).toLowerCase();
-                List<Record> potentialTargetRecords = tableToRecord.get(rightTableName);
+                List<DbRecord> potentialTargetDbRecords = tableToRecord.get(rightTableName);
 
-                if (potentialTargetRecords != null) {
-                    for (Record potentialMatch : potentialTargetRecords) {
+                if (potentialTargetDbRecords != null) {
+                    for (DbRecord potentialMatch : potentialTargetDbRecords) {
                         if (match(fk, left, potentialMatch)) {
                             dependencies.computeIfAbsent(potentialMatch, r -> new HashSet<>());
                             dependencies.get(potentialMatch).add(left);
@@ -308,7 +308,7 @@ public class Record {
     }
 
     /** if left has a concrete fk to potentialMatch */
-    private static boolean match(Fk fk, Record left, Record right) {
+    private static boolean match(Fk fk, DbRecord left, DbRecord right) {
         boolean direct = fk.getPktable().toLowerCase().equals(left.getTableName());
         String[] leftFieldNames = direct ? fk.getPkcolumn() : fk.getFkcolumn();
         List<FieldAndValue> leftValues = Arrays.stream(leftFieldNames).map(fieldName -> left.findElementWithName(fieldName)).collect(toList());
@@ -350,7 +350,7 @@ public class Record {
         private String name;
         private Object value;
         private JdbcHelpers.ColumnMetadata metadata;
-        private Map<String, List<Record>> subRow = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        private Map<String, List<DbRecord>> subRow = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
         public FieldAndValue(String name, JdbcHelpers.ColumnMetadata metadata, Object value) {
             this.name = name.toLowerCase();
@@ -546,14 +546,14 @@ public class Record {
         private void addSubRowToJsonNode(ObjectNode topLevelNode) {
             // a "*" (star) at the end of a key means this is a subrow added on this level
 
-            for (Map.Entry<String, List<Record>> entry : subRow.entrySet()){
+            for (Map.Entry<String, List<DbRecord>> entry : subRow.entrySet()){
                 ArrayNode jsonNodes = topLevelNode.putArray(getSubtableKeyName(name, entry.getKey()));
                 addAllSubtableElements(jsonNodes, entry.getValue());
             }
         }
 
-        private void addAllSubtableElements(ArrayNode array, List<Record> lists) {
-            for (Record subrow : lists) {
+        private void addAllSubtableElements(ArrayNode array, List<DbRecord> lists) {
+            for (DbRecord subrow : lists) {
                 ObjectNode subRecord = mapper.createObjectNode();
 
                 for (FieldAndValue field : subrow.content) {
@@ -564,28 +564,28 @@ public class Record {
         }
 
 
-        private String maplistlist2jsonString(String name, Map<String, List<Record>> map) {
+        private String maplistlist2jsonString(String name, Map<String, List<DbRecord>> map) {
             // a "*" (star) at the end of a key means this is a subrow added on this level
 
             List<String> subResult = new ArrayList<>();
-            for (Map.Entry<String, List<Record>> entry : map.entrySet()){
+            for (Map.Entry<String, List<DbRecord>> entry : map.entrySet()){
                 subResult.add("\"" + getSubtableKeyName(name, entry.getKey()) + "\":[" + listOfData2jsonString(entry.getValue()) + "]");
             }
 
             return String.join(",", subResult);
         }
 
-        private String listOfData2jsonString(List<Record> lists) {
+        private String listOfData2jsonString(List<DbRecord> lists) {
             // splitting the stream in 2 steps (to be more stack friendly)
             List<String> records = new ArrayList<>();
-            for (Record dbRecord : lists) {
+            for (DbRecord dbRecord : lists) {
                 records.add(row2json(dbRecord));
             }
 
             return String.join(",", records);
         }
 
-        public static String row2json(Record row) {
+        public static String row2json(DbRecord row) {
             // splitting the stream in 2 steps (to be more stack friendly)
             List<String> fieldList = new ArrayList<>();
             for (FieldAndValue field : row.content) {
@@ -602,7 +602,7 @@ public class Record {
     }
 
     /** Return all entries that are subrecords */
-    List<Record.FieldAndValue> getSubRecordFieldAndValues() {
+    List<DbRecord.FieldAndValue> getSubRecordFieldAndValues() {
         return this.getContent().stream().filter(e -> (e.getSubRow() != null)&&(e.getSubRow().size()>0)).collect(Collectors.toList());
     }
 }

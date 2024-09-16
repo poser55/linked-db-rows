@@ -26,7 +26,7 @@ public interface FieldExporter {
 	/**
 	 * @param tableName only match on tables with the given name (can be null to match on all tables)
 	 * @return can return null to indicate to skip the field */
-	Record.FieldAndValue exportField(String tableName, String fieldName, JdbcHelpers.ColumnMetadata metadata, ResultSet rs)  throws SQLException;
+	DbRecord.FieldAndValue exportField(String tableName, String fieldName, JdbcHelpers.ColumnMetadata metadata, ResultSet rs)  throws SQLException;
 
 	/** Ignores a field in the export */
 	FieldExporter NOP_FIELDEXPORTER = (tableName, name, metadata, rs) -> null;

@@ -71,9 +71,9 @@ class ADoubleFkTest {
         Connection demo = TestHelpers.getConnection("demo");
 
         DbExporter exporter = new DbExporter();
-        Record triplet = exporter.contentAsTree(demo, "triplet", 1, 2, 3);
+        DbRecord triplet = exporter.contentAsTree(demo, "triplet", 1, 2, 3);
 
-        ObjectMapper mapper = Record.getObjectMapper();
+        ObjectMapper mapper = DbRecord.getObjectMapper();
         System.out.println("json:"+mapper.writerWithDefaultPrettyPrinter().writeValueAsString(triplet.asJsonNode()));
 
         DbImporter importer = new DbImporter();

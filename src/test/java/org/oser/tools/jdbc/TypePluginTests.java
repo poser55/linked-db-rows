@@ -53,7 +53,7 @@ class TypePluginTests {
 
         FieldExporter clobExporter = (tableName, fieldName, metadata, resultSet) -> {
             Clob clob = resultSet.getClob(fieldName);
-            return new Record.FieldAndValue(fieldName, metadata, clob.getSubString(1, (int) clob.length()));
+            return new DbRecord.FieldAndValue(fieldName, metadata, clob.getSubString(1, (int) clob.length()));
         };
 
         FieldImporter clobImporter = (tableName, metadata, statement, insertIndex, value ) -> {
@@ -93,7 +93,7 @@ class TypePluginTests {
                         ,
                         new HashMap<>(),
                         "special_datatypes", 1, 1, true);
-        assertTrue(basicChecksResult.getAsRecord().asJsonNode().toString().contains("bla"));
+        assertTrue(basicChecksResult.getAsDbRecord().asJsonNode().toString().contains("bla"));
 
         TestHelpers.BasicChecksResult basicChecksResult2 = TestHelpers.testExportImportBasicChecks(connection,
                         dbExporter -> {
@@ -110,19 +110,19 @@ class TypePluginTests {
 
         TestHelpers.BasicChecksResult basicChecksResult3 = TestHelpers.testExportImportBasicChecks(connection,
                 "special_datatypes", 3, 1);
-        System.out.println("id 3 as json"+ basicChecksResult3.getAsRecordAgain());
+        System.out.println("id 3 as json"+ basicChecksResult3.getAsDbRecordAgain());
         System.out.println("");
 
-        byte[] asByte = (byte[]) basicChecksResult3.getAsRecord().findElementWithName("a_blob").getValue();
+        byte[] asByte = (byte[]) basicChecksResult3.getAsDbRecord().findElementWithName("a_blob").getValue();
         Assert.assertArrayEquals( apachePicture, asByte );
 
         Object remappedPkId3 = basicChecksResult3.getRowLinkObjectMap().values().stream().findFirst().get();
         TestHelpers.BasicChecksResult basicChecksResult4 = TestHelpers.testExportImportBasicChecks(connection,
                 "special_datatypes", remappedPkId3, 1);
 
-        System.out.println(basicChecksResult4.getAsRecordAgain());
+        System.out.println(basicChecksResult4.getAsDbRecordAgain());
 
-        byte[] asByte2 = (byte[]) basicChecksResult4.getAsRecord().findElementWithName("a_blob").getValue();
+        byte[] asByte2 = (byte[]) basicChecksResult4.getAsDbRecord().findElementWithName("a_blob").getValue();
         Assert.assertArrayEquals( apachePicture, asByte2 );
 
     }

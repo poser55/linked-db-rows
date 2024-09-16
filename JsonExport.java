@@ -1,9 +1,10 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.11
-//DEPS info.picocli:picocli:4.5.0
-//DEPS ch.qos.logback:logback-classic:1.2.3
+//REPOS local=file:///Users/phil/mavenrepo
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.12-SNAPSHOT
+//DEPS info.picocli:picocli:4.7.6
+//DEPS ch.qos.logback:logback-classic:1.5.8
 //DEPS guru.nidi:graphviz-java:0.18.1
-//DEPS org.postgresql:postgresql:42.2.6
+//DEPS org.postgresql:postgresql:42.7.4
 import static java.lang.System.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -15,6 +16,7 @@ import org.oser.tools.jdbc.cli.DynJarLoader;
 import org.oser.tools.jdbc.cli.ExecuteDbScriptFiles;
 import org.oser.tools.jdbc.graphviz.RecordAsGraph;
 import guru.nidi.graphviz.model.MutableGraph;
+import guru.nidi.graphviz.engine.Format;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -124,7 +126,7 @@ public class JsonExport implements Callable<Integer> {
             Fk.addVirtualForeignKeyAsString(connection, dbExporter, fks);
         }
 
-        Record asRecord = dbExporter.contentAsTree(connection, tableName, pkValue);
+        DbRecord asRecord = dbExporter.contentAsTree(connection, tableName, pkValue);
 
         if (doCanonicalize) {
             RecordCanonicalizer.canonicalizeIds(connection, asRecord, dbExporter.getFkCache(), dbExporter.getPkCache());
@@ -139,12 +141,13 @@ public class JsonExport implements Callable<Integer> {
             MutableGraph graph = asGraph.recordAsGraph(connection, asRecord);
 
             if (optionalPngDiagramName.endsWith(".png")) {
-                asGraph.renderGraph(graph, new File(optionalPngDiagramName));
+                asGraph.renderGraph(graph, Format.PNG, new File(optionalPngDiagramName));
             } else {
-                System.err.println("Dotfile:\n" + asGraph.renderGraphAsDotFile(graph));
+                // somehow error for parsing here?
+               // System.err.println("Dotfile:\n" + RecordAsGraph.renderGraphAsDotFile(graph));
             }
         }
-        ObjectMapper mapper = Record.getObjectMapper();
+        ObjectMapper mapper = DbRecord.getObjectMapper();
         String asString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode());
 		err.println("Data: \n");
 		out.println(asString);

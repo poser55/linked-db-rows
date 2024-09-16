@@ -39,7 +39,7 @@ class KeycloakTests {
         // step 2 (remove too much details)
         dbExporter.getStopTablesIncluded().add("keycloak_role");
         // todo: you need to adapt UUID to your environment
-        Record exportedCase = dbExporter.contentAsTree(con, "user_entity", "98831e8d-898a-4b6c-bc5c-e10ac3911380");
+        DbRecord exportedCase = dbExporter.contentAsTree(con, "user_entity", "98831e8d-898a-4b6c-bc5c-e10ac3911380");
 
         Set<RowLink> allNodes = exportedCase.getAllNodes();
         System.out.println("exportedPerson.size():"+ allNodes.size()+"\n"+ allNodes+"\n\n\n");

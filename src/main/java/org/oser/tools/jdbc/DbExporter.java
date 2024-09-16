@@ -56,7 +56,7 @@ public class DbExporter implements FkCacheAccessor {
     { // init field exporters
         FieldExporter clobExporter = (tableName, fieldName, metadata, resultSet) -> {
             Clob clob = resultSet.getClob(fieldName);
-            return new Record.FieldAndValue(fieldName, metadata, clob == null ? null : clob.getSubString(1, (int) clob.length()));
+            return new DbRecord.FieldAndValue(fieldName, metadata, clob == null ? null : clob.getSubString(1, (int) clob.length()));
         };
         typeFieldExporters.put("CLOB", clobExporter);
 
@@ -68,9 +68,9 @@ public class DbExporter implements FkCacheAccessor {
                 if (length > (int) length) {
                     throw new IllegalStateException("Blob too long (does not fit in int)!" + fieldName + " " + tableName + " " + metadata);
                 }
-                return new Record.FieldAndValue(fieldName, metadata, blob.getBytes(1, (int) length));
+                return new DbRecord.FieldAndValue(fieldName, metadata, blob.getBytes(1, (int) length));
             } else {
-                return new Record.FieldAndValue(fieldName, metadata, null);
+                return new DbRecord.FieldAndValue(fieldName, metadata, null);
             }
         };
         typeFieldExporters.put("BLOB", blobExporter);
@@ -82,14 +82,14 @@ public class DbExporter implements FkCacheAccessor {
     /**
      * Main method: recursively read a tree of linked db rows and return it
      */
-    public Record contentAsTree(Connection connection, String tableName, Object... pkValue) throws SQLException {
+    public DbRecord contentAsTree(Connection connection, String tableName, Object... pkValue) throws SQLException {
         ExportContext context = new ExportContext(connection);
 
         if (pkCache.getIfPresent(tableName) == null) {
             JdbcHelpers.assertTableExists(connection, tableName);
         }
 
-        Record data = readOneRecord(connection, tableName, pkValue, context);
+        DbRecord data = readOneRecord(connection, tableName, pkValue, context);
         addSubRowDataFromFks(connection, tableName, data, context);
 
         data.optionalMetadata.put(RecordMetadata.EXPORT_CONTEXT, context);
@@ -103,7 +103,7 @@ public class DbExporter implements FkCacheAccessor {
      */
     @Getter
     public static class ExportContext {
-        Map<RowLink, Record> visitedNodes = new HashMap<>();
+        Map<RowLink, DbRecord> visitedNodes = new HashMap<>();
         Set<Fk> treatedFks = new HashSet<>();
 
         DatabaseMetaData metaData;
@@ -132,8 +132,8 @@ public class DbExporter implements FkCacheAccessor {
 
     }
 
-    Record readOneRecord(Connection connection, String tableName, Object[] pkValues, ExportContext context) throws SQLException {
-        Record data = new Record(tableName, pkValues);
+    DbRecord readOneRecord(Connection connection, String tableName, Object[] pkValues, ExportContext context) throws SQLException {
+        DbRecord data = new DbRecord(tableName, pkValues);
 
         DatabaseMetaData metaData = connection.getMetaData();
         Map<String, JdbcHelpers.ColumnMetadata> columns = JdbcHelpers.getColumnMetadata(metaData, tableName, metadataCache);
@@ -163,7 +163,7 @@ public class DbExporter implements FkCacheAccessor {
                     for (int i = 1; i <= columnCount; i++) {
                         String columnName = rsMetaData.getColumnName(i).toLowerCase();
 
-                        Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
+                        DbRecord.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
 
                         if (d != null) {
                             data.getContent().add(d);
@@ -181,18 +181,18 @@ public class DbExporter implements FkCacheAccessor {
 
     private static final Set<Integer> STRING_TYPES = Set.of(12, 2004, 2005);
 
-    private Record.FieldAndValue retrieveFieldAndValue(String tableName,
-                                                       Map<String, JdbcHelpers.ColumnMetadata> columns,
-                                                       ResultSet rs, int i,
-                                                       String columnName,
-                                                       ExportContext context) throws SQLException {
+    private DbRecord.FieldAndValue retrieveFieldAndValue(String tableName,
+                                                         Map<String, JdbcHelpers.ColumnMetadata> columns,
+                                                         ResultSet rs, int i,
+                                                         String columnName,
+                                                         ExportContext context) throws SQLException {
         FieldExporter localFieldExporter = getFieldExporter(tableName, columnName);
 
         if (localFieldExporter == null) {
             localFieldExporter = typeFieldExporters.get(columns.get(columnName).getType().toUpperCase());
         }
 
-        Record.FieldAndValue d;
+        DbRecord.FieldAndValue d;
         if (localFieldExporter != null) {
             d = localFieldExporter.exportField(tableName, columnName, columns.get(columnName.toLowerCase()), rs);
         } else {
@@ -201,7 +201,7 @@ public class DbExporter implements FkCacheAccessor {
                     STRING_TYPES.contains(columns.get(columnName.toLowerCase()).getDataType());
             Object valueAsObject = useGetString ? rs.getString(i) : rs.getObject(i);
 
-            d = new Record.FieldAndValue(columnName, columns.get(columnName.toLowerCase()), valueAsObject);
+            d = new DbRecord.FieldAndValue(columnName, columns.get(columnName.toLowerCase()), valueAsObject);
         }
         return d;
     }
@@ -213,8 +213,8 @@ public class DbExporter implements FkCacheAccessor {
                 (orderResult ? (" ORDER BY "+fkNames.get(0)+" asc " ) : "");
     }
 
-    List<Record> readLinkedRecords(Connection connection, String tableName, String[] fkNames, Object[] fkValues, ExportContext context) throws SQLException {
-        List<Record> listOfRows = new ArrayList<>();
+    List<DbRecord> readLinkedRecords(Connection connection, String tableName, String[] fkNames, Object[] fkValues, ExportContext context) throws SQLException {
+        List<DbRecord> listOfRows = new ArrayList<>();
 
         if (stopTablesExcluded.contains(tableName) || stopAfterFirstInstance(tableName, context)  ||
                 (stopTablesIncluded.contains(tableName) && context.containsTable(tableName) ))  {
@@ -242,7 +242,7 @@ public class DbExporter implements FkCacheAccessor {
                 ResultSetMetaData rsMetaData = rs.getMetaData();
                 int columnCount = rsMetaData.getColumnCount();
                 while (rs.next()) { // treat 1 fk-link
-                    Record row = innerReadRecord(tableName, columns, rs, rsMetaData, columnCount, primaryKeys, context);
+                    DbRecord row = innerReadRecord(tableName, columns, rs, rsMetaData, columnCount, primaryKeys, context);
                     if (context.containsNode(tableName, row.getRowLink().getPks())) {
                         continue; // we have already read this node
                     }
@@ -254,7 +254,7 @@ public class DbExporter implements FkCacheAccessor {
         }
 
         // now treat subtables
-        for (Record row : listOfRows) {
+        for (DbRecord row : listOfRows) {
             if (!stopTablesIncluded.contains(tableName)) {
                 addSubRowDataFromFks(connection, tableName, row, context);
             }
@@ -266,7 +266,7 @@ public class DbExporter implements FkCacheAccessor {
     /**
      * complement the record "data" by starting from "tableName" and recursively adding data that is connected via FKs
      */
-    void addSubRowDataFromFks(Connection connection, String tableName, Record data, ExportContext context) throws SQLException {
+    void addSubRowDataFromFks(Connection connection, String tableName, DbRecord data, ExportContext context) throws SQLException {
         List<Fk> fks = getFksOfTable(connection, tableName, fkCache);
 
         data.setOptionalFks(fks);
@@ -275,9 +275,9 @@ public class DbExporter implements FkCacheAccessor {
             context.treatedFks.add(fk);
 
             String[] elementPkName = fk.isInverted() ? fk.getFkcolumn() : fk.getPkcolumn();
-            List<Record.FieldAndValue> elementsWithName = Stream.of(elementPkName).map(s -> data.findElementWithName(s)).map(Optional::ofNullable)
+            List<DbRecord.FieldAndValue> elementsWithName = Stream.of(elementPkName).map(s -> data.findElementWithName(s)).map(Optional::ofNullable)
                     .flatMap(Optional::stream).collect(toList());
-            boolean anyElementNull = elementsWithName.stream().map(Record.FieldAndValue::getValue).anyMatch(x -> x == null);
+            boolean anyElementNull = elementsWithName.stream().map(DbRecord.FieldAndValue::getValue).anyMatch(x -> x == null);
 
             if (!anyElementNull) {
                 String subTableName = Fk.getSubtableName(fk, context.metaData.getDatabaseProductName());
@@ -287,10 +287,10 @@ public class DbExporter implements FkCacheAccessor {
                     subFkNames[i] = subFkNames[i].toLowerCase();
                 }
 
-                List<Record> subRow = this.readLinkedRecords(connection,
+                List<DbRecord> subRow = this.readLinkedRecords(connection,
                         subTableName,
                         subFkNames,
-                        elementsWithName.stream().map(Record.FieldAndValue::getValue).toArray(),
+                        elementsWithName.stream().map(DbRecord.FieldAndValue::getValue).toArray(),
                         context);
                 if (!subRow.isEmpty()) {
                     if (!elementsWithName.get(0).getSubRow().containsKey(subTableName)) {
@@ -303,8 +303,8 @@ public class DbExporter implements FkCacheAccessor {
         }
     }
 
-    private Record innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys, ExportContext context) throws SQLException {
-        Record row = new Record(tableName, null);
+    private DbRecord innerReadRecord(String tableName, Map<String, JdbcHelpers.ColumnMetadata> columns, ResultSet rs, ResultSetMetaData rsMetaData, int columnCount, List<String> primaryKeys, ExportContext context) throws SQLException {
+        DbRecord row = new DbRecord(tableName, null);
         row.setColumnMetadata(columns);
 
         Map<String, Integer> primaryKeyArrayPosition = JdbcHelpers.getStringIntegerMap(primaryKeys);
@@ -312,7 +312,7 @@ public class DbExporter implements FkCacheAccessor {
 
         for (int i = 1; i <= columnCount; i++) {
             String columnName = rsMetaData.getColumnName(i);
-            Record.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
+            DbRecord.FieldAndValue d = retrieveFieldAndValue(tableName, columns, rs, i, columnName, context);
             if (d != null) {
                 row.getContent().add(d);
 
@@ -333,20 +333,20 @@ public class DbExporter implements FkCacheAccessor {
 
     /** Get SQL statements to delete all the content of a record (needs to be created before).
      * They are in an order they can be executed. */
-    public List<String> getDeleteStatements(Connection connection, Record exportedRecord) throws Exception {
+    public List<String> getDeleteStatements(Connection connection, DbRecord exportedDbRecord) throws Exception {
         List<String> result = new ArrayList<>();
 
-        CheckedFunction<Record, Void> collectDeletionStatement = (Record r) -> {
+        CheckedFunction<DbRecord, Void> collectDeletionStatement = (DbRecord r) -> {
             result.add(DbExporter.recordEntryToDeleteStatement(connection.getMetaData(), r, pkCache));
             return null;
         };
 
-        exportedRecord.visitRecordsInInsertionOrder(connection, collectDeletionStatement, false, fkCache);
+        exportedDbRecord.visitRecordsInInsertionOrder(connection, collectDeletionStatement, false, fkCache);
         Collections.reverse(result);
         return result;
     }
 
-    private static String recordEntryToDeleteStatement(DatabaseMetaData m, Record r, Cache<String, List<String>> pkCache) throws SQLException {
+    private static String recordEntryToDeleteStatement(DatabaseMetaData m, DbRecord r, Cache<String, List<String>> pkCache) throws SQLException {
         List<String> primaryKeys = r.getPkNames();
 
         String whereClause = "";
@@ -368,8 +368,8 @@ public class DbExporter implements FkCacheAccessor {
      *  CAVEAT: really deletes data, check the data first!
      *   @throws SQLException or an IllegalStateException if there is a problem during deletion
      * @return the record that was deleted */
-    public Record deleteRecursively(Connection connection, String tableName, Object... pkValue) throws Exception {
-        Record dbRecord = contentAsTree(connection, tableName, pkValue);
+    public DbRecord deleteRecursively(Connection connection, String tableName, Object... pkValue) throws Exception {
+        DbRecord dbRecord = contentAsTree(connection, tableName, pkValue);
 
         List<String> deleteStatements = getDeleteStatements(connection, dbRecord);
 

@@ -34,20 +34,20 @@ class SakilaTests {
         DbExporter dbExporter = new DbExporter();
         dbExporter.getStopTablesExcluded().add("inventory");
 
-        Record actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
+        DbRecord actor199 = dbExporter.contentAsTree(sakilaConnection, "actor", 199);
         String asString = actor199.asJsonNode().toString();
 
         Set<RowLink> allNodes = actor199.getAllNodes();
         System.out.println(asString +" \nnumberNodes:"+ allNodes.size());
 
-        System.out.println("classified:"+ Record.classifyNodes(allNodes));
+        System.out.println("classified:"+ DbRecord.classifyNodes(allNodes));
 
         DbImporter dbImporter = new DbImporter();
         dbImporter.setIgnoreFkCycles(true);
         dbImporter.registerFieldImporter(null, "special_features", FieldImporter.NOP_FIELDIMPORTER);
-        Record asRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
+        DbRecord asDbRecord = dbImporter.jsonToRecord(sakilaConnection, "actor", asString);
 
-        dbImporter.insertRecords(sakilaConnection, asRecord);
+        dbImporter.insertRecords(sakilaConnection, asDbRecord);
 
         //Map<RowLink, DbImporter.Remap> actor = dbImporter.insertRecords(sakilaConnection, asRecord);
         // System.out.println(actor + " "+actor.size());
@@ -81,9 +81,9 @@ class SakilaTests {
                 }, null, remapping, "actor", 199, 31, false
         );
 
-        System.out.println("classified:"+ Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
+        System.out.println("classified:"+ DbRecord.classifyNodes(basicChecksResult.getAsDbRecord().getAllNodes()));
 
-        System.out.println("\n canonicalized:"+basicChecksResult.getAsRecord().asJsonNode());
+        System.out.println("\n canonicalized:"+basicChecksResult.getAsDbRecord().asJsonNode());
     }
 
     @Test
@@ -101,7 +101,7 @@ class SakilaTests {
                 }, "actor", 199, 12671
         );
 
-        System.out.println("classified:"+ Record.classifyNodes(basicChecksResult.getAsRecord().getAllNodes()));
+        System.out.println("classified:"+ DbRecord.classifyNodes(basicChecksResult.getAsDbRecord().getAllNodes()));
     }
 
     @Test

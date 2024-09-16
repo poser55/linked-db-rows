@@ -119,10 +119,10 @@ Another example illustrates virtual foreign keys between tables in different dat
 
 #### Canonicalization of primary keys
 Two graphs may be equivalent given their contained data but just have different primary keys (if we assume that the primary keys
-do not hold business meaning, beyond mapping rows). This feature allows to convert a record to a canonical form (that is assumed 
+do not hold business meaning, beyond mapping rows). This feature allows to convert a dbRecord to a canonical form (that is assumed 
 to be the same even if the primary keys vary).
 Id orders are determined based on the original order in the database (so assuming integer primary keys this
-should be stable for equality). We do not use any data in the records to determine the order. 
+should be stable for equality). We do not use any data in the dbRecords to determine the order. 
 Refer to `RecordCanonicalizer.canonicalizeIds()` for more details.
 
 #### JBang scripts to export/ import via command line
@@ -173,18 +173,18 @@ duplicate it on another user. Refer to the org.oser.tools.jdbc.DbExporterBasicTe
   * Subtables are added after the field that links to them (via the foreign key). Subtables are always in sub-arrays (even if .
     there is only one entry in the DDL). They are behind a JSON entry of the name  `NAME_OF_FK_COLUMN*NAME_OF_SUBTABLE*`, example: `author_id*author*`.
 
-#### Show an exported graph of records as Graphviz graph (experimental)
+#### Show an exported graph of dbRecords as Graphviz graph (experimental)
   * Example output looks like this:
     ![Alt text](resources/exampleGraph.png?raw=true "Example Graphviz graph")
   * Prerequisite: Requires the optional (maven) dependency to https://github.com/nidi3/graphviz-java <br/>
   * Sample code:
 ```Java
    DbExporter exporter = new DbExporter();
-   Record records = exporter.contentAsTree(connection, "Nodes", 1);
+   DbRecord dbRecords = exporter.contentAsTree(connection, "Nodes", 1);
 
    RecordAsGraph asGraph = new RecordAsGraph();
-   MutableGraph graph = asGraph.recordAsGraph(connection, records);
-   asGraph.renderGraph(graph, new File( "graph.png"));
+   MutableGraph graph = asGraph.recordAsGraph(connection, dbRecords);
+   asGraph.renderGraph(graph, Format.PNG, new File( "graph.png"));
 ```
   * You can optionally choose what attributes to display for each table (use the optional 3rd argument of `RecordAsGraph#recordAsGraph()`) 
 
@@ -234,19 +234,6 @@ Deploying
  * To release, add [release] as first part of the git commit message
  
 
-Further Ideas
---------------
-* Clean ups
-    - Reduce the limitations
-    - Fix hints marked as todo
-    - Test support for different schemas more
-    - Handle uppercase letters of table names in mysql queries correctly for importing
-* Fix bugs:
-    - Escaping of table and field names
-* Extension ideas
-    - Do more unification of Datatype handling. E.g. oracle treats DATE different from Postgres (so at the moment
-    we need to adapt it in the JSON/ Record). Refer e.g. to DbExporterBasicTests#datatypesTest(). 
-
 Jdbc Helper functions
 ----------------------
 * Getting Foreign-Key constraints from the database
@@ -260,4 +247,17 @@ Jdbc Helper functions
 * Get datastructure with column metadate for all columns of a table
     - SortedMap<String, ColumnMetadata> metadata = JdbcHelper.getColumnMetadata(metadata, tablename);
 * Topological sort JdbcHelper.topologicalSort 
-  
+
+
+Further Ideas
+--------------
+* Clean ups
+    - Reduce the limitations
+    - Fix hints marked as todo
+    - Test support for different schemas more
+    - Handle uppercase letters of table names in mysql queries correctly for importing
+* Fix bugs:
+    - Escaping of table and field names
+* Extension ideas
+    - Do more unification of Datatype handling. E.g. oracle treats DATE different from Postgres (so at the moment
+      we need to adapt it in the JSON/ Record). Refer e.g. to DbExporterBasicTests#datatypesTest(). 

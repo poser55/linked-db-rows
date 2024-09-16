@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *  Allows choosing the db via the env variable <code>ACTIVE_DB</code> (default: h2).
  *  Add new databases in <code>DB_CONFIGS_LIST</code>*/
 public class TestHelpers {
-    static ObjectMapper mapper = Record.getObjectMapper();
+    static ObjectMapper mapper = DbRecord.getObjectMapper();
 
 
     public static OracleContainer oracleContainer = new OracleContainer();
@@ -146,11 +146,6 @@ public class TestHelpers {
                 firstTimeForEachDb.add(dbName);
             }
         }
-        if (runningOnOsX()) {
-            // strange issue: only in mvn on osx the init cache detection does not seem to work
-            //  also mvn debugging does not halt on my breakpoints (only in some JDK code?)
-            initDbNow = true;
-        }
 
         Class.forName(baseConfig.driverName, true, Thread.currentThread().getContextClassLoader());
 
@@ -161,7 +156,7 @@ public class TestHelpers {
         con.setAutoCommit(true);
 
         if (initDbNow) {
-            //  add here placeholders such a h2_exclude_start, postgres_include_end
+            // we add here placeholders such a h2_exclude_start, postgres_include_end, ...
             Map<String, String> placeholdersMap = new HashMap<>();
             placeholdersMap.put(baseConfig.shortname+"_include_start", "");
             placeholdersMap.put(baseConfig.shortname+"_include_end", "");
@@ -182,8 +177,7 @@ public class TestHelpers {
 
             baseConfig.getSysProperties().forEach(System::setProperty);
         }
-
-
+        
 
         // db console at  http://localhost:8082/
         try {
@@ -266,7 +260,7 @@ public class TestHelpers {
      * Allows to configure the DbImporter/ DbExporter/ Record/ Remappings
      */
     public static BasicChecksResult testExportImportBasicChecks(Connection connection, Consumer<DbExporter> optionalExporterConfigurer,
-                                                                Consumer<DbImporter> optionalImporterConfigurer, Consumer<Record> optionalRecordChanger,
+                                                                Consumer<DbImporter> optionalImporterConfigurer, Consumer<DbRecord> optionalRecordChanger,
                                                                 Map<RowLink, DbImporter.Remap> remapping, String tableName, Object primaryKeyValue,
                                                                 int numberNodes, boolean checkUpdates) throws Exception {
         List<String> testSchemas = getDefaultSchemaPlusDoc(connection);
@@ -277,10 +271,10 @@ public class TestHelpers {
         if (optionalExporterConfigurer != null) {
             optionalExporterConfigurer.accept(dbExporter);
         }
-        Record asRecord = dbExporter.contentAsTree(connection, tableName, primaryKeyValue);
-        String asString = asRecord.asJsonNode().toString();
+        DbRecord asDbRecord = dbExporter.contentAsTree(connection, tableName, primaryKeyValue);
+        String asString = asDbRecord.asJsonNode().toString();
 
-        System.out.println("export as json2:" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asRecord.asJsonNode()));
+        System.out.println("export as json2:" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(asDbRecord.asJsonNode()));
         // this assertion was dropped, as the old .asJsonNode().toString() method handles int types wrong (it quotes them in some cases)
         //assertEquals(mapper.readTree(asRecord.asJsonNode().toString()).toString(), asRecord.asJsonNode().toString());
 
@@ -288,21 +282,21 @@ public class TestHelpers {
         if (optionalImporterConfigurer != null) {
             optionalImporterConfigurer.accept(dbImporter);
         }
-        Record asRecordAgain = dbImporter.jsonToRecord(connection, tableName, asString);
-        String asStringAgain = asRecordAgain.asJsonNode().toString();
+        DbRecord asDbRecordAgain = dbImporter.jsonToRecord(connection, tableName, asString);
+        String asStringAgain = asDbRecordAgain.asJsonNode().toString();
 
-        assertEquals(numberNodes, asRecord.getAllNodes().size());
-        assertEquals(numberNodes, asRecordAgain.getAllNodes().size());
+        assertEquals(numberNodes, asDbRecord.getAllNodes().size());
+        assertEquals(numberNodes, asDbRecordAgain.getAllNodes().size());
 
         // still subtle differences in asString operation
         assertEquals(canonicalize(asString), canonicalize(asStringAgain));
 
         if (optionalRecordChanger != null) {
-            optionalRecordChanger.accept(asRecordAgain);
+            optionalRecordChanger.accept(asDbRecordAgain);
         }
 
         // todo: bug: asRecord is missing columnMetadata/ other values
-        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = dbImporter.insertRecords(connection, asRecordAgain, remapping);
+        Map<RowLink, DbImporter.Remap> rowLinkObjectMap = dbImporter.insertRecords(connection, asDbRecordAgain, remapping);
 
         Map<String, Integer> after = JdbcHelpers.getNumberElementsInEachTable(connection, testSchemas);
 
@@ -312,15 +306,15 @@ public class TestHelpers {
 
             // try updating as well
             dbImporter.setForceInsert(false);
-            Map<RowLink, DbImporter.Remap> rowLinkObjectMap2 = dbImporter.insertRecords(connection, asRecordAgain);
+            Map<RowLink, DbImporter.Remap> rowLinkObjectMap2 = dbImporter.insertRecords(connection, asDbRecordAgain);
 
             // there should be no remappings with forceInsert
             assertEquals(0, rowLinkObjectMap2.size());
         }
 
-        Map<RowLink, List<Object>> rowLinkListMap = RecordCanonicalizer.canonicalizeIds(connection, asRecord, dbExporter.getFkCache(), pkCache);
+        Map<RowLink, List<Object>> rowLinkListMap = RecordCanonicalizer.canonicalizeIds(connection, asDbRecord, dbExporter.getFkCache(), pkCache);
 
-        return new BasicChecksResult(asRecord, asString, asRecordAgain, asStringAgain, rowLinkObjectMap, rowLinkListMap);
+        return new BasicChecksResult(asDbRecord, asString, asDbRecordAgain, asStringAgain, rowLinkObjectMap, rowLinkListMap);
     }
 
     private static List<String> getDefaultSchemaPlusDoc(Connection connection) {
@@ -349,22 +343,22 @@ public class TestHelpers {
     /** Holds test results */
     @Getter
     public static class BasicChecksResult {
-        private final Record asRecord;
+        private final DbRecord asDbRecord;
         private final String asString;
-        private final Record asRecordAgain;
+        private final DbRecord asDbRecordAgain;
         private final String asStringAgain;
         private final Map<RowLink, DbImporter.Remap> rowLinkObjectMap;
         private Map<RowLink, List<Object>> rowLinkListMap;
 
-        public BasicChecksResult(Record asRecord,
+        public BasicChecksResult(DbRecord asDbRecord,
                                  String asString,
-                                 Record asRecordAgain,
+                                 DbRecord asDbRecordAgain,
                                  String asStringAgain,
                                  Map<RowLink, DbImporter.Remap> rowLinkObjectMap,
                                  Map<RowLink, List<Object>> rowLinkListMap) {
-            this.asRecord = asRecord;
+            this.asDbRecord = asDbRecord;
             this.asString = asString;
-            this.asRecordAgain = asRecordAgain;
+            this.asDbRecordAgain = asDbRecordAgain;
             this.asStringAgain = asStringAgain;
             this.rowLinkObjectMap = rowLinkObjectMap;
             this.rowLinkListMap = rowLinkListMap;

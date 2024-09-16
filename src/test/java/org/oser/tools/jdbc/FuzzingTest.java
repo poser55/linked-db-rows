@@ -38,7 +38,7 @@ public class FuzzingTest {
         if (jsonString != null && !jsonString.equals("")) {
 
             try {
-                Record r = dbImporter.jsonToRecord(demo, "book", jsonString);
+                DbRecord r = dbImporter.jsonToRecord(demo, "book", jsonString);
                 // System.out.println("!!!"+jsonString+"|"+jsonString.length());
                 dbImporter.insertRecords(demo, r);
                 r = null;

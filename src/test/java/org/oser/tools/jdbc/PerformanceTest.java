@@ -19,16 +19,16 @@ public class PerformanceTest {
         Connection demoConnection = TestHelpers.getConnection("demo");
         DbExporter dbExporter = new DbExporter();
 
-        List<Record> r = new ArrayList<>(10000);
+        List<DbRecord> r = new ArrayList<>(10000);
         DbExporterBasicTests.Timer t = new DbExporterBasicTests.Timer();
         for (int i = 0; i < 10000; i++) {
-            Record record = export1(demoConnection, dbExporter);
-            r.add(record);
+            DbRecord dbRecord = export1(demoConnection, dbExporter);
+            r.add(dbRecord);
         }
         t.printCurrent("end");
     }
 
-    private Record export1(Connection demoConnection, DbExporter dbExporter) throws SQLException {
+    private DbRecord export1(Connection demoConnection, DbExporter dbExporter) throws SQLException {
         return dbExporter.contentAsTree(demoConnection, "Nodes", "1");
     }
 
@@ -37,22 +37,22 @@ public class PerformanceTest {
         Connection demoConnection = TestHelpers.getConnection("demo");
         DbExporter dbExporter = new DbExporter();
 
-        Record record1 = export1(demoConnection, dbExporter);
+        DbRecord dbRecord1 = export1(demoConnection, dbExporter);
 
         DbImporter dbImporter = new DbImporter();
 
-        List<Record> r = new ArrayList<>(10000);
+        List<DbRecord> r = new ArrayList<>(10000);
         DbExporterBasicTests.Timer t = new DbExporterBasicTests.Timer();
-        String string = record1.asJsonNode().toString();
+        String string = dbRecord1.asJsonNode().toString();
         for (int i = 0; i < 1000; i++) {
-            Record record = import1(demoConnection, dbImporter, string);
-            r.add(record);
+            DbRecord dbRecord = import1(demoConnection, dbImporter, string);
+            r.add(dbRecord);
         }
         t.printCurrent("end");
     }
 
-    private Record import1(Connection demoConnection, DbImporter dbImporter, String string) throws Exception {
-        Record book2 = dbImporter.jsonToRecord(demoConnection, "Nodes", string);
+    private DbRecord import1(Connection demoConnection, DbImporter dbImporter, String string) throws Exception {
+        DbRecord book2 = dbImporter.jsonToRecord(demoConnection, "Nodes", string);
 
         Map<RowLink, DbImporter.Remap> pkAndTableObjectMap = dbImporter.insertRecords(demoConnection, book2);
         return book2;
