@@ -105,6 +105,13 @@ public class DynJarLoaderTest {
         //Connection connection2 = DynJarLoader.getConnection("sqlserver", "jdbc:sqlserver://localhost:1433;databaseName=PUBS", "SA", "", this.getClass().getClassLoader());
         //Connection connection2 = DynJarLoader.getConnection("oracle", "jdbc:oracle:thin:scott/tiger@localhost:1521:orcl", "SA", "", this.getClass().getClassLoader());
         //Connection connection2 = DynJarLoader.getConnection("mysql", "jdbc:mysql://host1:33060/sakila", "SA", "", this.getClass().getClassLoader());
+    }
 
+    @Test
+    // @Disabled   // you may need to delete the *.jar files in the tmp directory first
+    void testAllUrlsCanBeDownloaded() throws IOException {
+        for (DynJarLoader.JdbcDriverConfig driver : DynJarLoader.JDBC_DRIVERS) {
+            String urlOfClass = DynJarLoader.getJarCacheUrl(driver.getShortname(), driver.getMavenCentralUrl());
+        }
     }
 }

@@ -96,25 +96,26 @@ public class DynJarLoader {
         return driver.connect(jdbcUrl, properties);
     }
 
-    static final List<JdbcDriverConfig> JDBC_DRIVERS =
+    // visible for testing
+    public static final List<JdbcDriverConfig> JDBC_DRIVERS =
             List.of(
                     new JdbcDriverConfig("postgres",
-                            "https://search.maven.org/remotecontent?filepath=org/postgresql/postgresql/42.2.18.jre7/postgresql-42.2.18.jre7.jar",
+                            "https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.4/postgresql-42.7.4-all.jar",
                             "org.postgresql.Driver"),
                     new JdbcDriverConfig("h2",
-                            "https://search.maven.org/remotecontent?filepath=com/h2database/h2/1.4.200/h2-1.4.200.jar",
+                            "https://repo1.maven.org/maven2/com/h2database/h2/2.3.232/h2-2.3.232-javadoc.jar",
                             "org.h2.Driver"),
                     new JdbcDriverConfig("hsqldb",
-                            "https://search.maven.org/remotecontent?filepath=org/hsqldb/hsqldb/2.5.1/hsqldb-2.5.1.jar",
+                            "https://repo1.maven.org/maven2/org/hsqldb/hsqldb/2.7.3/hsqldb-2.7.3-jdk8.jar",
                             "org.hsqldb.jdbcDriver"),
                     new JdbcDriverConfig("mysql",
-                            "https://search.maven.org/remotecontent?filepath=mysql/mysql-connector-java/8.0.22/mysql-connector-java-8.0.22.jar",
+                            "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.30/mysql-connector-java-8.0.30.jar",
                             "com.mysql.cj.jdbc.Driver"),
                     new JdbcDriverConfig("sqlserver",
-                            "https://search.maven.org/remotecontent?filepath=com/microsoft/sqlserver/mssql-jdbc/8.4.1.jre11/mssql-jdbc-8.4.1.jre11.jar",
+                            "https://repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/12.8.1.jre11/mssql-jdbc-12.8.1.jre11.jar",
                             "com.microsoft.sqlserver.jdbc.SQLServerDriver"),
                     new JdbcDriverConfig("oracle",
-                            "https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/ojdbc10/19.3.0.0/ojdbc10-19.3.0.0.jar",
+                            "https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc11/21.15.0.0/ojdbc11-21.15.0.0.jar",
                             "oracle.jdbc.driver.OracleDriver")
             );
 
@@ -125,7 +126,7 @@ public class DynJarLoader {
     /** Hold metadata for a jdbc driver */
     @Getter
     @ToString
-    static class JdbcDriverConfig {
+    public static class JdbcDriverConfig {
         public JdbcDriverConfig(String shortname, String mavenCentralUrl, String driverName) {
             this.shortname = shortname;
             this.mavenCentralUrl = mavenCentralUrl;
