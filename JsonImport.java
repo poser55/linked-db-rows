@@ -1,6 +1,6 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 ////REPOS local=file:///Users/phil/mavenrepo
-//DEPS org.oser.tools.jdbc:linked-db-rows:0.13
+//DEPS org.oser.tools.jdbc:linked-db-rows:0.14
 //DEPS info.picocli:picocli:4.7.6
 //DEPS ch.qos.logback:logback-classic:1.5.8
 import static java.lang.System.*;
