@@ -29,7 +29,11 @@ public class ExecuteDbScriptFiles {
                     .map(Path::toString).sorted().collect(toList());
 
             for (String fileName : sqlFiles) {
-                executeSqlFile(connection, fileName, placeholders);
+                try {
+                    executeSqlFile(connection, fileName, placeholders);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }

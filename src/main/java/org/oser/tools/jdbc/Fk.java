@@ -30,8 +30,8 @@ import static org.oser.tools.jdbc.JdbcHelpers.adaptCaseForDb;
  * <p>
  * In JDBC <em>one</em> fk constraint between table 1 and table 2 has <em>two</em> representations: the link from
  * table 1 to table 2 and vice versa. One of the 2 constraints is <em>inverted</em>, refer to the field <code>inverted</code>.
- *  <a>
- *  Supports virtual foreign keys (that do not exist in the db).
+ * <a>
+ * Supports virtual foreign keys (that do not exist in the db).
  */
 @Getter
 public class Fk {
@@ -82,6 +82,25 @@ public class Fk {
         this.keySeq = keySeq;
         this.fkName = fkName;
         this.inverted = inverted;
+    }
+
+    // convenience accessors: they check the inverted flag to either return the 1st or the 2nd entry
+    // todo can we simplify code with these methods?
+
+    public String getFirstTable() {
+        return inverted ? pktable : fktable;
+    }
+
+    public String getSecondTable() {
+        return inverted ? fktable : pktable;
+    }
+
+    public String[] getFirstColumn() {
+        return inverted ? pkcolumn : fkcolumn;
+    }
+
+    public String[] getSecondColumn() {
+        return inverted ? fkcolumn : pkcolumn;
     }
 
 
@@ -340,7 +359,30 @@ public class Fk {
         }
     }
 
-    /** To parse String FKs */
+    /**
+     * Same as #addOneVirtualForeignKeyAsString but only fills the cache (without a connection)
+     */
+    public static void addOneVirtualForeignKeyAsString(FkCacheAccessor importerOrExporter, String asString) {
+        FkMatchedFields fkMatchedFields = new FkMatchedFields(asString).parse();
+        String table1 = fkMatchedFields.getTable1();
+        String fields1AsString = fkMatchedFields.getFields1AsString();
+        String table2 = fkMatchedFields.getTable2();
+        String fields2AsString = fkMatchedFields.getFields2AsString();
+
+        List<Fk> table1fks = importerOrExporter.getFkCache().getIfPresent(table1);
+        table1fks = table1fks == null ? new ArrayList<>() : table1fks;
+        table1fks.add(new Fk(table1, fields1AsString.split(","), table2, fields2AsString.split(","), "1", table1 + fields1AsString.split(",")[0], false));
+        importerOrExporter.getFkCache().put(table1, table1fks);
+
+        List<Fk> table2fks = importerOrExporter.getFkCache().getIfPresent(table2);
+        table2fks = table2fks == null ? new ArrayList<>() : table2fks;
+        table2fks.add(new Fk(table1, fields1AsString.split(","), table2, fields2AsString.split(","), "1", table1 + fields1AsString.split(",")[0], true));
+        importerOrExporter.getFkCache().put(table2, table2fks);
+    }
+
+    /**
+     * o parse String FKs
+     */
     @Getter
     static class FkMatchedFields {
         private String asString;

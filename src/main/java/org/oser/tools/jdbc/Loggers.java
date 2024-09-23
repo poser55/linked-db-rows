@@ -15,25 +15,37 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Global logging convenience abstraction (to globally enable certain details in logs, such as all select statements or all insert/update statements).
- *  Just uses Slf4j. In case logback is configured, sets the log levels in logback (users of other log implementations need to set their log levels themselves). */
+/**
+ * Global logging convenience abstraction (to globally enable certain details in logs, such as all select statements or all insert/update statements).
+ * Just uses Slf4j. In case logback is configured, sets the log levels in logback (users of other log implementations need to set their log levels themselves).
+ */
 public enum Loggers {
 
-        /** SQL select statements */
-        SELECT,
-        /** SQL update and insert statements */
-        CHANGE,
-        /** SQL delete statements */
-        DELETE,
-        WARNING,
-        INFO,
-        /** meta Logger to mean all db operations */
-        DB_OPERATIONS,
-        /** meta Logger means all Loggers */
-        ALL;
+    /**
+     * SQL select statements
+     */
+    SELECT,
+    /**
+     * SQL update and insert statements
+     */
+    CHANGE,
+    /**
+     * SQL delete statements
+     */
+    DELETE,
+    WARNING,
+    INFO,
+    /**
+     * meta Logger to mean all db operations
+     */
+    DB_OPERATIONS,
+    /**
+     * meta Logger means all Loggers
+     */
+    ALL;
 
 
-    static final Set<Loggers> CONCRETE_LOGGERS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE, Loggers.WARNING,  Loggers.INFO);
+    static final Set<Loggers> CONCRETE_LOGGERS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE, Loggers.WARNING, Loggers.INFO);
     static final Set<Loggers> CONCRETE_DB_OPERATIONS = EnumSet.of(Loggers.SELECT, Loggers.CHANGE, Loggers.DELETE);
     static final Set<Loggers> ALL_LOGGERS = CONCRETE_LOGGERS;
 
@@ -45,12 +57,16 @@ public enum Loggers {
 
     static boolean missingLoggerSignalled = false;
 
-    /** Convenience method to enable what you would like to see in the logs */
+    /**
+     * Convenience method to enable what you would like to see in the logs
+     */
     public static void enableLoggers(Set<Loggers> loggers) {
         setLoggerLevel(loggers, Level.INFO);
     }
 
-    /** Convenience method to enable what you would like to see in the logs */
+    /**
+     * Convenience method to enable what you would like to see in the logs
+     */
     public static void enableLoggers(Loggers... loggers) {
         setLoggerLevel(new HashSet(Arrays.asList(loggers)), Level.INFO);
     }
@@ -86,17 +102,19 @@ public enum Loggers {
         disableDefaultLogs();
     }
 
-    /** Convenience method to only show warning logs */
+    /**
+     * Convenience method to only show warning logs
+     */
     public static void disableDefaultLogs() {
         setLoggerLevel(CONCRETE_LOGGERS, Level.WARN);
     }
 
 
-    public static Set<Loggers> stringListToLoggerSet(List<String> logs){
+    public static Set<Loggers> stringListToLoggerSet(List<String> logs) {
         return logs.stream().map(String::toUpperCase).map(n -> optionalGetLogger(n)).flatMap(Optional::stream).collect(Collectors.toSet());
     }
 
-    private static Optional<Loggers> optionalGetLogger(String logger){
+    private static Optional<Loggers> optionalGetLogger(String logger) {
         try {
             return Optional.of(Loggers.valueOf(logger));
         } catch (IllegalArgumentException e) {

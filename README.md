@@ -261,3 +261,4 @@ Further Ideas
 * Extension ideas
     - Do more unification of Datatype handling. E.g. oracle treats DATE different from Postgres (so at the moment
       we need to adapt it in the JSON/ DbRecord). Refer e.g. to DbExporterBasicTests#datatypesTest(). 
+* Oracle testcontainer does not run on Arm osx. To try things out: https://dbfiddle.uk/Wh4zpMKJ

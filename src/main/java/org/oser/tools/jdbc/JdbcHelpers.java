@@ -86,6 +86,7 @@ public final class JdbcHelpers {
      * @param treated init treated to Set with all entries
      * @param exceptionWithCycles whether we should throw an exception if there are cycles
      * @return the sorted list of entries
+     * @throws IllegalStateException in case of cycles if exceptionWithCycles is true
      * */
     public static <T> List<T> topologicalSort(Map<T, Set<T>> dependencyGraph, Set<T> treated, boolean exceptionWithCycles) {
         List<T> orderedTables = new ArrayList<>();

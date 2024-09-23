@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -479,4 +480,28 @@ public class DbExporter implements FkCacheAccessor {
     public void setOrderResults(boolean orderResults) {
         this.orderResults = orderResults;
     }
+
+
+    /**
+     * Get only the cache entries that are excluded by the stopTablesExcluded
+     */
+    public Cache<String, List<Fk>> getFilteredFkCache() {
+        ConcurrentMap<String, List<Fk>> map = fkCache.asMap();
+        List<Map.Entry<String, List<Fk>>> removedKeys = map.entrySet().stream().filter(e -> !stopTablesExcluded.contains(e.getKey())).toList();
+
+        Cache<String, List<Fk>> fkCacheSubset1 = Caffeine.newBuilder()
+                .maximumSize(1000).build();
+        removedKeys.stream().map(e -> filterEntry(e, stopTablesExcluded)).forEach(e -> fkCacheSubset1.put(e.key(), e.fks()));
+        Cache<String, List<Fk>> fkCacheSubset = fkCacheSubset1;
+        return fkCacheSubset;
+    }
+
+    private static KeyAndFkList filterEntry(Map.Entry<String, List<Fk>> e, Set<String> stopTablesExcluded) {
+        List<Fk> list = e.getValue().stream().filter(fk -> !(stopTablesExcluded.contains(fk.getPktable()) || stopTablesExcluded.contains(fk.getFktable()))).toList();
+        return new KeyAndFkList(e.getKey(), list);
+    }
+
+    record KeyAndFkList(String key, List<Fk> fks) {
+    }
+
 }

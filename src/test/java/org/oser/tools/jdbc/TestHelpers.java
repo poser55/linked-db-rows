@@ -77,7 +77,7 @@ public class TestHelpers {
 
                     new DbConfig("oracle", "oracle.jdbc.driver.OracleDriver",
                             ()-> oracleContainer.getJdbcUrl(), oracleContainer.getUsername(), oracleContainer.getPassword(), true,
-                            Map.of("sakila","false")).disableAppendDbName(),
+                            Map.of("sakila","false", "oracle", "true")).disableAppendDbName(),
                     new DbConfig("mysql", "org.testcontainers.jdbc.ContainerDatabaseDriver",
                             ()-> "jdbc:tc:mysql:5.7.34://localhost/demo", "user", "passswd", true,
                             Map.of("sakila","false", "sequences", "false","mixedCaseTableNames", "false")).disableAppendDbName(),
@@ -87,7 +87,20 @@ public class TestHelpers {
 
                     new DbConfig("hsqldb", "org.hsqldb.jdbcDriver",
                             ()-> "jdbc:hsqldb:mem:demo", "SA", "", true,
-                            Map.of("sakila","false", "sequences", "false")).disableAppendDbName());
+                            Map.of("sakila","false", "sequences", "false")).disableAppendDbName(),
+
+                    // start local db gvenzl/oracle-xe container  with system/password and sakila/password users
+                    //
+                    // the docker container has $ORACLE_PASSWORD=password and is started via  gvenzl/oracle-xe
+
+                    new DbConfig("oracle_local", "oracle.jdbc.driver.OracleDriver",
+                            ()-> "jdbc:oracle:thin:@localhost:1521/XEPDB1", "system", "password", true,
+                            Map.of("sakila","false", "oracle", "true")).disableAppendDbName(),
+                    new DbConfig("oracle_sakila", "oracle.jdbc.driver.OracleDriver",
+                            ()-> "jdbc:oracle:thin:@localhost:1521/XEPDB1", "sakila", "password", false,
+                            Map.of("sakila","false", "oracle", "true")).disableAppendDbName()
+
+                    );
 
 
 //    DriverDataSource ds = new DriverDataSource(TestContainerTest.class.getClassLoader(),
@@ -206,7 +219,7 @@ public class TestHelpers {
 
     @Getter
     @ToString
-    static class DbConfig {
+    public static class DbConfig {
         private boolean appendDbName = true;
 
         public DbConfig(String shortname, String driverName, Supplier<String> urlPrefix, String defaultUser, String defaultPassword, boolean initDb, Map<String, String> sysProperties) {

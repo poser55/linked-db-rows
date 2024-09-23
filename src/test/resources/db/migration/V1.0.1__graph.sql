@@ -28,6 +28,12 @@ insert into Edge values (1,3);
 insert into Edge values (3,4);
 insert into Edge values (1,5);
 
+
+insert into Nodes values (20, 'NY');
+insert into Nodes values (21, 'NJ');
+
+insert into Edge values (20,21);
+
 ${mysql_include_start}
 ALTER TABLE Nodes ENGINE=InnoDB;
 ALTER TABLE Edge ENGINE=InnoDB;
