@@ -1,11 +1,17 @@
 package org.oser.tools.jdbc.experiment;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.github.benmanes.caffeine.cache.Cache;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.oser.tools.jdbc.DbExporter;
 import org.oser.tools.jdbc.DbRecord;
 import org.oser.tools.jdbc.Fk;
 import org.oser.tools.jdbc.TestHelpers;
+import org.oser.tools.jdbc.experiment.testbed.Book;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -25,8 +31,8 @@ class SelectAggregateAsJsonTest {
         DbRecord book = dbExporter.contentAsTree(connection, "book", 3);
 
         Cache<String, List<Fk>> filteredFkCache = dbExporter.getFilteredFkCache();
-        String sqlStatement = SelectAggregateAsJson.selectStatementForAggregateSelection("book", filteredFkCache, "oracle");
-   //     String sqlStatement = SelectAggregateAsJson.selectStatementForAggregateSelection("book", filteredFkCache, "postgres");
+    //    String sqlStatement = SelectAggregateAsJson.selectStatementForAggregateSelection("book", filteredFkCache, "oracle");
+        String sqlStatement = SelectAggregateAsJson.selectStatementForAggregateSelection("book", filteredFkCache, "postgres");
 
         System.out.println(sqlStatement);
 
@@ -71,4 +77,21 @@ class SelectAggregateAsJsonTest {
         invokeDbAndPrintJson(connection, sqlStatement);
     }
 
+    // can we map hierarchies easily? Y
+    // does it work with arrays in json and single values in Java? Y
+    // can we easily convert underscore_separated to camelCase names? Y
+    @Test
+    void deserializeJsonHierarchyToJava() throws JsonProcessingException {
+        String s = "{\"id\": 3, \"title\": \"Slaughter House Five\", \"dms_id\": 2, \"author_id\": 3, \"number_pages\": 350, \"images\": [{\"id\":33, \"name\": \"authorPhoto\" }], \"author\": [{\"id\": 3, \"last_name\": \"Vonnegut\"}]}";
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+        mapper.configure(DeserializationFeature.UNWRAP_SINGLE_VALUE_ARRAYS, true);
+        mapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        Book bookFromJSON = mapper.readValue(s, Book.class);
+
+        Assertions.assertNotNull(bookFromJSON);
+        System.out.println(bookFromJSON);
+    }
 }
